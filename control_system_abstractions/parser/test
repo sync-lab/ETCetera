@@ -1,0 +1,42 @@
+def check_symbols_in_exprs(allowed_chars, sym_expr):
+    """
+	The function checks if a mathematial expression contains only the specified characters as variables.
+    The function returns a dictionary containing key as the character and value as list of sympy symbols
+    in the expression starting with the character. The function raises an exception if the expression contains
+    variables with characters that are not in allowed characters. Raises an exception otherwise and end the execution.
+
+    Parameters
+    ----------
+        allowed_chars : list of characters
+            A list containing alphabetic characters.
+        sym_expr : string
+            String to be convertable to a sympy expression.
+        line_num : int
+            An interger specifying the line in the input file.
+
+    Returns
+    -------
+        Dictionary of keys as specified allowed characters and values as list of variable starting with the character.
+    """
+    list_sympy_funcs = ['sin', 'cos', 'tan']
+    try:
+        for item in re.findall(r'\w+', sym_expr):
+            if not item.isdigit() and not re.split('(\d.*)', item)[0] in list_sympy_funcs:  # Substring should not be number or sympy function
+                if len(re.split('(\d.*)', item)) == 1 or not (re.split('(\d.*)', item)[0] in allowed_chars):    # substring should not be like x or not in allowed chars
+                    raise Exception('Incorrect symbols in expressions on line: ')
+        sp.sympify(sym_expr)    # Check expressions are legit use of sin, cos, ...
+        list_of_symbols = set(re.findall('[a-zA-Z]+\\d+', sym_expr))  # Get all symbols of pattern x0, e0,..
+        #list_of_specified_chars = [re.search('[a-zA-Z]+', symbol).group(0) for symbol in list_of_symbols]   # Get only the chars in symbols, e.g. x in x0
+        #if not set(filter(None, list_of_specified_chars)).issubset(set(allowed_chars)):     # If chars in expression is not a subset of allowed chars
+        #    raise Exception('')
+        #dict_symbols = {i: set() for i in allowed_chars}    # Dictionary to chars as key and symbols as values
+        #for symbol in list_of_symbols:  # Add the symbols against correct char
+        #    dict_symbols.get(symbol[0]).add(sp.Symbol(symbol))
+        #return dict_symbols
+        sp.t
+    except TypeError:
+        raise Exception('Incorrect expression on line: ')
+    #except sp.TokenError:
+    #    raise Exception('Incorrect expression on line: ')
+    except Exception as e:
+        raise Exception(str(e))

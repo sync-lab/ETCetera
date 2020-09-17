@@ -1,0 +1,9 @@
+Hyperbox States : [1 2], [2 3], [3 4]
+Hyperbox isturbances : [1 2], [2 3], [3 4]
+Dynamics : x0**2+u0+d0, x1+x0*x2**2+d1, x2+u1+d2
+controller : -x0**2 - x0**3, -2*x2
+Triggering Condition : x0+e0
+Triggering Times : 5
+Lyapunov Function : x0
+Solver Options : p=2,
+Linesearch Options : 1, 2, 3

@@ -1,0 +1,9 @@
+Hyperbox tates : [1 2], [2 3], [3 4]
+Hyperbox Disturbances : [1 2], [2 3], [3 4]
+Dynamics : x0**2+u0+d0, x1+x0*x2**2+d1, x2*sin(x0)+u1+d2
+Controller : -x0**2 - x0**3, -x2*sin(x0)-x2
+Triggering Condition : x0+e0
+Triggering Times : 5
+Lyapunov Function : x0
+Solver options :
+Linesearch Options : 1, 2, 3
