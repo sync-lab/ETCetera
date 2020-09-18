@@ -71,8 +71,10 @@ def _sympy_to_z3_rec(var_map, e):
             raise RuntimeError("No var was corresponds to symbol '"
                                + str(e) + "'")
 
-    elif isinstance(e, sympy.Number):
+    elif isinstance(e, sympy.Rational):
         rv = z3.Fraction(e.p, e.q)
+    elif isinstance(e, sympy.Float):
+        rv = float(e)
     elif isinstance(e, sympy.Mul):
         rv = _sympy_to_z3_rec(var_map, e.args[0])
         for child in e.args[1:]:
@@ -109,6 +111,7 @@ class QuadraticForm:
 
         self.n = n1
         self.Q = (Q + Q.T)/2
+        self._is_symbolic = isinstance(self.Q, sympy.Basic)
 
         if b is not None:
             if c is None:
@@ -116,9 +119,18 @@ class QuadraticForm:
             n = b.shape[0]
             assert n == self.n, \
                 'b must be a vector of n elements if Q is n by n'
+            if self._is_symbolic and not isinstance(b, sympy.Basic):
+                b = sympy.ImmutableMatrix(b).T
         else:
             if c is not None:
-                b = np.zeros(self.n)
+                if self._is_symbolic:
+                    b = sympy.zeros(1, self.n)
+                else:
+                    b = np.zeros(self.n, dtype=int)
+
+        if self._is_symbolic and c is not None \
+                and not isinstance(c, sympy.Basic):
+            c = sympy.ImmutableMatrix([c])
 
         self.b = b
         self.c = c
@@ -267,10 +279,16 @@ class QuadraticForm:
 
     def z3_expression(self, x):
         expr = self._symbolic_rhs(x)
+        try:
+            expr = expr[0,0]
+            converted_rhs = sympy_to_z3([v for v in x], expr)[1]
+        except TypeError:  # TypeError means it's not sympy, thus it is z3.
+            converted_rhs = expr
+
         if self.strict:
-            return sympy_to_z3([v for v in x], expr[0,0])[1] < 0
+            return converted_rhs < 0
         else:
-            return sympy_to_z3([v for v in x], expr[0,0])[1] <= 0
+            return converted_rhs <= 0
 
     def sympy_expression(self, x):
         expr = self._symbolic_rhs(x)
@@ -371,8 +389,10 @@ def z3_problem(constraints, solver: z3.Solver):
     for con in constraints:
         break
     n = con.n
-    x = np.array([z3.Real('x_%s' % (i+1)) for i in range(n)])
-    x = sympy.Matrix([z3.Real('x_%s' % (i+1)) for i in range(n)])
+    if con._is_symbolic:
+        x = sympy.Matrix([z3.Real('x_%s' % (i+1)) for i in range(n)])
+    else:
+        x = np.array([z3.Real('x_%s' % (i+1)) for i in range(n)])
 
     for con in constraints:
         solver.add(con.z3_expression(x))

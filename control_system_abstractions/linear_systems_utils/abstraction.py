@@ -314,7 +314,7 @@ class TrafficModelPETC(TrafficModelETC):
 
     def __init__(self, trigger: etc.LinearQuadraticPETC, kmaxextra=None,
                  cost_computation=False, consider_noise=False,
-                 mu_threshold=0.0, min_eig_threshold=0.0,
+                 mu_threshold=0.0, min_eig_threshold=0.0, symbolic=False,
                  reduced_actions=False, early_trigger_only=False,
                  max_delay_steps=0, number_samples=10000, depth=1,
                  etc_only=False, end_level=0.01, solver='sdr',
@@ -341,7 +341,7 @@ class TrafficModelPETC(TrafficModelETC):
         self.P = trigger.P
 
         # Depending on the solver, symbolic matrix manipulation is used.
-        self._symbolic = solver in {'z3'}
+        self.symbolic = symbolic
 
         # Sanity check: algorithm only works for LTI state feedback
         if depth > 1 and (consider_noise or self.controller.is_dynamic or \
@@ -391,13 +391,15 @@ class TrafficModelPETC(TrafficModelETC):
         # self._minimal = set()
 
         # Convert M and Q matrices to sympy rational matrices
-        if self._symbolic:
+        if self.symbolic:
             self.M = {i:sympy.nsimplify(sympy.Matrix(m), tolerance=0.001,
                                         rational=True)
                       for i,m in self.M.items()}
             self.Q = {i:sympy.nsimplify(sympy.Matrix(q), tolerance=0.001,
                                         rational=True)
                       for i,q in self.Q.items()}
+            self.P = sympy.nsimplify(sympy.Matrix(self.P), tolerance=0.001,
+                                        rational=True)
 
         # Store regions that may be not in the final abstraction, but are
         # needed in the algorithm:
@@ -412,7 +414,10 @@ class TrafficModelPETC(TrafficModelETC):
         # self._all_regions stores all regions ever visited during the
         # algorithm execution. Essentially used for memoization
         self._all_regions = set((k,) for k in self.K)
-
+        # self._marginal stores regions that also satisfy the constraint
+        # V(x) == 1. These regions are associated with sampling sequences
+        # that ensure a reduction of the Lyapunov function by a factor of
+        # self.end_level
         self._marginal = set()
 
         # Regions initialize as the empty set. In fact, this would represent
@@ -431,6 +436,7 @@ class TrafficModelPETC(TrafficModelETC):
             # Split the state-space by computing potential Pre's of the
             # current regions. We say potential because we have to verify if
             # these regions can actually occur.
+            logging.info(f'Depth: {d}/{self.depth}')
             new_regions = self._generate_backward_candidates()
 
             # First bisimulation stopping criterion: no new candidates are
@@ -504,14 +510,15 @@ class TrafficModelPETC(TrafficModelETC):
 
         # Convert M and Q matrices back to numpy matrices.
         # Store the sympy matrices in different hidden attributes.
-        if self._symbolic:
+        if self.symbolic:
             self._M_sym = self.M.copy()
             self.M = {i:np.array(m).astype(np.float64)
                       for i,m in self.M.items()}
             self._Q_sym = self.Q.copy()
             self.Q = {i:np.array(q).astype(np.float64)
                       for i,q in self.Q.items()}
-
+            self._P_sym = self.P.copy()
+            self.P = np.array(self.P).astype(np.float64)
         # # if d < self.depth - 1:
         # new_regions = self._split_regions()
         # new_regions.update(x for x in self._minimal)
@@ -527,22 +534,36 @@ class TrafficModelPETC(TrafficModelETC):
         as well as transition matrices M and N.
 
         If some Q matrices are negative-definite, they are discarded, and
-        attributes kmin and kmax are overwritten accordingly."""
+        attributes kmin and kmax are overwritten accordingly.
+
+        Refer to [1]_ for the matrices involved.
+
+        References
+        ----------
+
+        .. [1] Gleizer, Gabriel de A., and Manuel Mazo Jr. "Self-triggered
+               output-feedback control of LTI systems subject to disturbances
+               and noise." Automatica 120 (2020): 109129, doi:
+               10.1016/j.automatica.2020.109129.
+        """
 
         logging.info('Building matrices for traffic model')
 
-        ''' Transition matrices '''
-        # Compute transition matrix M(\dk) such that
-        # zeta(k+\dk) = M(\dk)[xp;xc;y]
-
+        # Extract basic data
         p = self.plant
         c = self.controller
         t = self.trigger
 
         # TODO: think about how to treat fundamental PETC and
-        # abstraction times differently
+        # abstraction times differently. For now, h of the abstraction
+        # is equal to the h of the controller.
         h_abs = t.h
 
+        # nxp: state-space dimension of the plant;
+        # nxc: state-space dimension of the controller;
+        # ny: output-space dimension
+        # nu: input-space dimension
+        # nz: combined dimension of the data sent across the network: y and u.
         nxp = p.nx
         nxc = c.nx
         ny = p.ny
@@ -556,7 +577,7 @@ class TrafficModelPETC(TrafficModelETC):
 
         # Fundamental transition matrices
         Abar = np.block([[p.A, p.B], [np.zeros((nu, nxp+nu))]])
-        Phibar = la.expm(Abar*h_abs)  # Think about this h_abs
+        Phibar = la.expm(Abar*h_abs)
         Phip = Phibar[0:nxp, 0:nxp]
         Gammap = Phibar[0:nxp, nxp:]
 
@@ -566,17 +587,21 @@ class TrafficModelPETC(TrafficModelETC):
         Ack = c.A
         Bck = c.B
 
+        # Initialize lists of matrices and min/max eigenvalues of Q.
         Mlist = []
         Nlist = []
         Qlist = []
         maxeig = []
         mineig = []
 
+        # If the triggering condition can wait for a second zero crossing,
+        # kmax can be arbitrarily high: choose the user input.
         if t.must_trigger_at_first_crossing:
             kmax = None
         else:
             kmax = self.kmax
 
+        # Qbar_yuyu is the triggering matrix w.r.t. y and u.
         if not t.triggering_is_time_varying:
             if t.triggering_function_uses_output:
                 Qbar_yuyu = t.Qbar
@@ -587,10 +612,17 @@ class TrafficModelPETC(TrafficModelETC):
                 Qbar_yuyu[nz:nz+ny, 0:ny] = t.Qbar2.T
                 Qbar_yuyu[nz:nz+ny, nz:nz+ny] = t.Qbar3
 
-        for i in tqdm(range(0, t.kmax)):  # TODO: Think about this kmax_abs
-            # Transition matrices from [xp, xc, y] after k=i+1 steps
-            # [xip(t+kh), xic(t+kh)].T = M(k)[xp, xc, y].T
-            # [psi(t+kh); ups(t+kh)].T = N(k)[xp, xc, y].T
+        ''' Transition matrices:
+            Compute transition matrix M(\dk) such that
+            zeta(k+\dk) = M(\dk)[xp;xc;y],
+            where zeta is the composed state vector:
+                - zeta = x for static controllers,
+                - zeta = (x,xc) for dynamic controllers.
+            Also, compute auxiliary transition matrix N(\dk) such that
+            [y(t+\dk*h); u(t+\dk*h)].T = N(\dk)[xp; xc; y].'''
+
+        for i in tqdm(range(0, t.kmax)):
+            # M and N according to [1]_ (basic linear systems math)
             M1 = np.block([Phipk, Gammapk @ c.C, Gammapk @ c.D])
             M2 = np.block([np.zeros((nxc, nxp)), Ack, Bck])
             N1 = p.C @ np.block([Phipk, Gammapk @ c.C, Gammapk @ c.D])
@@ -608,11 +640,12 @@ class TrafficModelPETC(TrafficModelETC):
             # Q(k): defines the cone: [xp;xc;y]'Q(k)[xp;xc;y] > 0:
             # trigger at t+kh (or before)
             if t.triggering_is_time_varying:
-                Q = np.block([N.T, CE.T]) @ self._Q_time_var(i+1, h_abs) \
+                Q = np.block([N.T, CE.T]) \
+                    @ self.trigger._Q_time_var(i+1, h_abs) \
                     @ np.block([[N], [CE]])
             else:
                 Q = np.block([N.T, CE.T]) @ Qbar_yuyu @ np.block([[N], [CE]])
-            # No noise --> no need to separate xp from y, there is redundancy
+            # No noise --> no need to separate xp from y, as y = Cxp.
             if not self.consider_noise:
                 # y = Cxp - colapse to only xp-dependency
                 IIC = np.zeros((nxp+nxc+ny, nxp+nxc))
@@ -622,48 +655,59 @@ class TrafficModelPETC(TrafficModelETC):
                 Q = IIC.T @ Q @ IIC
                 M = M @ IIC
                 N = N @ IIC
-                # Normalize Q
+
+            # Normalize Q
+            if self.trigger.threshold == 0.0:
                 Q = Q/la.norm(Q)
 
-            # print(Q)
+            # Append calculated matrices to the lists
             Qlist.append(Q)
             Mlist.append(M)
             Nlist.append(N)
-            lbd, _ = la.eig(Q)
+
+            # Eigenvalues. Using np.real to avoid round-off errors
+            # (Q matrices are Hermitian).
+            lbd = la.eigvalsh(Q)
             maxeig.append(max(np.real(lbd)))
             mineig.append(min(np.real(lbd)))
-            # At this point, all states have triggered
+
+            # If mineig > 0, at this point all states would have triggered
+            # kmax is None means that we can overwrite it.
             if mineig[-1] > 0 and kmax is None:
                 kmax = i+1
                 if self.early_trigger_only:
                     self.kmaxextra = kmax
                     break
-            if kmax is not None and mineig[-1] <= 0:
-                kmax = None
+            # TODO: What the hell is this???
+            # if kmax is not None and mineig[-1] <= 0:
+            #     kmax = None
         # end for
+
         # print([x > -self.min_eig_threshold for x in mineig])
         # print(mineig)
         if kmax is None:  # maximum triggering time prevented finding Q(k) > 0
             kmax = t.kmax
-        # Erase Qs up to kmaxextra
 
-        Qlist = Qlist[:kmax]
+        # Update kmax as the last such that to mineig(Q) <= -min_eig_threshold
         if mineig[-1] > -self.min_eig_threshold:
             # Retroactive search of the last k: mineig[k] <= thresh
             for i in range(kmax-1, -1, -1):
                 if mineig[i] <= -self.min_eig_threshold:
                     break
             kmax = i+2
-            Qlist = Qlist[:kmax]
 
+        # Erase Qs up to kmax
+        Qlist = Qlist[:kmax]
+
+        # Find first k such that a trigger could occur
         try:
             kbeg = next(i for i, l in enumerate(maxeig) if l > 0) + 1
         except StopIteration:
-            print(mineig)
             raise ETCAbstractionError(
-                f'No triggering would occur up to {self.kmax}-th iteration')
+                f'No triggering would occur up to {self.kmax}-th iteration.'
+                f'List of minimum eigenvalues: {mineig}.')
 
-        ''' NEED TO FIGURE THIS OUT ONCE AND FOR ALL '''
+        # TODO: Need to figure out if this is needed at all.
         # try:
         #     kend = next(i for i, l in enumerate(mineig) if l > 0) + 1
         # except StopIteration:
@@ -683,60 +727,48 @@ class TrafficModelPETC(TrafficModelETC):
                   if i+1 >= self.kmin and maxeig[i] > 0}
         self.Q[kend] = np.eye(Qlist[0].shape[0])  # For the last, all states
         # should trigger
+
         # Normalizing Q requires adjusting non-zero threshold
+        # For now, raise an error, as this is not implemented yet.
         if t.threshold is not None and t.threshold != 0:
             raise ETCAbstractionError('Method is not prepared for non-zero'
                                       'threshold in triggering function')
 
+        # Inform resulting kmin and kmax
         logging.info('kmin=%d, kmax=%d', self.kmin, self.kmax)
 
-    # time-varying Q for Relaxed PETC, checks just the condition if the
-    # Lyapunov function exceeds the bound at the next time instant
-    def _Q_time_var(self, k, h):
-        nx = self.plant.nx
-        ny = self.plant.ny
-        nu = self.plant.nu
-        nz = ny + nu
-
-        M = np.block([[self.trigger.Ad, self.trigger.Bd @ self.controller.K]])
-        Z = np.zeros((nx, nx))
-        Pe = self.trigger.P*np.exp(-self.trigger.lbd*k*h)
-        Qbar = M.T @ self.trigger.P @ M - np.block([[Z, Z], [Z, Pe]])
-        Qbar1 = Qbar[:nx, :nx]
-        Qbar2 = Qbar[:nx, nx:]
-        Qbar3 = Qbar[nx:, nx:]
-        # Qbar1 = self.trigger.P
-        # Qbar2 = np.zeros((nx, nx))
-        # Qbar3 = -self.trigger.P*np.exp(-self.trigger.lbd*k*h)
-        self.Qbar1 = Qbar1
-        self.Qbar2 = Qbar2
-        self.Qbar3 = Qbar3
-        # self.Q = np.block([[Qbar1, Qbar2], [Qbar2.T, Qbar3]])
-        Qbar_yuyu = np.zeros((nz*2, nz*2))
-        Qbar_yuyu[0:ny, 0:ny] = Qbar1
-        Qbar_yuyu[0:ny, nz:nz+ny] = Qbar2
-        Qbar_yuyu[nz:nz+ny, 0:ny] = Qbar2.T
-        Qbar_yuyu[nz:nz+ny, nz:nz+ny] = Qbar3
-
-        return Qbar_yuyu
-
     def _reduce_sets(self):
+        """ Reduce number of M,N,Q sets based on user choices."""
+
         logging.info('Reducing number of Q, M, and N matrices.')
 
-        new_Q = {self.kmin: self.Q[self.kmin]}
-        Q1 = QuadraticForm(self.Q[self.kmin])
-        for k in tqdm(sorted(self.Q)):
-            if k > self.kmin:
-                Q2 = QuadraticForm(self.Q[k])
-                if Q1.difference_magnitude(Q2) >= self.mu_threshold:
-                    # Add to reduced dictionary
-                    new_Q[k] = self.Q[k]
-                    # Update current Q
-                    Q1 = Q2
-        self.Q = new_Q
+        # First reduction method: based on mu_threshold.
+        # Two quadratic forms are considered close to each other if
+        # there exist lambda > 0:
+            # -mu*I <= Q1 - lambda*Q2 <= mu*I
+        # in this case, we can discard one of these matrices.
+        # (Note: this is experimental and unpublished.)
+        if self.mu_threshold > 0.0:
+            new_Q = {self.kmin: self.Q[self.kmin]}
+            Q1 = QuadraticForm(self.Q[self.kmin])
+            for k in tqdm(sorted(self.Q)):
+                if k > self.kmin:
+                    Q2 = QuadraticForm(self.Q[k])
+                    if Q1.difference_magnitude(Q2) >= self.mu_threshold:
+                        # Add to reduced dictionary
+                        new_Q[k] = self.Q[k]
+                        # Update current Q
+                        Q1 = Q2
+            self.Q = new_Q
+
+        # reduced_actions imposes action set to be equal to the set of
+        # natural inter-event times.
         if self.reduced_actions:
             self.M = {k: m for k, m in self.M.items() if k in self.Q}
             self.N = {k: n for k, n in self.N.items() if k in self.Q}
+
+        # early_trigger_only imposes maximum inter-event time to be the same
+        # as the maximum natural inter-event time (plus delay, if present).
         if self.early_trigger_only:
             self.M = {k: m for k, m in self.M.items() if k <= max(self.Q)
                       + self.max_delay_steps}
@@ -748,7 +780,7 @@ class TrafficModelPETC(TrafficModelETC):
              self.kmax - self.kmin + 1, len(self.Q))
 
     def _build_precedence_relation(self):
-        r""" Computes in advance which cones for 1:k-1 are contained
+        r""" Compute in advance which cones for 1:k-1 are contained
         in cone for k. This will reduce the size of the constraint
         satisfaction problem.
 
@@ -759,37 +791,52 @@ class TrafficModelPETC(TrafficModelETC):
         If this is true, the second inequality above is redundant with the
         first, and therefore it can be omitted wherever the first is.
 
+        This function stores in self._predecessors this precedence relation.
+        That is, if the above example holds, then 1 belongs to
+        self._predecessors[2].
+
+        self._predecessors is a dictionary of sets.
         """
 
         logging.info('Building precedence relation for quadratic forms')
 
         Q = self.Q
-        # Check quadratic forms ordering
+
+        # Build dictionary of quadratic forms
         q = {k: QuadraticForm(x) for k, x in Q.items()}
+
+        # Note: by construction of Q, q is already sorted by k.
+
+        # Initialize precedessor dictionary.
         predecessors = {}
+
+        # Main loop over quadratic forms
         for i, Qi in q.items():
-            if i == 1:
+            if i == 1:  # First triggering time cannot have predecessors
                 predecessors[i] = {}
-            if i == 2:
+            if i == 2:  # Basic verification, cannot use existing results
                 predecessors[i] = {j for j, Qj in q.items()
                                    if i > j and Qi > Qj}
+                # Qi > Qj checks the mathematical formula on
+                # the docstring of this function.
             else:
+                # here we can use the existing precessors for j < i.
                 predecessors[i] = set()
+                # All j < i is a predecessor candidate
                 candidates = sorted([j for j in q if j < i])
+                # Check backwards from i-1 to 1.
                 while len(candidates) > 0:
                     j = candidates.pop()
-                    if Qi > q[j]:
-                        predecessors[i].add(j)
-                        # include predecessors[j] in predecessors of i
+                    if Qi > q[j]:  # if j is a predecessor of i
+                        predecessors[i].add(j)  # Add it to the set...
+                        # and include predecessors[j] in predecessors of i
                         predecessors[i].update(predecessors[j])
-                        for k in predecessors[j]:
+                        for k in predecessors[j]:  # Then remove these from
+                            # the candidate list.
                             if k in candidates:
                                 candidates.remove(k)
-        # nonpredecessors = {i: {j for j in range(0,i)
-        #                        if j not in predecessors[i]}
-        #                    for i in predecessors}
+
         self._predecessors = predecessors
-        # self.nonpredecessors = nonpredecessors
 
         # Logging of simplification statistics
         count_non_ideal = sum(1 for x, p in self._predecessors.items()
@@ -800,6 +847,7 @@ class TrafficModelPETC(TrafficModelETC):
                      count_non_ideal/len(self.Q))
 
     def _prepare_matrices_for_transitions(self):
+        """ Some other useful matrices to be stored."""
         P = self.trigger.P
         M = self.M
         Q = self.Q
@@ -813,11 +861,33 @@ class TrafficModelPETC(TrafficModelETC):
         MQM = {(i, j): mi.T @ qj @ mi
                for i, mi in M.items() for j, qj in Q.items()}
         # When threshold is zero, we can also normalize these matrices
-        MQM = {x: mqm/la.norm(mqm) for x, mqm in MQM.items()}
+        if self.trigger.threshold == 0.0:
+            MQM = {x: mqm/la.norm(mqm) for x, mqm in MQM.items()}
         self._MQM = MQM
 
     def _generate_backward_candidates(self):
-        # Update max and min string lengths
+        """Generate candidates for new regions.
+
+        For every current region s that is not initial, generate
+        candidates ks for all k in self.K. This is the splitting part of
+        the bisimulation algorithm, where a region P is divided among
+        Pre(P) and P\Pre(P). Here, we essentially compute the candidates
+        Pre_k(P) for k in K, where Pre_k represents the Pre where a specific
+        inter-event time k is chosen. In fact, Pre(P) = union_(k in K)Pre_k(P).
+
+        These are just candidates, in the sense that Pre_k(P) may be empty
+        for some k. Checking such emptiness is the most expensive part of the
+        algorithm, done later in _verify_candidates. Some candidates are
+        excluded in this function using some cheaper check.
+
+        Returns
+        -------
+        set of tuples
+            The set of candidate regions.
+
+        """
+
+        # Update max and min string lengths existing in self.regions.
         try:
             self._minL = min(len(x) for x in self.regions)
             self._maxL = max(len(x) for x in self.regions)
@@ -827,10 +897,24 @@ class TrafficModelPETC(TrafficModelETC):
 
         # Generate all candidates
         # TODO: this is not very smart; can use the Pres instead.
+        # (For now, leave it as is, it's not a bottleneck of the code runtime)
         out_set = set()
-        possible_initial = set()
+        possible_initial = set()  # Deprecated for now
         for (i,k) in itertools.product(self.regions - self._initial, self.K):
             ki = (k,) + i
+
+            # _substring_exists verifies if all substrings of ki exist in
+            # self.regions (respecting minimum and maximum string lengths)
+            # If ki has a substring that does not exist in the current
+            # region set, that means that the related subsequence of
+            # inter-event times cannot be generated by the system, and
+            # therefore ki cannot either. This way ki can be excluded from
+            # the candidate set.
+
+            # Likewise, if ki is an initial set, it will be added to the
+            # set of regions at a later moment, and we do not need to
+            # verify its existance.
+
             if self._substring_exists(ki) and ki not in self._initial:
                 # Check if ki's prefix is in _initial
                 for s in self._initial:
@@ -847,20 +931,63 @@ class TrafficModelPETC(TrafficModelETC):
         self.regions. If one such substring does NOT exist, return False.
         """
         L = len(ij)
+
+        # TODO: can I just check if substrings of s are in self._all_regions?
+        # TODO: If all strings of length l exist, how can one of size l-1
+        # not exist?
+
+        # The iteration goes backwards from longest to smallest substrings,
+        # because it is easier to not find long substrings than short ones.
+        # the first substring that is not found breaks the loop returning
+        # False.
+
+        # Iterate over string lengths l
         for l in range(min(L, self._maxL), self._minL - 1, -1):
+            # Iterate over the starting index of the substring
             for m in range(0, L-l):
                 s = ij[m:m+l]  # This is the substring to be checked.
+                # Iterate over the existing regions
                 for r in self.regions:
                     lr = len(r)
+                    # Case 1: lr < l: is r equal to a substring of s?
                     if lr < l and any(r == s[i:lr+i] for i in range(l-lr+1)):
                         break
+                    # Case 2: lr >= l: is s equal to a substring of r?
                     if any(s == r[i:l+i] for i in range(lr - l + 1)):
                         break
-                else:
+                else:  # Here, no substring of s was found in self.regions
                     return False
         return True
 
     def _verify_candidates(self, regions):
+        """Verify the existence of a given list of inter-event sequences.
+
+
+        Parameters
+        ----------
+        regions : set
+            Current set of candidate regions
+
+        Returns
+        -------
+        out_set : set of tuples
+            New set of regions, after verification.
+        extended_set : set of tuples
+            Like out_set, but includes regions that are out of the initial
+            set.
+        marginal_set : set of tuples
+            Subset of out_set satisfying V(x) = 1
+        initial_set : set of tuples
+            Subset of self.regions that cannot be reached from any region
+            in out_set
+
+        See also
+        --------
+
+        TrafficModelPETC._verify_sequence : Verify a single region.
+
+
+        """
         out_set = set()
 
         try:  # Paralelization does not work in iPython
@@ -888,9 +1015,62 @@ class TrafficModelPETC(TrafficModelETC):
             if all((k,) + r not in out_set for k in self.K):
                 initial_set.add(r)
 
-        return out_set, extended_set, marginal_set, initial_set
+        out = namedtuple("candidate_sets", ["out", "extended", "marginal",
+                                            "initial"])
+        return out(out_set, extended_set, marginal_set, initial_set)
 
     def _verify_sequence(self, s):
+        r"""Verify the existence of a given inter-event sequence.
+
+        The existence is verified by solving the problem: given a
+        sequence :math:`s = k_1k_2...k_m, \exists x \in
+        \mathbb{R}^\mathtt{self.n}` such that
+
+
+        .. math::
+
+           x \in \mathcal{R}_{k_1} \\
+           M(k_1)x \in \mathcal{R}_{k_2} \\
+           \vdots \\
+           M(k_{m-1})\cdots M(k_2)M(k_1)x \in \mathcal{R}_{k_m}.
+
+        In addition, it is verified, if such a state exists, whether some
+        state also satisfies :math:`V(x) \leq 1` and
+        :math:`V(M(k_{m})\cdots M(k_2)M(k_1)x) \geq \mathtt{self.end\_level}`.
+        This is returned in the boolean inside, and only computed if
+        self.stop_around_the_origin; otherwise, it is True if the first
+        result is True. Finally, it is checked, in case the first two
+        are True, if there exists another state :math:`x` satisfying all
+        previous conditions, in addition to :math:`V(x) = 1`. The result is
+        returned in the third and last boolean; like in the previous case,
+        this is only computed if self.stop_around_the_origin.
+
+
+        Parameters
+        ----------
+        s : tuple of ints
+            Candidate sequence of inter-event times.
+
+        Returns
+        -------
+        exists : boolean
+            Whether the sequence can be exhibited by the PETC system
+        inside : boolean
+            If exists, whether it keeps a related state satisfying V(x) <= 1
+            inside the disc with V(x) >= self.end_level.
+        marginal : boolean
+            If exists and inside, whether there is a related state satisfying
+            V(x) == 1.
+
+        """
+
+        # This verification is a short-circuit to prevent the more expensive
+        # constraint satisfaction problem described in the docstring. It
+        # verifies (1) if there is only one possible successor to the current
+        # sequence s; if so, then this sequence must exist; and (2) if the
+        # successor of this sequence is in self._initial. If so, we already
+        # now this sequence cannot exist (by definition, a sequence is
+        # initial if there is no predecessor to it).
         if not self.stop_around_origin:
             # Check whether current string maps into only one of any other
             # string
@@ -900,39 +1080,78 @@ class TrafficModelPETC(TrafficModelETC):
             if len([sp for sp in self.regions if sp[:-1] == n[:-1]]) == 1:
                 return True, True, True
 
+        # Now solve the constraint satisfaction problem. This is where the
+        # solvers will be called, and most of the computation is performed.
+        # Now, initialize returned booleans.
         exists, inside, marginal = False, False, False
+
+        # This creates a list of QuadraticForm constraints associated with
+        # the sequence s.
         con = self._add_constraints_for_region_i(s, set())
 
-        if self.stop_around_origin:
-            Mns = self._M_prod(s, len(s)-1)
-            Ms = self.M[s[-1]] @ Mns
-            # Last should be in target set
-            con.add(QuadraticForm(Ms.T @ self.P @ Ms, c=-self.end_level))
-            # The one before the last should not!
-            con.add(QuadraticForm(-Mns.T @ self.P @ Mns, c=self.end_level,
-                                  strict=True))
-        prob = QuadraticProblem(con, solver=self.solver, unit_ball=True)
+        # Create the (basic) quadratic problem.
+
+        prob = QuadraticProblem(con, solver=self.solver)
+
+        # If it has a solution, try the more specific problems
         if prob.solve():
             exists = True
             # Now check if initial state can belong inside {x: V(x) <= 1}
             if self.stop_around_origin:
+                # V(x) <= 1
                 new_cons = set((QuadraticForm(self.P, c=-1),))
+                # Build matrices: Mns = M(k_(m-1))@...@M(k_2)@M(k_1)
+                Mns = self._M_prod(s, len(s)-1)
+                # Ms = M(k_m)@M(k_(m-1))@...@M(k_2)@M(k_1)
+                Ms = self.M[s[-1]] @ Mns
+                # Last point of the trajectory should be in target set
+                new_cons.add(QuadraticForm(Ms.T @ self.P @ Ms, c=-self.end_level))
+                # The one before the last should not!
+                new_cons.add(QuadraticForm(-Mns.T @ self.P @ Mns, c=self.end_level,
+                                      strict=True))
                 prob.add_constraints(new_cons)
-                if prob.solve():
+                if prob.solve():  # Solved again? Try the marginal condition
                     inside = True
                     # Now check if there exists x: V(x) = 1
                     new_cons = set((QuadraticForm(-self.P, c=1),)) # V(x) >= 1
                     prob.add_constraints(new_cons)
                     if prob.solve():
                         marginal = True
-            else:
+            else:  # If not self.stop_around_the_origin, set the others True
                 inside, marginal = True, True
 
-        return exists, inside, marginal
+        out = namedtuple("result", ["exists", "inside", "marginal"])
+        return out(exists, inside, marginal)
 
     def _build_transition(self):
-        # Builds a list of transitions where l[(i,j)] is the list of cones
-        # reachable from region i (related to instant i+1) after j+1 steps
+        """Build the transition relation.
+
+        For every pair of regions i and j within self.regions, determine for
+        each action k in self.action_set whether there is a state x in region
+        i that can reach region j after k time units applying the same
+        control input.
+
+
+        Raises
+        ------
+        e
+            An exception raised if the solver returns an unexpected flag.
+
+        Returns
+        -------
+        None.
+
+        Creates
+        -------
+        self.transition : dictionary (X,U) : 2^X
+            The transition set-valued function: for each pair (region, time),
+            a set of reachable regions.
+
+        self.complete_cost : #TODO
+            Costs of the transitions... possibly broken currently.
+
+        """
+        """Build the transition relation"""
 
         logging.info('Building transition map')
 
@@ -945,7 +1164,7 @@ class TrafficModelPETC(TrafficModelETC):
         self._maxL = max(len(x) for x in self.regions)
 
         # Reachability problem: is there x in region i that reaches region j
-        # after k+1 sample?
+        # after k samples?
         # Cost comes almost for free here. Use cost computation instead of pure
         # feasibility
         transition = {}
@@ -1042,19 +1261,19 @@ class TrafficModelPETC(TrafficModelETC):
             Mprod = self._M_prod(i_tuple, l)
             if i < i_list[-1]:
                 MQM = Mprod.T @ self.Q[i] @ Mprod
-                if not self._symbolic:
+                if not self.symbolic:
                     MQM = MQM / max(1e-6, min(abs(la.eigvalsh(MQM))))
                 con.add(QuadraticForm(- MQM.copy(), strict=True))
             if i >= i_list[1]:
                 i_prev = i_list[i_index-1]
                 MQM = Mprod.T @ self.Q[i_prev] @ Mprod
-                if not self._symbolic:
+                if not self.symbolic:
                     MQM = MQM / max(1e-6, min(abs(la.eigvalsh(MQM))))
                 con.add(QuadraticForm(MQM.copy()))
                 for p in i_list[:i_index-1]:
                     if p not in self._predecessors[i_prev]:
                         MQM = Mprod.T @ self.Q[p] @ Mprod
-                        if not self._symbolic:
+                        if not self.symbolic:
                             MQM = MQM / max(1e-6, min(abs(la.eigvalsh(MQM))))
                         con.add(QuadraticForm(MQM.copy()))
         return con
@@ -1069,13 +1288,13 @@ class TrafficModelPETC(TrafficModelETC):
             Mprod = self._M_prod(j_tuple, l)
             if j < j_list[-1]:
                 MQM = MK.T @ Mprod.T @ self.Q[j] @ Mprod @ MK
-                if not self._symbolic:
+                if not self.symbolic:
                     MQM = MQM / min(abs(la.eigvalsh(MQM)))
                 con.add(QuadraticForm(-MQM.copy(), strict=True))
             if j >= j_list[1]:
                 j_prev = j_list[j_index-1]
                 MQM = MK.T @ Mprod.T @ self.Q[j_prev] @ Mprod @ MK
-                if not self._symbolic:
+                if not self.symbolic:
                     MQM = MQM / min(abs(la.eigvalsh(MQM)))
                 con.add(QuadraticForm(MQM.copy()))
                 # Trivially, if p subset s, it also holds for the MQM related
@@ -1083,14 +1302,14 @@ class TrafficModelPETC(TrafficModelETC):
                 for p in j_list[:j_index-1]:
                     if p not in self._predecessors[j_prev]:
                         MQM = MK.T @ Mprod.T @ self.Q[p] @ Mprod @ MK
-                        if not self._symbolic:
+                        if not self.symbolic:
                             MQM = MQM / min(abs(la.eigvalsh(MQM)))
                         con.add(QuadraticForm(MQM.copy()))
         return con
 
     def _M_prod(self, i_tuple, l):
         M = self.M
-        if self._symbolic:
+        if self.symbolic:
             prod = sympy.Identity(self.n)
         else:
             prod = np.eye(self.n)
@@ -1877,6 +2096,20 @@ def traffic2ta(traffic: TrafficModelPETC):
 
 
 if __name__ == '__main__':
+    if __DEBUG__:
+        lv = logging.DEBUG
+    else:
+        lv = logging.INFO
+
+    logger = logging.getLogger()
+    logger.setLevel(lv)
+    ch = logging.StreamHandler()
+    ch.setLevel(lv)
+    ch.setFormatter(
+        logging.Formatter('[%(levelname)s - %(filename)s:%(lineno)s - '
+                          '%(funcName)s()] %(message)s'))
+    if len(logger.handlers) <= 0:
+        logger.addHandler(ch)
     # from tests.scenarios.simple import *
     # kmax_abs = 15
     # #kmax_abs = 15
@@ -1893,7 +2126,7 @@ if __name__ == '__main__':
 
     print(NUM_CORES)
 
-    from tests.scenarios.simple import p, K, Pl, Ql, rho, x0
+    from tests.scenarios.simple import p, K, Pl, Ql, rho, lbd, x0
     import etcsim
 
     kmax_abs = 10
@@ -1906,7 +2139,7 @@ if __name__ == '__main__':
 
     # New: real eigenvalues... would it stop?
     #K = np.array([[0,-6]])
-    #K = np.array([[0.5, -5]])
+    K = np.array([[0.5, -5]])
     controller = etc.LinearController(K, 0.0001)
 
     '''Find the largest period such that the same Lyapunov inequality holds'''
@@ -1927,36 +2160,12 @@ if __name__ == '__main__':
         h = t - dt
         print(h)
 
-    h = 0.25
+    h = 0.15
     controller.h = h
-    kmax = 2
+    kmax = 3
     trig = etc.DirectLyapunovPETC(p, controller, P=Pl, Q=Ql, rho=rho,
                                   h=h, kmax=kmax, predictive=True)
 
-
-    if CDC_2020:
-            # Check exponential decay rate
-        b, Ps = trig.check_stability_pwa()
-        print(f'b = {b}')
-
-        '''Find the largest period such that the Lyaopunov function decreases
-        over samples'''
-        # (MPETC of the CDC 2020 paper)
-        dt = 0.001
-        for t in np.arange(0, 1, dt):
-            pc = etc.PeriodicLinearController(p, controller, t)
-            Phi = pc.Phi
-            dP = Phi.T @ Pl @ Phi - Pl
-            if any(np.real(la.eigvals(dP)) > 0):
-                break
-
-        hstar = t - dt
-        print(hstar)
-        hstar = np.floor(hstar*100)/100
-
-    # For the CDC paper
-    r = 0.1  # Paper: 0.1
-    controller.h = h
     # x0 = np.array([-1, 0.5])
     t0, t1 = 0, 20
     step = 0.01
@@ -1972,42 +2181,6 @@ if __name__ == '__main__':
     xs = out['xp']
     xs = xs[:,out['sample']]
 
-    if CDC_2020:
-        # Check Lyap
-        V = [x.T @ Pl @ x for x in xs.T]
-        for i,v in enumerate(V):
-            if v < r:
-                break
-        kf = ks[i]
-        x0p = xs[:,i]
-        t0p = t[kf]
-        tp = np.arange(t0p, 5, 0.01) - t0p
-        peri = etc.PeriodicLinearController(p, controller, hstar)
-        outp = etcsim.simulate_sample_and_hold_control(peri, tp, x0p, [],
-                                                    disturbance=w)
-        xall = np.concatenate((out['xp'][:,:kf], outp['xp']), axis=1)
-        ksp = np.array([x for x in range(len(tp))]) + kf
-        ksp = ksp[outp['sample']]
-        kstotal = np.concatenate((ks[:i], ksp))
-        xsp = outp['xp'][:,outp['sample']]
-
-
-        import matplotlib.pyplot as plt
-        # plt.plot(np.arange(t0, 5, 0.01), xall.T)
-        Vall = np.array([x.T @ Pl @ x for x in xall.T])
-        plt.plot(np.arange(t0, 5, 0.01), Vall)
-        plt.plot(t[ks[:i+1]], [x.T @ Pl @ x for x in xs[:,:i+1].T], 'rx')
-        plt.plot(t[ksp][1:], [x.T @ Pl @ x for x in xsp[:,1:].T], 'ro',
-                 fillstyle='none')
-        # plt.gca().set_yscale('log')
-
-        plt.xlabel('$t$')
-        plt.ylabel('\$V(\\xiv(t))\$')
-        plt.legend(('V', 'PETC', 'Periodic'))
-
-        import tikzplotlib as tikz
-        tikz.save('mpetc.tex')
-
     '''Now construct the traffic model'''
     controller.h = trig.h
     t = time.time()
@@ -2015,13 +2188,13 @@ if __name__ == '__main__':
                                mu_threshold=0.00,
                                min_eig_threshold=0,
                                reduced_actions=False,
-                               depth=10,
-                               etc_only=False,
+                               depth=1,
+                               etc_only=True,
                                early_trigger_only=True,
-                               end_level=r,
                                solver='z3',
                                stop_around_origin=False,
-                               stop_if_omega_bisimilar=False)
+                               stop_if_omega_bisimilar=False,
+                               symbolic=True)
 
     # NOTE: Reduced actions seems to degrade resulting strategy severely
     # traffic.add_level_sets(0.01, 10, 100)
@@ -2078,7 +2251,7 @@ if __name__ == '__main__':
         ch.setFormatter(
             logging.Formatter('[%(levelname)s - %(filename)s:%(lineno)s - '
                               '%(funcName)s()] %(message)s'))
-        if len(logger.handlers) <= 1:
+        if len(logger.handlers) <= 0:
             logger.addHandler(ch)
 
         h = h_abs
