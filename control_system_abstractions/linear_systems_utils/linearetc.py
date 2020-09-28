@@ -704,6 +704,36 @@ class RelaxedPETC(LinearQuadraticPETC):
     def _generate_Qbar(self):  # this one is not used
         pass
 
+    def _Q_time_var(self, k, h):
+        # Time-varying Q for Relaxed PETC, checks whether the
+        # Lyapunov function exceeds the bound at the next time instant
+        nx = self.plant.nx
+        ny = self.plant.ny
+        nu = self.plant.nu
+        nz = ny + nu
+
+        M = np.block([[self.Ad, self.Bd @ self.controller.K]])
+        Z = np.zeros((nx, nx))
+        Pe = self.P*np.exp(-self.lbd*k*h)
+        Qbar = M.T @ self.P @ M - np.block([[Z, Z], [Z, Pe]])
+        Qbar1 = Qbar[:nx, :nx]
+        Qbar2 = Qbar[:nx, nx:]
+        Qbar3 = Qbar[nx:, nx:]
+        # Qbar1 = self.trigger.P
+        # Qbar2 = np.zeros((nx, nx))
+        # Qbar3 = -self.trigger.P*np.exp(-self.trigger.lbd*k*h)
+        self.Qbar1 = Qbar1
+        self.Qbar2 = Qbar2
+        self.Qbar3 = Qbar3
+        # self.Q = np.block([[Qbar1, Qbar2], [Qbar2.T, Qbar3]])
+        Qbar_yuyu = np.zeros((nz*2, nz*2))
+        Qbar_yuyu[0:ny, 0:ny] = Qbar1
+        Qbar_yuyu[0:ny, nz:nz+ny] = Qbar2
+        Qbar_yuyu[nz:nz+ny, 0:ny] = Qbar2.T
+        Qbar_yuyu[nz:nz+ny, nz:nz+ny] = Qbar3
+
+        return Qbar_yuyu
+
     # def check_condition(self, dt, x, xhat, y=None, yhat=None,
     # u=None, uhat=None, t=None, *args):
     def trigger(self, dt, x, xhat, y=None, yhat=None,

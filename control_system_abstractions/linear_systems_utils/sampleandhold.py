@@ -134,12 +134,14 @@ class LinearSampleAndHoldController(SampleAndHoldController):
         n = len(sim_out['t'])
         for i in range(n):
             x = sim_out['xphat'][:, i]
-            if x @ self.P @ x <= target_level:
-                break
+            if target_level is not None:
+                if x @ self.P @ x <= target_level:
+                    break
         else:
-            raise ETCError('State never reached target Lyapunov value:',
-                           f' Target is {target_level}, last value was'
-                           f' {x @ self.P @ x}.')
+            if target_level is not None:
+                raise ETCError('State never reached target Lyapunov value:',
+                               f' Target is {target_level}, last value was'
+                               f' {x @ self.P @ x}.')
 
         return sim_out['t'][i], sum(sim_out['sample'][:i+1])
 
