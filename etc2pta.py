@@ -129,6 +129,7 @@ def main(argv):
             # Generate etc_controller data from controller data
             dynamics_errors, etc_controller = nlp.get_etc_controller(dict_key_to_attrs['Controller'])
             dict_symbol_to_attr['e'] = dynamics_errors.union(dynamics_errors)      # Union with existing error symbols
+            print('error from',etc_controller)
 
             dynamics_new = []
             for expr in dict_key_to_attrs['Dynamics']:
@@ -140,32 +141,37 @@ def main(argv):
             dynamics_new.extend([-1 * expr for expr in dynamics_new])
 
             # Check if only one time mentioned, then the system is homogeneous
-            is_homogenized = False if (len(dict_key_to_attrs['Triggering Times']) == 1) else True
+            is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
 
-            init_cond_symbols = tuple(map(lambda st: sp.Symbol(str.replace(str(st), "x", "a")), dict_symbol_to_attr['x']))
+            # To get parameters, sort the d symbols
             d_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['d']])
             parameters = tuple(sp.Symbol(i) for i in d_str_sorted)
 
-            print('is_homogenized', is_homogenized)
-            print('dynamics', dynamics_new)
-            print('init_cond_symbols', init_cond_symbols)
-            print('parameters', parameters)
-            print(dict_key_to_attrs['Triggering Condition'])
+            # State is a union of sorted x and e symbols
+            x_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['x']])
+            e_str_sorted = sorted([i.replace('x', 'e') for i in x_str_sorted])
+            state_str = x_str_sorted + e_str_sorted
+            state = tuple(sp.Symbol(i) for i in state_str)
+
+            # Init conditions is tuple to x replaced with a
+            a_str_sorted = sorted([i.replace('x', 'a') for i in x_str_sorted])
+            init_cond_symbols = tuple(sp.Symbol(i) for i in a_str_sorted)
+
             path, dreal_path, dreach_path, flowstar_path = None, None, None, None
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
-                                                  dynamics_new,
-                                                  dict_key_to_attrs['Deg. of Homogeneity'],
-                                                  dict_key_to_attrs['Lyapunov Function'],
-                                                  random.uniform(0.01, 0.1),
-                                                  dict_key_to_attrs['Triggering Condition'],
-                                                  (dict_symbol_to_attr['x'], dict_symbol_to_attr['e']),
-                                                  init_cond_symbols,
-                                                  parameters,
-                                                  dict_key_to_attrs['Hyperbox Disturbances'],
-                                                  dict_key_to_attrs['Solver Options']['p'],
-                                                  dict_key_to_attrs['Solver Options']['gridstep'],
-                                                  dict_key_to_attrs['Solver Options']['dreal_precision'],
-                                                  is_homogenized)
+                                                       dynamics_new,
+                                                       dict_key_to_attrs['Deg. of Homogeneity'],
+                                                       dict_key_to_attrs['Lyapunov Function'],
+                                                       random.uniform(0.01, 0.1),
+                                                       dict_key_to_attrs['Triggering Condition'],
+                                                       state,
+                                                       init_cond_symbols,
+                                                       parameters,
+                                                       dict_key_to_attrs['Hyperbox Disturbances'],
+                                                       dict_key_to_attrs['Solver Options']['p'],
+                                                       dict_key_to_attrs['Solver Options']['gridstep'],
+                                                       dict_key_to_attrs['Solver Options']['dreal_precision'],
+                                                       is_homogenized)
             print(data_obj.__dict__)
             #nonlinear_logic.create_abstractions(data_obj)
     except Exception as e:

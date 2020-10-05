@@ -137,11 +137,21 @@ def submit_data():
             dynamics_new.extend([-1 * expr for expr in dynamics_new])
 
             # Check if only one time mentioned, then the system is homogeneous
-            is_homogenized = False if (len(dict_key_to_attrs['Triggering Times']) == 1) else True
+            is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
 
-            init_cond_symbols = tuple(map(lambda st: sp.Symbol(str.replace(str(st), "x", "a")), dict_symbol_to_attr['x']))
+            # To get parameters, sort the d symbols
             d_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['d']])
             parameters = tuple(sp.Symbol(i) for i in d_str_sorted)
+
+            # State is a union of sorted x and e symbols
+            x_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['x']])
+            e_str_sorted = sorted([i.replace('x', 'e') for i in x_str_sorted])
+            state_str = x_str_sorted + e_str_sorted
+            state = tuple(sp.Symbol(i) for i in state_str)
+
+            # Init conditions is tuple to x replaced with a
+            a_str_sorted = sorted([i.replace('x', 'a') for i in x_str_sorted])
+            init_cond_symbols = tuple(sp.Symbol(i) for i in a_str_sorted)
 
             path, dreal_path, dreach_path, flowstar_path = None, None, None, None
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,

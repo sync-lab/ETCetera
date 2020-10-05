@@ -24,7 +24,6 @@ _SSC_MAX_ATTEMPTS = 3  # Number of times to try the SDP problem in inaccurate.
 class ETCUtilError(Exception):
     pass
 
-
 '''Linear algebra'''
 
 def is_positive_definite(A):
