@@ -101,8 +101,22 @@ class CustomInstallCommand(install):
         install.run(self)
         
 requires = [
-    'pyramid',
-    'waitress',
+    'dreal',
+    'sympy',
+    'numpy',
+    'setuptools',
+    'future',
+    'scipy',
+    'numba',
+    'cvxpy',
+    'z3-solver',
+    'control',
+    'matplotlib',
+    'tqdm',
+    'joblib',
+    'python-igraph',
+    'slycot',
+    'NetworkX',
     'dreal',
 ]
 

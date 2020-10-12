@@ -1,9 +1,12 @@
-import sys
 import re
 import numpy as np
-import control_system_abstractions.data.nonlinear_systems_datastructure as dat
 import control_system_abstractions.parser.syntax_checker as sc
 import sympy as sp
+
+from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import EmptyValueException, \
+    MultipleValuesFoundException, NotPositiveRealNumberException, IncorrectSyntaxException
+from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
+    ArbitraryVariableNumberingException, IncorrectNumOfSymbolicExpressionException
 
 
 def parse_nonlinear(line):
@@ -24,120 +27,115 @@ def parse_nonlinear(line):
 
     # If the key is 'dynamics'
     if line.split(':')[0].strip() == 'Dynamics':
+        dynamics = []
+        allowed_chars = list(['x', 'u', 'e', 'd'])  # Defined allowed characters in symbolic expression
         try:
-            dynamics = []
-            allowed_chars = list(['x', 'u', 'e', 'd'])  # Defined allowed characters in symbolic expression
-            sc.check_symbols_in_exprs(allowed_chars, line.split(':')[1].strip())  # Get the symbols from expression
-            for expr in line.split(':')[1].strip().split(', '):  # Split the symbolic expressions delimited by ','
-                dynamics.append(sc.check_symbolic_expr(expr))  # Verify the symbolic expression and append
-            return dynamics
+            value = line.split(':')[1].strip()  # Check value exists
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        sc.check_symbols_in_exprs(allowed_chars, value)  # Get the symbols from expression
+        for expr in line.split(':')[1].strip().split(', '):  # Split the symbolic expressions delimited by ','
+            dynamics.append(sc.check_symbolic_expr(expr))  # Verify the symbolic expression and append
+        return dynamics
 
     # If the line is 'controller'
     elif line.split(':')[0].strip() == 'Controller':
+        controller = []
+        allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
         try:
-            controller = []
-            allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
-            sc.check_symbols_in_exprs(allowed_chars, line.split(':')[1].strip())  # Get the symbols from expression
-            for expr in line.split(':')[1].strip().split(', '):  # Split the symbolic expressions delimited by ','
-                controller.append(sc.check_symbolic_expr(expr))   # Verify the symbolic expression and append
-            return controller
+            value = line.split(':')[1].strip()
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        sc.check_symbols_in_exprs(allowed_chars, value)  # Get the symbols from expression
+        for expr in line.split(':')[1].strip().split(', '):  # Split the symbolic expressions delimited by ','
+            controller.append(sc.check_symbolic_expr(expr))   # Verify the symbolic expression and append
+        return controller
 
     # If the line is 'triggering_condition'
     elif line.split(':')[0].strip() == 'Triggering Condition':
+        triggering_condition = 0
+        allowed_chars = list(['x', 'e'])  # Defined allowed characters in symbolic expression
         try:
-            triggering_condition = 0
-            allowed_chars = list(['x', 'e'])  # Defined allowed characters in symbolic expression
-            #sym_expr = sc.check_keyvalue_syntax(':', '{(.*)}', line)    # Split the data from the key based on delimiter ':'
-            if len(line.split(':')[1].strip().split(', ')) == 1:     # There should be only one expression
-                sc.check_symbols_in_exprs(allowed_chars, line.split(':')[1].strip())  # Get the symbols from expression
-                triggering_condition = sc.check_symbolic_expr(line.split(':')[1].strip())    # Verify the symbolic expression and append
-                return triggering_condition
-            else:
-                raise Exception('Only one expression expected')
+            num_exprs = len(line.split(':')[1].strip().split(', '))
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        if num_exprs == 1:     # There should be only one expression
+            sc.check_symbols_in_exprs(allowed_chars, line.split(':')[1].strip())  # Get the symbols from expression
+            triggering_condition = sc.check_symbolic_expr(line.split(':')[1].strip())    # Verify the symbolic expression and append
+            return triggering_condition
+        else:
+            raise IncorrectNumOfSymbolicExpressionException
 
     # If the line is 'lyapunov_func'
     elif line.split(':')[0].strip() == 'Lyapunov Function':
+        lyapunov_func = 0
+        allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
         try:
-            lyapunov_func = 0
-            allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
-            if len(line.split(':')[1].strip().split(',')) == 1:  # There should be only one expression
-                sc.check_symbols_in_exprs(allowed_chars, ''.join(line.split(':')[1].strip()))  # Get the symbols from expression
-                lyapunov_func = sc.check_symbolic_expr(line.split(':')[1].strip()) # Verify the symbolic expression and append
-                return lyapunov_func
-            else:
-                raise Exception('Only one expression expected')
+            num_exprs = len(line.split(':')[1].strip().split(', '))
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        if num_exprs == 1:  # There should be only one expression
+            sc.check_symbols_in_exprs(allowed_chars, ''.join(line.split(':')[1].strip()))  # Get the symbols from expression
+            lyapunov_func = sc.check_symbolic_expr(line.split(':')[1].strip()) # Verify the symbolic expression and append
+            return lyapunov_func
+        else:
+            raise IncorrectNumOfSymbolicExpressionException
 
     # If the key is 'hyperbox_states'
     elif line.split(':')[0].strip() == 'Hyperbox States':
+        hyperbox_states = []
         try:
-            hyperbox_states = []
-            for item in line.split(':')[1].strip().split(', '):  # Split the vectors delimited by ','
-                list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)  # Check the vector syntax
-                sc.check_if_numerical_values(list_of_values)  # Check that values are all real numbers
-                hyperbox_states.append([float(i) for i in list_of_values])  # Convert list into vector and append
-            return hyperbox_states
+            hyperbox_states_vectors = line.split(':')[1].strip().split(', ')
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise IncorrectSyntaxException
+        print('hyperbox_states_vectors', hyperbox_states_vectors)
+        for item in hyperbox_states_vectors:  # Split the vectors delimited by ','
+            list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)  # Check the vector syntax
+            sc.check_if_numerical_values(list_of_values)  # Check that values are all real numbers
+            hyperbox_states.append([float(i) for i in list_of_values])  # Convert list into vector and append
+        return hyperbox_states
 
     # If the line is 'hyperbox_disturbances'
     elif line.split(':')[0].strip() == 'Hyperbox Disturbances':
+        hyperbox_disturbances = []
         try:
-            hyperbox_disturbances = []
-            for item in line.split(':')[1].strip().split(', '):   # Split the vectors delimited by ','
-                list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)    # Check the vector syntax
-                sc.check_if_numerical_values(list_of_values)    # Check the values are real numbers
-                hyperbox_disturbances.append([float(i) for i in list_of_values])  # Convert list into vector and append
-            return hyperbox_disturbances
+            hyperbox_disturbances_vectors = line.split(':')[1].strip().split(', ')
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise IncorrectSyntaxException
+        print(hyperbox_disturbances)
+        for item in hyperbox_disturbances_vectors:   # Split the vectors delimited by ','
+            list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)    # Check the vector syntax
+            sc.check_if_numerical_values(list_of_values)    # Check the values are real numbers
+            hyperbox_disturbances.append([float(i) for i in list_of_values])  # Convert list into vector and append
+        return hyperbox_disturbances
+
 
     # If the line is 'triggering_times'
     elif line.split(':')[0].strip() == 'Triggering Times':
+        triggering_times = []
         try:
-            triggering_times = []
-            sc.check_if_numerical_values(re.split(', ', line.split(':')[1].strip()))    # Check that comma separated values are numerical
-            for time in line.split(':')[1].strip().split(', '):
-                triggering_times.append(float(time))
-            return triggering_times
+            value = line.split(':')[1].strip()
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        sc.check_if_numerical_values(re.split(', ', value))    # Check that comma separated values are numerical
+        for time in line.split(':')[1].strip().split(', '):
+            triggering_times.append(float(time))
+        return triggering_times
+
 
     # If the line is 'deg_of_homogeneity'
     elif line.split(':')[0].strip() == 'Deg. of Homogeneity':
         try:
-            if len(line.split(':')[1].strip().split(',')) == 1:  # There should be only one value
-                sc.check_if_numerical_values(line.split(':')[1].strip().split(' '))     # Check if float value
-                if float(line.split(':')[1].strip()) < 0:
-                    raise Exception('Value should be positive real number')
-                return float(line.split(':')[1].strip())
-            else:
-                raise Exception('Only one expression expected')
+            value = line.split(':')[1]
         except IndexError:
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+            raise EmptyValueException
+        if len(value.strip().split(',')) != 1:  # There should be only one value
+            raise MultipleValuesFoundException
+        sc.check_if_numerical_values(value.strip().split(' '))     # Check if float value
+        if float(value.strip()) < 0:
+            raise NotPositiveRealNumberException
+        return float(value.strip())
+
 
     # If the line is 'solver_options'
     elif line.split(':')[0].strip() == 'Solver Options':
@@ -146,27 +144,31 @@ def parse_nonlinear(line):
         try:
             if len(list(filter(None, line.split(':')[1].strip().split(', ')))) == 0:   # Check if no values specified, this data structure can be empty
                 return solver_options
+
             for item in line.split(':')[1].strip().split(', '):
                 re.search('[a-z]+=[a-z0-9.]+', item).group(0)
                 key = item.split('=')[0]
                 value = item.split('=')[1]
-                if key == 'p' and float(value) and float(value) > 0:
+
+                if key == 'p':
+                    assert float(value) > 0
                     solver_options.update({key: float(value)})
-                elif key == 'gridstep' and float(value) and float(value) > 2:
+                elif key == 'gridstep':
+                    assert float(value) > 2
                     solver_options.update({key: float(value)})
-                elif key == 'dreal_precision' and float(value):
+                elif key == 'dreal_precision':
                     solver_options.update({key: float(value)})
-                elif key == 'timeout' and float(value):
+                elif key == 'timeout':
                     solver_options.update({key: float(value)})
-                elif key == 'opt_method' and value.split('=')[1] in ['simplex', 'interior-point']:
+                elif key == 'opt_method':
+                    assert value in ['revised simplex', 'simplex', 'interior-point']
                     solver_options.update({key: value})
                 else:
-                    raise Exception('Error in value: ')
+                    pass
             return solver_options
-        except (IndexError, AttributeError):
-            raise Exception('Syntax error')
-        except Exception as e:
-            raise Exception(str(e))
+        except (IndexError, AttributeError, AssertionError):
+            raise IncorrectSyntaxException
+
 
     # If the line is 'linesearch_options'
     elif line.split(':')[0].strip() == 'Linesearch Options':
@@ -178,10 +180,8 @@ def parse_nonlinear(line):
                 re.search('[a-z]+=[a-z0-9.]+', value).group(0)
                 linesearch_options.update({value.split('=')[0]: float(value.split('=')[1])})
             return linesearch_options
-        except (IndexError, AttributeError):
-            raise Exception('Syntax error')
         except Exception as e:
-            raise Exception(str(e))
+            raise IncorrectSyntaxException
 
     else:
         pass

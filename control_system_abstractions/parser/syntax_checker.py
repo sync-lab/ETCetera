@@ -3,6 +3,13 @@ import re
 import sympy as sp
 import tokenize
 
+from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
+    ArbitraryVariableNamingException, ArbitraryVariableNumberingException, IncorrectSymbolicExpressionException
+from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
+    NonnumbericValuesFoundException, EmptyValueException, IncorrectSyntaxException
+from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_syntax_exceptions import \
+    IncorrectMatrixBoundaryException, NonnumericValueInMatrixException, IncorrectMatrixDefinitionException
+
 
 def check_keyvalue_syntax(split_exp, search_exp, line):
     """
@@ -29,9 +36,10 @@ def check_keyvalue_syntax(split_exp, search_exp, line):
         value = re.split(split_exp, re.search(search_exp, line).group(1))   # Split the string with delimiter and search for the pattern
         value = list(filter(None, value))   # Remove space and empty characters from the list
         value = list(filter(str.strip, value))
+        print(value)
         return value
-    except Exception as e:
-        raise Exception('Syntax error for value')
+    except Exception:
+        raise IncorrectSyntaxException
 
 
 def check_if_numerical_values(list_to_check):
@@ -50,8 +58,10 @@ def check_if_numerical_values(list_to_check):
     # number and check if the value is a number
     is_all_numbers = all(item.lstrip('-+').replace('.', '', 1).isdigit() for item in list_to_check)
     # Check values are number or length of list is 0, then invalid data specified
-    if (not is_all_numbers) or (len(list_to_check) == 0):
-        raise Exception('Non-numerical values found')
+    if (not is_all_numbers) or len(list_to_check) == 0:
+        raise NonnumbericValuesFoundException
+    else:
+        pass
 
 
 def check_matrix_syntax(matrix_str):
@@ -71,34 +81,32 @@ def check_matrix_syntax(matrix_str):
     -------
         A tuple containing row and column length to shape a list to a matrix.
     """
+
+    row_len = 0  # Variable to hold length of each row
     try:
-        row_len = 0  # Variable to hold length of each row
         matrix_str_searched = re.search('\[(.*)\]', matrix_str).group(1)   # Search matrix string for '[ .. ]'
+    except Exception:
+        raise IncorrectMatrixBoundaryException
 
-        # Check if pattern like '[1 2] 3 4' exists
-        if not len(re.findall(r'\d+', matrix_str)) == len(re.findall(r'\d+', matrix_str_searched)):
-            raise Exception('Incorrect matrix definition')
+    # Check if pattern like '[1 2] 3 4' exists
+    if not len(re.findall(r'\d+', matrix_str)) == len(re.findall(r'\d+', matrix_str_searched)):
+        raise IncorrectMatrixBoundaryException
 
-        # Check all values within [] are numbers
-        matrix_split = list(filter(None, re.split(' |;', matrix_str_searched)))
-        if not all(item.lstrip('-+').replace('.', '', 1).isdigit() for item in matrix_split):
-            raise Exception('Some value in matrix definition are not numbers')
+    # Check all values within [] are numbers
+    matrix_split = list(filter(None, re.split(' |;', matrix_str_searched)))
+    if not all(item.lstrip('-+').replace('.', '', 1).isdigit() for item in matrix_split):
+        raise NonnumericValueInMatrixException
 
-        # Split the matrix string using ';', which indicates a new row and check num of columns for each row
-        for row in matrix_str_searched.split(';'):
-            if row_len == 0 or len(list(filter(None, row.split(' ')))) == row_len:  # Check if first row or number of digits is same as previous row
-                row_len = len(list(filter(None, row.split(' '))))   # Get length of split string
-            else:
-                raise Exception('Number of columns does not match in the matrix definition')
+    # Split the matrix string using ';', which indicates a new row and check num of columns for each row
+    for row in matrix_str_searched.split(';'):
+        if row_len == 0 or len(list(filter(None, row.split(' ')))) == row_len:  # Check if first row or number of digits is same as previous row
+            row_len = len(list(filter(None, row.split(' '))))   # Get length of split string
+        else:
+            raise IncorrectMatrixDefinitionException
 
-        # Calculate the shape of the matrix, i.e (num of rows, num of cols)
-        total_len = len((list(filter(None, list(filter(str.strip, re.split(' |;', matrix_str_searched)))))))
-
-        return (int(total_len / row_len), row_len)
-    except AttributeError:
-        raise Exception('Missing matrix or vector definition')
-    except Exception as e:
-        raise Exception(str(e))
+    # Calculate the shape of the matrix, i.e (num of rows, num of cols)
+    total_len = len((list(filter(None, list(filter(str.strip, re.split(' |;', matrix_str_searched)))))))
+    return (int(total_len / row_len), row_len)
 
 
 def check_symbols_in_exprs(allowed_chars, sym_expr):
@@ -123,20 +131,18 @@ def check_symbols_in_exprs(allowed_chars, sym_expr):
     """
     list_sympy_funcs = ['sin', 'cos', 'tan']
     try:
-        for item in re.findall(r'\w+', sym_expr):
-            if not item.isdigit() and not re.split('(\d.*)', item)[0] in list_sympy_funcs:  # Substring should not be number or sympy function
-                if len(re.split('(\d.*)', item)) == 1 or not (re.split('(\d.*)', item)[0] in allowed_chars):    # substring should not be like x or not in allowed chars
-                    raise Exception('Incorrect symbols in expressions')
-        sp.sympify(sym_expr)    # Check expressions are legit use of sin, cos, ...
-    except TypeError:
-        raise Exception('Incorrect expression')
-    except Exception as e:
-        if 'TokenError' in str(e):
-            raise Exception('Incorrect expression')
-        elif 'SyntaxError' in str(e):
-            raise Exception('Incorrect expression')
-        else:
-            raise Exception(str(e))
+        sp.sympify(sym_expr)  # Check expressions are legit use of sin, cos, ...
+    except Exception:
+        raise IncorrectSymbolicExpressionException
+
+    for item in re.findall(r'\w+', sym_expr):
+        if not item.isdigit() and not re.split('(\d.*)', item)[0] in list_sympy_funcs:  # Substring should not be number or sympy function
+            if len(re.split('(\d.*)', item)) == 1 or not (re.split('(\d.*)', item)[0] in allowed_chars):    # If substring is like 'x' or not in allowed chars
+                raise ArbitraryVariableNamingException
+            elif re.split('(\d.*)', item)[1] == '0':
+                raise ArbitraryVariableNumberingException
+            else:
+                pass
 
 
 def check_symbolic_expr(sym_expr):
@@ -157,13 +163,6 @@ def check_symbolic_expr(sym_expr):
     """
     try:
         return sp.sympify(sym_expr)     # Check if expression can be converted to a Sympy expression
-    except TypeError:
-        raise Exception('Incorrect expression')
-    except Exception as e:
-        if 'TokenError' in str(e):
-            raise Exception('Incorrect expression')
-        elif 'SyntaxError' in str(e):
-            raise Exception('Incorrect expression')
-        else:
-            raise Exception(str(e))
+    except Exception:
+        raise IncorrectSymbolicExpressionException
 

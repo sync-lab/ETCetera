@@ -1,10 +1,10 @@
-Hyperbox States : [1 2], [2 3], [3 4]
-Hyperbox Disturbances : [1 2], [2 3], [3 4]
-Dynamics : x0**2+u0+d0, x1+x0*x2**2+d1, x2*sin(x0)+u1+d2
-Controller : -x0**2 - x0**3, -x2*sin(x0)-x2
-Triggering Condition : x0+e0
-Triggering Times : 5
-Lyapunov Function : x0
-Deg. of Homogeneity : 3
+Hyperbox States : [-1 1], [-1 1]
+Hyperbox Disturbances : [-0.1 0.1]
+Dynamics : -x1*x3**2, x1**2*x1 + x2**3 + u1 + d1*x3**3, 0
+Controller : -x2*x3**2 - x1**2*x1 - x2**3
+Triggering Condition : e1**2 + e2**2 - 0.01**2*x3**2
+Triggering Times : 0.0001
+Lyapunov Function : x1**2+x2**2+x3**2
+Deg. of Homogeneity: 2
 Solver Options :
 Linesearch Options :
