@@ -187,8 +187,23 @@ def main(argv):
 
         # Add the symbol to correct attr
         for symbol in set_symbols:
+            dict_symbol_to_attr[symbol[0]].add(symbol)
+
+        for key in dict_symbol_to_attr.keys():
+            sorted_list = sorted(list(dict_symbol_to_attr[key]))
+            i = 1
+            for item in sorted_list:
+                if not int(re.split('(\d.*)', item)[1]) == i:
+                    print('Incorrect variable numbering')
+                    sys.exit()
+                i += 1
+
+        # Add the symbol to correct attr
+        for symbol in set_symbols:
+            dict_symbol_to_attr[symbol[0]].remove(symbol)
             dict_symbol_to_attr[symbol[0]].add(sp.Symbol(symbol))
 
+        print('len', dict_symbol_to_attr, len(dict_symbol_to_attr['u']), '---', len(dict_key_to_attrs['Controller']))
         # Number of controller exprs and dynamics inputs have be equal
         if not len(dict_symbol_to_attr['u']) == len(dict_key_to_attrs['Controller']):
             print('Incorrect number of controller expressions!')
@@ -218,9 +233,16 @@ def main(argv):
 
         # State is a union of sorted x and e symbols
         x_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['x']])
-        x_str_sorted.append('w1')   # additional variable
+        #if len(dict_symbol_to_attr['w']) and :
+        #    pass
+        #elif len(dict_symbol_to_attr['w']) > 1:
+         #   print('Incorrect variable naming for \'w\' variables')
+        #    sys.exit()
+        #else:
+
+        print(dict_symbol_to_attr['w'])
         e_str_sorted = sorted([str(i).replace('x', 'e') for i in dict_symbol_to_attr['x']])
-        e_str_sorted.append('ew')
+        e_str_sorted.append('ew') #only append if w1 exists
         state_str = set(x_str_sorted + e_str_sorted)
         state = tuple(sp.Symbol(i) for i in state_str)
 
