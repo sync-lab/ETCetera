@@ -23,7 +23,7 @@ import sympy
 from . import linearetc as etc
 from . import linearsys
 from .etcutil import QuadraticForm, sdr_problem, QuadraticProblem
-# from .etcgraph import TrafficAutomaton
+#from .etcgraph import TrafficAutomaton
 from .etcgraph_python_specific import TrafficAutomaton
 
 

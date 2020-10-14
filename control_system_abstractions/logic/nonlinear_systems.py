@@ -63,83 +63,83 @@ def create_abstractions(data_obj):
             print('Box of initial conditions:{}'.format(domain_init_cond))
             data_obj.init_cond_domain = domain_init_cond
 
-        data_obj.symbolic_box_of_initial_conditions = data_obj.create_symbolic_domain_init_cond()
+    data_obj.symbolic_box_of_initial_conditions = data_obj.create_symbolic_domain_init_cond()
 
-        data_obj.symbolic_domain_of_parameters = data_obj.create_symbolic_domain_of_parameters()
+    data_obj.symbolic_domain_of_parameters = data_obj.create_symbolic_domain_of_parameters()
 
-        data_obj.lie = data_obj.lie_derivatives()
+    data_obj.lie = data_obj.calculate_lie_derivatives()
 
-        data_obj.samples = data_obj.discretize_init_cond_and_param_domain()
+    data_obj.samples = data_obj.discretize_init_cond_and_param_domain()
 
-        data_obj.lie_n = data_obj.lie[-1]
+    data_obj.lie_n = data_obj.lie[-1]
 
 
-        """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
-        if the found solutions verify the constraints.
+    """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
+    if the found solutions verify the constraints.
 
-        optional argument:
-            dreal_precision (rational): Precision used in dReal. Default = 0.01
-            time_out: maximum time in seconds, after which the verification with dReal is canceled. Default = None
-            lp-method: The LP method 'revised simplex' or 'interior-point'. Default =' revisedsimplex'
-            C (numpy array): Cost function vector c of the LP problem
-            D (tuple of tuples): Bounds on the delta's
-            verbose (Boolean): Print LP solver information. Default = False
+    optional argument:
+        dreal_precision (rational): Precision used in dReal. Default = 0.01
+        time_out: maximum time in seconds, after which the verification with dReal is canceled. Default = None
+        lp-method: The LP method 'revised simplex' or 'interior-point'. Default =' revisedsimplex'
+        C (numpy array): Cost function vector c of the LP problem
+        D (tuple of tuples): Bounds on the delta's
+        verbose (Boolean): Print LP solver information. Default = False
 
-        """
-        # Initialize parameters to calculate upper bound
-        dreal_precision_upper_bound = 0.01
-        time_out_upper_bound = None
-        lp_method = 'revised simplex'
-        C_mat_lp = []
-        D_mat_lp = []
-        verbose = False
-        LP_data = LPData(data_obj, C_mat_lp, D_mat_lp)  # Initialize LP data from the user specified data
-        res = {'sat': False}  # when the solution is found we set res['sat'] = true
-        res_flag = 0
-        res_flag_final = 0
-        iteration = 1
-        while not res['sat']:  # iterate until the solution is found
-            print("\n Starting iteration {}".format(iteration))
-            res_flag = LP_data.LP_solve(lp_method, Verbose=verbose)  # first solve the LP
-            if res_flag == -1:
-                break
-            data_obj.deltas = LP_data.solutions[-1][:-1]  # these are the solutions found by the LP
-            data_obj.gamma = LP_data.solutions[-1][-1]
-            print("Delta's: {}".format(data_obj.deltas))
-            print("Infinity norm: {}".format(data_obj.gamma))
-            # Construct the UBF given the set of obtained delta's
-            data_obj.construct_UBF()
-            # Verify the condition using dReal
-            res = data_obj.verify_upper_bound_constraint(dreal_precision_upper_bound,
-                                                     time_out=time_out_upper_bound)  # check if the found solutions verify the constraints
-            if res['time-out']:
-                print(
-                    "WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or adapt the specification")
-                res_flag = -2
-                break
+    """
+    # Initialize parameters to calculate upper bound
+    dreal_precision_upper_bound = 0.01
+    time_out_upper_bound = None
+    lp_method = 'revised simplex'
+    C_mat_lp = []
+    D_mat_lp = []
+    verbose = False
+    LP_data = LPData(data_obj, C_mat_lp, D_mat_lp)  # Initialize LP data from the user specified data
+    res = {'sat': False}  # when the solution is found we set res['sat'] = true
+    res_flag = 0
+    res_flag_final = 0
+    iteration = 1
+    while not res['sat']:  # iterate until the solution is found
+        print("\n Starting iteration {}".format(iteration))
+        res_flag = LP_data.LP_solve(lp_method, Verbose=verbose)  # first solve the LP
+        if res_flag == -1:
+            break
+        data_obj.deltas = LP_data.solutions[-1][:-1]  # these are the solutions found by the LP
+        data_obj.gamma = LP_data.solutions[-1][-1]
+        print("Delta's: {}".format(data_obj.deltas))
+        print("Infinity norm: {}".format(data_obj.gamma))
+        # Construct the UBF given the set of obtained delta's
+        data_obj.construct_UBF()
+        # Verify the condition using dReal
+        res = data_obj.verify_upper_bound_constraint(dreal_precision_upper_bound,
+                                                 time_out=time_out_upper_bound)  # check if the found solutions verify the constraints
+        if res['time-out']:
+            print(
+                "WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or adapt the specification")
+            res_flag = -2
+            break
 
-            if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
-                # Set the value to lp-data
-                LP_data.calculate_constraints(data_obj, res['violation'], dreal_precision_upper_bound)
+        if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
+            # Set the value to lp-data
+            LP_data.calculate_constraints(data_obj, res['violation'], dreal_precision_upper_bound)
 
-            if (LP_data.A[-1] == LP_data.A[-3]) and (LP_data.B[-1] == LP_data.B[-3]):
-                # if the same counterexample as before is returned, then terminate
-                print('ERROR: Same counterexample found by dReal. Terminating script.')
-                res_flag = -3
-                break
+        if (LP_data.A[-1] == LP_data.A[-3]) and (LP_data.B[-1] == LP_data.B[-3]):
+            # if the same counterexample as before is returned, then terminate
+            print('ERROR: Same counterexample found by dReal. Terminating script.')
+            res_flag = -3
+            break
 
-            if res['sat']:  # if the solutions verify the constraint change the flag res_flag_final
-                res_flag_final = 1
+        if res['sat']:  # if the solutions verify the constraint change the flag res_flag_final
+            res_flag_final = 1
 
-            iteration += 1
+        iteration += 1
 
-        if res_flag_final > 0:
-            print('Valid bound found!')
-            print('The deltas are:{}'.format(LP_data.solutions[-1][:-1]))
-            return 1
-        else:
-            print("No solution has been found. Try different LP or dReal settings")
-            return -1
+    if res_flag_final > 0:
+        print('Valid bound found!')
+        print('The deltas are:{}'.format(LP_data.solutions[-1][:-1]))
+        return 1
+    else:
+        print("No solution has been found. Try different LP or dReal settings")
+        return -1
 
 
     """INPUTS:

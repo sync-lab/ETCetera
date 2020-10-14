@@ -237,7 +237,12 @@ def main(argv):
         x_str_sorted.append(list(dict_symbol_to_attr['w'])[0])
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
-        path, dreal_path, dreach_path, flowstar_path = None, None, None, None
+        #path, dreal_path, dreach_path, flowstar_path = None, None, None, None
+        path = '/Users/gdelimpaltadak/Desktop/Material/Code/Python/Isoc_Manifolds_Tool/SMT_files'
+        # dreal_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReal'
+        dreal_path = '/Users/gdelimpaltadak/dreal4/bazel-bin/dreal/dreal'
+        dreach_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReach'
+        flowstar_path = '/Users/gdelimpaltadak/Downloads/flowstar-2.0.0/flowstar'
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
@@ -254,7 +259,7 @@ def main(argv):
                                                        dict_key_to_attrs['Solver Options']['dreal_precision'],
                                                        is_homogenized)
             print(data_obj.__dict__)
-            #nonlinear_logic.create_abstractions(data_obj)
+            nonlinear_logic.create_abstractions(data_obj)
         except Exception as e:
             print(str(e))
             sys.exit()
