@@ -28,7 +28,7 @@ def parse_nonlinear(line):
     # If the key is 'dynamics'
     if line.split(':')[0].strip() == 'Dynamics':
         dynamics = []
-        allowed_chars = list(['x', 'u', 'e', 'd'])  # Defined allowed characters in symbolic expression
+        allowed_chars = list(['x', 'u', 'e', 'd', 'w'])  # Defined allowed characters in symbolic expression
         try:
             value = line.split(':')[1].strip()  # Check value exists
         except IndexError:
@@ -41,7 +41,7 @@ def parse_nonlinear(line):
     # If the line is 'controller'
     elif line.split(':')[0].strip() == 'Controller':
         controller = []
-        allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
+        allowed_chars = list(['x', 'w'])  # Defined allowed characters in symbolic expression
         try:
             value = line.split(':')[1].strip()
         except IndexError:
@@ -54,7 +54,7 @@ def parse_nonlinear(line):
     # If the line is 'triggering_condition'
     elif line.split(':')[0].strip() == 'Triggering Condition':
         triggering_condition = 0
-        allowed_chars = list(['x', 'e'])  # Defined allowed characters in symbolic expression
+        allowed_chars = list(['x', 'e', 'w'])  # Defined allowed characters in symbolic expression
         try:
             num_exprs = len(line.split(':')[1].strip().split(', '))
         except IndexError:
@@ -69,7 +69,7 @@ def parse_nonlinear(line):
     # If the line is 'lyapunov_func'
     elif line.split(':')[0].strip() == 'Lyapunov Function':
         lyapunov_func = 0
-        allowed_chars = list(['x'])  # Defined allowed characters in symbolic expression
+        allowed_chars = list(['x', 'w'])  # Defined allowed characters in symbolic expression
         try:
             num_exprs = len(line.split(':')[1].strip().split(', '))
         except IndexError:

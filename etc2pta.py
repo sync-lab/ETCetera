@@ -73,7 +73,7 @@ def main(argv):
                              'Solver Options': {'p': 1, 'opt_method': None, 'gridstep': 2, 'dreal_precision': 0.01},
                              'Linesearch Options': {}, 'Lyapunov Function': None, 'Deg. of Homogeneity': None}
         # Dictionary to hold symbols in expressions
-        dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set()}
+        dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set(), 'w': set()}
 
     try:
         with open(inputfile, 'r') as reader:
@@ -221,7 +221,7 @@ def main(argv):
         x_str_sorted.append('w1')   # additional variable
         e_str_sorted = sorted([str(i).replace('x', 'e') for i in dict_symbol_to_attr['x']])
         e_str_sorted.append('ew')
-        state_str = x_str_sorted + e_str_sorted
+        state_str = set(x_str_sorted + e_str_sorted)
         state = tuple(sp.Symbol(i) for i in state_str)
 
         print('state',state)
