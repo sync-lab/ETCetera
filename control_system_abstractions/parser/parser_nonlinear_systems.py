@@ -88,7 +88,6 @@ def parse_nonlinear(line):
             hyperbox_states_vectors = line.split(':')[1].strip().split(', ')
         except IndexError:
             raise IncorrectSyntaxException
-        print('hyperbox_states_vectors', hyperbox_states_vectors)
         for item in hyperbox_states_vectors:  # Split the vectors delimited by ','
             list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)  # Check the vector syntax
             sc.check_if_numerical_values(list_of_values)  # Check that values are all real numbers
@@ -102,7 +101,6 @@ def parse_nonlinear(line):
             hyperbox_disturbances_vectors = line.split(':')[1].strip().split(', ')
         except IndexError:
             raise IncorrectSyntaxException
-        print(hyperbox_disturbances)
         for item in hyperbox_disturbances_vectors:   # Split the vectors delimited by ','
             list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)    # Check the vector syntax
             sc.check_if_numerical_values(list_of_values)    # Check the values are real numbers

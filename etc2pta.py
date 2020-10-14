@@ -79,7 +79,6 @@ def main(argv):
         with open(inputfile, 'r') as reader:
             for line_num, line in enumerate(reader, 1):         # Read line along with line number
                 line_key = line.split(':')[0].strip()           # Get the key in the line
-                print(line_key)
                 if line_key in dict_key_to_attrs.keys() and systemtype == 'linear':     # Check if correct key
                     parsed_data = lp.parse_linear(line)         # Call the linear parser function with line
                 elif line_key in dict_key_to_attrs.keys() and systemtype == 'non-linear':
@@ -198,12 +197,6 @@ def main(argv):
                     sys.exit()
                 i += 1
 
-        # Add the symbol to correct attr
-        for symbol in set_symbols:
-            dict_symbol_to_attr[symbol[0]].remove(symbol)
-            dict_symbol_to_attr[symbol[0]].add(sp.Symbol(symbol))
-
-        print('len', dict_symbol_to_attr, len(dict_symbol_to_attr['u']), '---', len(dict_key_to_attrs['Controller']))
         # Number of controller exprs and dynamics inputs have be equal
         if not len(dict_symbol_to_attr['u']) == len(dict_key_to_attrs['Controller']):
             print('Incorrect number of controller expressions!')
@@ -212,7 +205,6 @@ def main(argv):
         # Generate etc_controller data from controller data
         dynamics_errors, etc_controller = nlp.get_etc_controller(dict_key_to_attrs['Controller'])
         dict_symbol_to_attr['e'] = dynamics_errors.union(dynamics_errors)      # Union with existing error symbols
-        print('error from', etc_controller)
 
         #
         dynamics_new = []
@@ -228,26 +220,17 @@ def main(argv):
         is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
 
         # To get parameters, sort the d symbols
-        d_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['d']])
+        d_str_sorted = sorted([i for i in dict_symbol_to_attr['d']])
         parameters = tuple(sp.Symbol(i) for i in d_str_sorted)
 
         # State is a union of sorted x and e symbols
-        x_str_sorted = sorted([str(i) for i in dict_symbol_to_attr['x']])
-        #if len(dict_symbol_to_attr['w']) and :
-        #    pass
-        #elif len(dict_symbol_to_attr['w']) > 1:
-         #   print('Incorrect variable naming for \'w\' variables')
-        #    sys.exit()
-        #else:
+        x_str_sorted = sorted([i for i in dict_symbol_to_attr['x']])
+        x_str_sorted.append(str(dict_symbol_to_attr['w'].pop()))
 
-        print(dict_symbol_to_attr['w'])
-        e_str_sorted = sorted([str(i).replace('x', 'e') for i in dict_symbol_to_attr['x']])
+        e_str_sorted = sorted([i.replace('x', 'e') for i in dict_symbol_to_attr['x']])
         e_str_sorted.append('ew') #only append if w1 exists
-        state_str = set(x_str_sorted + e_str_sorted)
+        state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
-
-        print('state',state)
-        print('dynamics_new',dynamics_new)
 
         # Init conditions is tuple to x replaced with a
         a_str_sorted = sorted([i.replace('x', 'a') for i in x_str_sorted])

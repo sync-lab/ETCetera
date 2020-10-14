@@ -36,7 +36,6 @@ def check_keyvalue_syntax(split_exp, search_exp, line):
         value = re.split(split_exp, re.search(search_exp, line).group(1))   # Split the string with delimiter and search for the pattern
         value = list(filter(None, value))   # Remove space and empty characters from the list
         value = list(filter(str.strip, value))
-        print(value)
         return value
     except Exception:
         raise IncorrectSyntaxException
