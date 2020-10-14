@@ -225,17 +225,18 @@ def main(argv):
 
         # State is a union of sorted x and e symbols
         x_str_sorted = sorted([i for i in dict_symbol_to_attr['x']])
-        x_str_sorted.append(str(dict_symbol_to_attr['w'].pop()))
-
-        e_str_sorted = sorted([i.replace('x', 'e') for i in dict_symbol_to_attr['x']])
-        e_str_sorted.append('ew') if 'w1' in x_str_sorted else print('')    #only append if w1 exists
-        state_str = x_str_sorted + e_str_sorted
-        state = tuple(sp.Symbol(i) for i in state_str)
 
         # Init conditions is tuple to x replaced with a
         a_str_sorted = sorted([i.replace('x', 'a') for i in x_str_sorted])
+        a_str_sorted.append('aw') if 'w1' in dict_symbol_to_attr['w'] else print('')
+        e_str_sorted = sorted([i.replace('x', 'e') for i in dict_symbol_to_attr['x']])
+        e_str_sorted.append('ew') if 'w1' in dict_symbol_to_attr['w'] else print('')  # only append if w1 exists
+
         init_cond_symbols = tuple(sp.Symbol(i) for i in a_str_sorted)
 
+        x_str_sorted.append(list(dict_symbol_to_attr['w'])[0])
+        state_str = x_str_sorted + e_str_sorted
+        state = tuple(sp.Symbol(i) for i in state_str)
         path, dreal_path, dreach_path, flowstar_path = None, None, None, None
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
