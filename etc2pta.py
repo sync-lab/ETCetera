@@ -228,7 +228,7 @@ def main(argv):
         x_str_sorted.append(str(dict_symbol_to_attr['w'].pop()))
 
         e_str_sorted = sorted([i.replace('x', 'e') for i in dict_symbol_to_attr['x']])
-        e_str_sorted.append('ew') #only append if w1 exists
+        e_str_sorted.append('ew') if 'w1' in x_str_sorted else print('')    #only append if w1 exists
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
 
