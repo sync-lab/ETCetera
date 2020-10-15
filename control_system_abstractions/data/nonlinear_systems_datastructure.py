@@ -139,7 +139,7 @@ class InputDataStructureNonLinear(object):
         self.init_cond_domain = None
         self.symbolic_variables = self.state[:int(len(self.state) / 2)] + self.init_cond_symbols + self.parameters
         self.symbolic_box_of_initial_conditions = None
-        self.symbolic_domain_of_parameters = None
+        self.symbolic_domain_of_parameters = self.create_symbolic_domain_of_parameters()
         self.p = order_approx
         if self.p <= 0:
             self.p = 1
@@ -168,18 +168,12 @@ class InputDataStructureNonLinear(object):
     def create_symbolic_domain_of_parameters(self):
         """Given the box domain of parameters self.parameters_domain, write it in a symbolic expression"""
         try:
-            if len(self.parameters) == 0:
-                return None
-
-            return all((self.parameters[i] >= self.parameters_domain[i][0]) &
-                       (self.parameters[i] <= self.parameters_domain[i][1])
-                       for i in range(0, len(self.parameters)))
-            # Commented from original
-            #domain = True
-            #for i in range(0, len(self.parameters)):  # iterate along the self.parameters tuple
-            #    # to write the box constraint for each parameter in a symbolic way
-            #    domain = domain & (self.parameters[i] >= self.parameters_domain[i][0])
-            #    domain = domain & (self.parameters[i] <= self.parameters_domain[i][1])
+            domain = True
+            for i in range(0, len(self.parameters)):  # iterate along the self.parameters tuple
+                # to write the box constraint for each parameter in a symbolic way
+                domain = domain & (self.parameters[i] >= self.parameters_domain[i][0])
+                domain = domain & (self.parameters[i] <= self.parameters_domain[i][1])
+            return domain
         except Exception:
             raise Exception('Exception Occurred')
 
@@ -245,7 +239,7 @@ class InputDataStructureNonLinear(object):
 
     def create_upper_bound(self, dreal_precision=0.01, time_out=None, lp_method='revised simplex', C=[], D=[],
                            verbose=False):
-        """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
+        """Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
         if the found solutions verify the constraints.
 
         optional argument:
@@ -255,7 +249,6 @@ class InputDataStructureNonLinear(object):
             C (numpy array): Cost function vector c of the LP problem
             D (tuple of tuples): Bounds on the delta's
             verbose (Boolean): Print LP solver information. Default = False
-
         """
         self.LP_data = LPData(self, C, D)  # Initialize LP data from the user specified data
         res = {'sat': False}  # when the solution is found we set res['sat'] = true
@@ -302,6 +295,7 @@ class InputDataStructureNonLinear(object):
             print("No solution has been found. Try different LP or dReal settings")
             return -1
 
+
     def construct_UBF(self):
         """ Construct symbolic upper bounding function (UBF),
         which we want to verify if it bounds l[-1], given delta's.
@@ -319,7 +313,7 @@ class InputDataStructureNonLinear(object):
         except Exception:
             raise Exception('Exception occurred')
 
-    def get_upper_bound_constraint_expr(self, dreal_precision, time_out=None):
+    def verify_upper_bound_constraint(self, dreal_precision, time_out=None):
         """ Verify if:
             1) the constructed UBF bounds the p-th Lie derivative (self.lie[-1]) using dReal
             2) the condition delta_0*self.lie[0].subs(dic)+delta_p > 0 is satisfied
@@ -329,20 +323,20 @@ class InputDataStructureNonLinear(object):
         # initial condition symbol (e.g. dic[x1]=x0)
         dic = {self.state[i]: self.init_cond_symbols[i] for i in range(0, int(self.n / 2))}
         fi_initial_cond = self.lie[0].subs(dic)
-        delta_0 = self.LP_data.solutions[-1][0]
-        delta_p = self.LP_data.solutions[-1][-2]
+        delta_0 = self.deltas[0]
+        delta_p = self.deltas[-2]
 
         # the condition delta_0*self.lie[0].subs(dic)+delta_p > 0 written symbolically
         positivity_expr = (delta_0 * fi_initial_cond + delta_p > 0)
 
         if not self.homogenization_flag:    # if system is not homogenized
             # the expression to be verified is:
-            return (self.lyapunov_function > self.lyapunov_lvl_set_c) | ((self.UBF - self.lie_n >= 0) & positivity_expr)
+            expression = (self.lyapunov_function > self.lyapunov_lvl_set_c) | ((self.UBF - self.lie_n >= 0) & positivity_expr)
         else:                               # if the system is homogenized
             dic = {self.state[i]: self.init_cond_symbols[i - int(self.n / 2)] - self.state[i - int(self.n / 2)]
                    for i in range(int(self.n / 2), self.n)}
             # the expression to be verified is:
-            return (self.function.subs(dic) > 0) | ((self.UBF - self.lie_n >= 0) & positivity_expr)
+            expression = (self.function.subs(dic) > 0) | ((self.UBF - self.lie_n >= 0) & positivity_expr)
         # can put in the logic
         return dReal.dReal_verify(expression, self.symbolic_box_of_initial_conditions,
                                   self.symbolic_domain_of_parameters, self.symbolic_variables, dreal_precision,

@@ -1,0 +1,5 @@
+path = '/Users/gdelimpaltadak/Desktop/Material/Code/Python/Isoc_Manifolds_Tool/SMT_files'
+#dreal_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReal'
+dreal_path = '/Users/gdelimpaltadak/dreal4/bazel-bin/dreal/dreal'
+dreach_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReach'
+flowstar_path = '/Users/gdelimpaltadak/Downloads/flowstar-2.0.0/flowstar'

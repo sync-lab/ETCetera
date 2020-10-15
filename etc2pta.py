@@ -18,9 +18,12 @@ import control_system_abstractions.data.linear_systems_datastructure as ld
 import control_system_abstractions.logic.nonlinear_systems as nonlinear_logic
 import control_system_abstractions.logic.linear_systems as linear_logic
 import sympy as sp
+from config import dreach_path, flowstar_path, path, dreal_path
 
 from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
     LPOptimizationFailedException, LPGeneralException
+from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+    DataObjectGeneralException
 from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
     NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
     IncorrectSyntaxException
@@ -240,12 +243,7 @@ def main(argv):
         x_str_sorted.append(list(dict_symbol_to_attr['w'])[0])
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
-        #path, dreal_path, dreach_path, flowstar_path = None, None, None, None
-        path = '/Users/gdelimpaltadak/Desktop/Material/Code/Python/Isoc_Manifolds_Tool/SMT_files'
-        # dreal_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReal'
-        dreal_path = '/Users/gdelimpaltadak/dreal4/bazel-bin/dreal/dreal'
-        dreach_path = '/Users/gdelimpaltadak/dReal-3.16.06.02-darwin/bin/dReach'
-        flowstar_path = '/Users/gdelimpaltadak/Downloads/flowstar-2.0.0/flowstar'
+
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
@@ -267,6 +265,9 @@ def main(argv):
             print("LP optimization failed, terminating script")
             sys.exit()
         except LPGeneralException as e:
+            print(e.msg)
+            sys.exit()
+        except DataObjectGeneralException as e:
             print(e.msg)
             sys.exit()
         except Exception as e:

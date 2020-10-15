@@ -197,6 +197,7 @@ class LPData(object):
 
         # Create A and B matrix
         for point in s.samples:  # given the sample points from Spec
+            print(point)
             temp_A, temp_B = self.calculate_constraints(s, point, 0)
             self.A.extend(temp_A)
             self.B.extend(temp_B)
@@ -212,9 +213,10 @@ class LPData(object):
 
         if not D:  # if bounds are not given, use default bounds
             # Commented from original self.D = []
-            self.D = [(None, None) for d in range(1, s.p)]
+            self.D = [(None, 10**3) for d in range(1, s.p)]
             # Commented from original self.D.append((0, None))  # Delta_n self.D.append((0, None))  # Gamma >= 0
-            self.D.extend((0, None), (0, None))     # Delta_n and Gamma >= 0
+            self.D.append((0, None))    # Delta_n and Gamma >= 0
+            self.D.append((0, None))
             self.D = tuple(self.D)
         elif D and len(D) != s.p + 1:   # If bounds are given but incorrect length
             raise LPGeneralException('User defined bounds D are of the wrong dimension. Default bounds used instead')
@@ -252,7 +254,7 @@ class LPData(object):
         """
         lies = list(s.lie)
         lie_computed = []
-        all_vars = list(s.lie)
+        all_vars = list(s.symbolic_variables)
         lie_computed = [-float(lies[i].subs(zip(all_vars, point))) for i in range(0, s.p)]  # evaluate all lie derivatives at the given point
         #Commented from original lie_computed.append(-float(lies[i].subs(zip(all_vars, point))))
         An0 = lie_computed[0:s.p - 1]

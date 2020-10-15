@@ -3,6 +3,8 @@ import sympy
 import control_system_abstractions.nonlinear_systems_utils.dReal_communication_2 as dReal
 import control_system_abstractions.nonlinear_systems_utils.dReach_communication as dReach
 import control_system_abstractions.nonlinear_systems_utils.flowstar_communication as flowstar
+from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+    DataObjectGeneralException
 from control_system_abstractions.nonlinear_systems_utils.auxilliary_data import LPData
 
 
@@ -54,9 +56,7 @@ def create_abstractions(data_obj):
                 flag = False
 
         if res['time-out']:  # if dreal timed out terminate
-            print('Could not create box domain for initial conditions')
-            # -------to be checked with Giannis--------------
-            return -1
+            raise DataObjectGeneralException('Could not create box domain for initial conditions')
         else:  # else return the list [[-guess,guess], [-guess,guess],...] as the box domain for initial conditions
             domain_init_cond = []
             for var in range(0, data_obj.n):
@@ -101,18 +101,17 @@ def create_abstractions(data_obj):
     iteration = 1
     while not res['sat']:  # iterate until the solution is found
         print("\n Starting iteration {}".format(iteration))
-        res_flag = LP_data.LP_solve(lp_method, Verbose=verbose)  # first solve the LP
-        #-------to be checked with Giannis--------------
-        #LP_data.solutions.append(res_flag)
-        if res_flag == -1:
-            break
+        res_LP = LP_data.LP_solve(lp_method, Verbose=verbose)  # first solve the LP
+        LP_data.solutions.append(res_LP)
         data_obj.deltas = LP_data.solutions[-1][:-1]  # these are the solutions found by the LP
         data_obj.gamma = LP_data.solutions[-1][-1]
         print("Delta's: {}".format(data_obj.deltas))
         print("Infinity norm: {}".format(data_obj.gamma))
         # Construct the UBF given the set of obtained delta's
-        data_obj.construct_UBF()
+        ubf_temp = data_obj.construct_UBF()
+        data_obj.UBF = ubf_temp
         # Verify the condition using dReal
+
         res = data_obj.verify_upper_bound_constraint(dreal_precision_upper_bound,
                                                  time_out=time_out_upper_bound)  # check if the found solutions verify the constraints
         if res['time-out']:
@@ -123,7 +122,7 @@ def create_abstractions(data_obj):
 
         if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
             # Set the value to lp-data
-            LP_data.calculate_constraints(data_obj, res['violation'], dreal_precision_upper_bound)
+            LP_data.A, LP_data.B = LP_data.calculate_constraints(data_obj, res['violation'], dreal_precision_upper_bound)
 
         if (LP_data.A[-1] == LP_data.A[-3]) and (LP_data.B[-1] == LP_data.B[-3]):
             # if the same counterexample as before is returned, then terminate

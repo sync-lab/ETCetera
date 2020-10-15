@@ -152,12 +152,12 @@ def parse_nonlinear(line):
                     assert int(value) > 0
                     solver_options.update({key: int(value)})
                 elif key == 'gridstep':
-                    assert float(value) > 2
-                    solver_options.update({key: float(value)})
+                    assert int(value) > 2
+                    solver_options.update({key: int(value)})
                 elif key == 'dreal_precision':
                     solver_options.update({key: float(value)})
                 elif key == 'timeout':
-                    solver_options.update({key: float(value)})
+                    solver_options.update({key: int(value)})
                 elif key == 'opt_method':
                     assert value in ['revised simplex', 'simplex', 'interior-point']
                     solver_options.update({key: value})

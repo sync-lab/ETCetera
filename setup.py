@@ -118,6 +118,7 @@ requires = [
     'slycot',
     'NetworkX',
     'dreal',
+    'pycddlib'
 ]
 
 setup(
