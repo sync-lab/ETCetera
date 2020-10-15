@@ -149,8 +149,8 @@ def parse_nonlinear(line):
                 value = item.split('=')[1]
 
                 if key == 'p':
-                    assert float(value) > 0
-                    solver_options.update({key: float(value)})
+                    assert int(value) > 0
+                    solver_options.update({key: int(value)})
                 elif key == 'gridstep':
                     assert float(value) > 2
                     solver_options.update({key: float(value)})
@@ -164,7 +164,7 @@ def parse_nonlinear(line):
                 else:
                     pass
             return solver_options
-        except (IndexError, AttributeError, AssertionError):
+        except Exception:
             raise IncorrectSyntaxException
 
 

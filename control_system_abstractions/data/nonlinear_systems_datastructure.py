@@ -172,7 +172,8 @@ class InputDataStructureNonLinear(object):
                 return None
 
             return all((self.parameters[i] >= self.parameters_domain[i][0]) &
-                       (self.parameters[i] <= self.parameters_domain[i][1]) for i in range(0, len(self.parameters)))
+                       (self.parameters[i] <= self.parameters_domain[i][1])
+                       for i in range(0, len(self.parameters)))
             # Commented from original
             #domain = True
             #for i in range(0, len(self.parameters)):  # iterate along the self.parameters tuple

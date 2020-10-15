@@ -2,6 +2,9 @@ import numpy as np
 import sympy
 from scipy.optimize import linprog
 #import cdd
+from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import LPGeneralException, \
+    LPOptimizationFailedException
+
 
 class GridObject(object):
     """Attributes:
@@ -193,7 +196,7 @@ class LPData(object):
         self.solutions = []
 
         # Create A and B matrix
-        for point in s.Samples:  # given the sample points from Spec
+        for point in s.samples:  # given the sample points from Spec
             temp_A, temp_B = self.calculate_constraints(s, point, 0)
             self.A.extend(temp_A)
             self.B.extend(temp_B)
@@ -203,8 +206,7 @@ class LPData(object):
             self.C[s.p - 1::1] = [0, 1]
             # Commented from original self.C[s.p - 1] = 0 self.C[s.p] = 1
         elif C and len(C) != s.p + 1:   # If cost function is given but incorrect length
-            #raise Exception('User defined c vector is of the wrong dimension. Default cost function used instead')
-            print('User defined c vector is of the wrong dimension. Default cost function used instead')
+            raise LPGeneralException('User defined c vector is of the wrong dimension. Default cost function used instead')
         else:  # if cost function is given correct way, then nothing to do
             pass
 
@@ -215,8 +217,7 @@ class LPData(object):
             self.D.extend((0, None), (0, None))     # Delta_n and Gamma >= 0
             self.D = tuple(self.D)
         elif D and len(D) != s.p + 1:   # If bounds are given but incorrect length
-            #raise Exception('User defined bounds D are of the wrong dimension. Default bounds used instead')
-            print('User defined bounds D are of the wrong dimension. Default bounds used instead')
+            raise LPGeneralException('User defined bounds D are of the wrong dimension. Default bounds used instead')
         else:   # if bounds are given correct way, then nothing to do
             pass
 
@@ -238,9 +239,9 @@ class LPData(object):
             # Commented from original self.solutions.append(list(res.x))
             return list(res.x)
         except TypeError:
-            raise Exception("LP optimization failed, terminating script")
+            raise LPOptimizationFailedException()
         except Exception:
-            raise Exception('Exception occurred')
+            raise LPGeneralException('Exception occurred while LP solving')
 
     #def append_constraint(self, s, point, slack):
     def calculate_constraints(self, s, point, slack):
@@ -249,9 +250,9 @@ class LPData(object):
             point (list): the counterexample point that is to be added as a constraint to the LP
             slack (float): the slack variable
         """
-        lies = list(s.Lie)
+        lies = list(s.lie)
         lie_computed = []
-        all_vars = list(s.Symbolic_variables)
+        all_vars = list(s.lie)
         lie_computed = [-float(lies[i].subs(zip(all_vars, point))) for i in range(0, s.p)]  # evaluate all lie derivatives at the given point
         #Commented from original lie_computed.append(-float(lies[i].subs(zip(all_vars, point))))
         An0 = lie_computed[0:s.p - 1]
@@ -260,7 +261,7 @@ class LPData(object):
         Bn1 = lie_computed[s.p - 1]
         Bn2 = -Bn1
         # positivity constraint d_0*fi(x=x_0) + d_p > 0
-        dic = {s.State[i]: s.Init_cond_symbols[i] for i in range(0, int(s.n / 2))}
+        dic = {s.state[i]: s.init_cond_symbols[i] for i in range(0, int(s.n / 2))}
         fi_init_cond = lies[0].subs(dic)
         fi_init_cond_computed = float(fi_init_cond.subs(zip(all_vars, point)))
         An3 = list(np.zeros(s.p + 1, ))

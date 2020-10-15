@@ -55,6 +55,7 @@ def create_abstractions(data_obj):
 
         if res['time-out']:  # if dreal timed out terminate
             print('Could not create box domain for initial conditions')
+            # -------to be checked with Giannis--------------
             return -1
         else:  # else return the list [[-guess,guess], [-guess,guess],...] as the box domain for initial conditions
             domain_init_cond = []
@@ -101,6 +102,8 @@ def create_abstractions(data_obj):
     while not res['sat']:  # iterate until the solution is found
         print("\n Starting iteration {}".format(iteration))
         res_flag = LP_data.LP_solve(lp_method, Verbose=verbose)  # first solve the LP
+        #-------to be checked with Giannis--------------
+        #LP_data.solutions.append(res_flag)
         if res_flag == -1:
             break
         data_obj.deltas = LP_data.solutions[-1][:-1]  # these are the solutions found by the LP

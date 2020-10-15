@@ -19,6 +19,8 @@ import control_system_abstractions.logic.nonlinear_systems as nonlinear_logic
 import control_system_abstractions.logic.linear_systems as linear_logic
 import sympy as sp
 
+from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
+    LPOptimizationFailedException, LPGeneralException
 from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
     NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
     IncorrectSyntaxException
@@ -215,6 +217,7 @@ def main(argv):
                 expr = str.replace(expr, sym, str(replacement_expr))
             dynamics_new.append(sp.sympify(expr))
         dynamics_new.extend([-1 * expr for expr in dynamics_new])
+        dynamics_new = sp.Matrix(dynamics_new)
 
         # Check if only one time mentioned, then the system is homogeneous
         is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
@@ -260,6 +263,12 @@ def main(argv):
                                                        is_homogenized)
             print(data_obj.__dict__)
             nonlinear_logic.create_abstractions(data_obj)
+        except LPOptimizationFailedException:
+            print("LP optimization failed, terminating script")
+            sys.exit()
+        except LPGeneralException as e:
+            print(e.msg)
+            sys.exit()
         except Exception as e:
             print(str(e))
             sys.exit()
