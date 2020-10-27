@@ -74,9 +74,8 @@ def main(argv):
         dict_key_to_attrs = {'Dynamics': None, 'Controller': None, 'Hyperbox States': None,
                              'Triggering Condition': None, 'Triggering Times': None, 'Hyperbox Disturbances': None,
                              'Solver Options': {'p': 1, 'gridstep': 2, 'heart_beat': float(1.2), 'dreal_precision': 0.01,
-                                                'opt_method': 'revised simplex', 'manifold_times': [0.001],
-                                                'remainder_reachability': math.exp(-1), 'time_out_reachability': None,
-                                                'grid_pts_per_dim': None},
+                                                'opt_method': 'revised simplex', 'remainder_reachability': math.exp(-1),
+                                                'time_out_reachability': None, 'grid_pts_per_dim': None},
                              'Linesearch Options': {'time_out_upperbounds': 15, 'remainder_upper_bounds': None},
                              'Lyapunov Function': None, 'Deg. of Homogeneity': None}
         # Dictionary to hold symbols in expressions
@@ -272,7 +271,7 @@ def main(argv):
                                                        dict_key_to_attrs['Solver Options']['gridstep'],
                                                        dict_key_to_attrs['Solver Options']['dreal_precision'],
                                                        dict_key_to_attrs['Solver Options']['heart_beat'],
-                                                       dict_key_to_attrs['Solver Options']['manifold_times'],
+                                                       dict_key_to_attrs['Triggering Times'],
                                                        dict_key_to_attrs['Solver Options']['remainder_reachability'],
                                                        dict_key_to_attrs['Solver Options']['time_out_reachability'],
                                                        dict_key_to_attrs['Solver Options']['grid_pts_per_dim'],

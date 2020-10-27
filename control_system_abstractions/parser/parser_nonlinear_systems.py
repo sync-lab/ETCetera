@@ -153,7 +153,7 @@ def parse_nonlinear(line):
                     assert int(value) > 0
                     solver_options.update({key: int(value)})
                 elif key == 'gridstep':
-                    assert int(value) > 2
+                    assert int(value) > 1, "Gridstep should be greater than 1."
                     solver_options.update({key: int(value)})
                 elif key == 'dreal_precision':
                     solver_options.update({key: float(value)})
@@ -164,8 +164,6 @@ def parse_nonlinear(line):
                     solver_options.update({key: value})
                 elif key == 'heart_beat':
                     solver_options.update({key: float(value)})
-                elif key == 'manifold_times':
-                    solver_options.update({key: [float(value)]})
                 elif key == 'grid_pts_per_dim':
                     values = re.search('\{(.*)\}', value).group(1)
                     values = values.strip().split(' ')
