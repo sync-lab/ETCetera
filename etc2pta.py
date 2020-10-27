@@ -7,7 +7,8 @@ Created on Sat May 16 14:53:58 2020
 
 import re
 import sys, getopt
-import os 
+import os
+import math
 #import resources 
 import random
 import string
@@ -26,7 +27,7 @@ from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_ob
     DataObjectGeneralException
 from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
     NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
-    IncorrectSyntaxException
+    IncorrectSyntaxException, MultipleScalarsSpecifiedException
 from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
     ArbitraryVariableNumberingException, ArbitraryVariableNamingException, IncorrectSymbolicExpressionException, \
     IncorrectNumOfSymbolicExpressionException
@@ -35,9 +36,6 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
     NonnumericValueInVectorException, IncorrectMatrixDefinitionException, MatricesUnequalRowsException, \
     MultipleMatricesSpecifiedException, MatrixNotQuadraticException
 
-
-class MultipleScalarsSpecifiedxException(object):
-    pass
 
 
 def main(argv):
@@ -75,8 +73,12 @@ def main(argv):
         # Dictionary to hold non-linear data
         dict_key_to_attrs = {'Dynamics': None, 'Controller': None, 'Hyperbox States': None,
                              'Triggering Condition': None, 'Triggering Times': None, 'Hyperbox Disturbances': None,
-                             'Solver Options': {'p': 1, 'opt_method': None, 'gridstep': 2, 'dreal_precision': 0.01},
-                             'Linesearch Options': {}, 'Lyapunov Function': None, 'Deg. of Homogeneity': None}
+                             'Solver Options': {'p': 1, 'gridstep': 2, 'heart_beat': float(1.2), 'dreal_precision': 0.01,
+                                                'opt_method': 'revised simplex', 'manifold_times': [0.001],
+                                                'remainder_reachability': math.exp(-1), 'time_out_reachability': None,
+                                                'grid_pts_per_dim': None},
+                             'Linesearch Options': {'time_out_upperbounds': 15, 'remainder_upper_bounds': None},
+                             'Lyapunov Function': None, 'Deg. of Homogeneity': None}
         # Dictionary to hold symbols in expressions
         dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set(), 'w': set()}
 
@@ -140,7 +142,7 @@ def main(argv):
     except MultipleMatricesSpecifiedException:
         print('Only one matrix expected on line: ', line_num)
         sys.exit()
-    except MultipleScalarsSpecifiedxException:
+    except MultipleScalarsSpecifiedException:
         print('Only one scalar expected on line: ', line_num)
         sys.exit()
     except MatrixNotQuadraticException:
@@ -207,6 +209,15 @@ def main(argv):
             print('Incorrect number of controller expressions!')
             sys.exit()
 
+        # Number of values for 'grid_pts_per_dim' should be equal to num of 'x' variables
+        if not dict_key_to_attrs['Solver Options']['grid_pts_per_dim']: # If not user specified, create list of len of 'x'
+            dict_key_to_attrs['Solver Options']['grid_pts_per_dim'] = [5] * len(dict_symbol_to_attr['x'])
+        elif not len(dict_symbol_to_attr['x']) == len(dict_key_to_attrs['Solver Options']['grid_pts_per_dim']):
+            print('grid points per dimension should be equal to number of \'x\' variables!')
+            sys.exit()
+        else:
+            pass
+
         # Generate etc_controller data from controller data
         dynamics_errors, etc_controller = nlp.get_etc_controller(dict_key_to_attrs['Controller'])
         dict_symbol_to_attr['e'] = dynamics_errors.union(dynamics_errors)      # Union with existing error symbols
@@ -244,6 +255,7 @@ def main(argv):
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
 
+        #print(dict_key_to_attrs)
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
@@ -255,12 +267,21 @@ def main(argv):
                                                        init_cond_symbols,
                                                        parameters,
                                                        dict_key_to_attrs['Hyperbox Disturbances'],
+                                                       dict_key_to_attrs['Hyperbox States'],
                                                        dict_key_to_attrs['Solver Options']['p'],
                                                        dict_key_to_attrs['Solver Options']['gridstep'],
                                                        dict_key_to_attrs['Solver Options']['dreal_precision'],
+                                                       dict_key_to_attrs['Solver Options']['heart_beat'],
+                                                       dict_key_to_attrs['Solver Options']['manifold_times'],
+                                                       dict_key_to_attrs['Solver Options']['remainder_reachability'],
+                                                       dict_key_to_attrs['Solver Options']['time_out_reachability'],
+                                                       dict_key_to_attrs['Solver Options']['grid_pts_per_dim'],
+                                                       dict_key_to_attrs['Linesearch Options']['time_out_upperbounds'],
+                                                       dict_key_to_attrs['Linesearch Options']['remainder_upper_bounds'],
+                                                       dict_key_to_attrs['Solver Options']['timeout'],
                                                        is_homogenized)
             print(data_obj.__dict__)
-            nonlinear_logic.create_abstractions(data_obj)
+            #nonlinear_logic.create_abstractions(data_obj)
         except LPOptimizationFailedException:
             print("LP optimization failed, terminating script")
             sys.exit()

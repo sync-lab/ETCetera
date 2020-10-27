@@ -144,7 +144,8 @@ def parse_nonlinear(line):
                 return solver_options
 
             for item in line.split(':')[1].strip().split(', '):
-                re.search('[a-z]+=[a-z0-9.]+', item).group(0)
+                solver_options
+                re.search('[a-z_]+=[a-z0-9.{} ]+', item).group(0)
                 key = item.split('=')[0]
                 value = item.split('=')[1]
 
@@ -161,6 +162,19 @@ def parse_nonlinear(line):
                 elif key == 'opt_method':
                     assert value in ['revised simplex', 'simplex', 'interior-point']
                     solver_options.update({key: value})
+                elif key == 'heart_beat':
+                    solver_options.update({key: float(value)})
+                elif key == 'manifold_times':
+                    solver_options.update({key: [float(value)]})
+                elif key == 'grid_pts_per_dim':
+                    values = re.search('\{(.*)\}', value).group(1)
+                    values = values.strip().split(' ')
+                    sc.check_if_numerical_values(values)
+                    solver_options.update({key: [float(i) for i in values]})
+                elif key == 'remainder_reachability':
+                    solver_options.update({key: float(value)})
+                elif key == 'time_out_reachability':
+                    solver_options.update({key: int(value)})
                 else:
                     pass
             return solver_options
@@ -172,11 +186,19 @@ def parse_nonlinear(line):
     elif line.split(':')[0].strip() == 'Linesearch Options':
         linesearch_options = dict()
         try:
-            if len(list(filter(None, line.split(':')[1].strip().split(', ')))) == 0:   # Check if no values specified, this data structure can be empty
+            # Check if no values specified, this data structure can be empty
+            if len(list(filter(None, line.split(':')[1].strip().split(', ')))) == 0:
                 return linesearch_options
-            for value in line.split(':')[1].strip().split(', '):
-                re.search('[a-z]+=[a-z0-9.]+', value).group(0)
-                linesearch_options.update({value.split('=')[0]: float(value.split('=')[1])})
+            for item in line.split(':')[1].strip().split(', '):
+                re.search('[a-z_]+=[a-z0-9.{} ]+', item).group(0)
+                key = item.split('=')[0]
+                value = item.split('=')[1]
+                if key == 'time_out_upper_bounds':
+                    linesearch_options.update({key: int(value)})
+                elif key == 'remainder_upper_bounds':
+                    linesearch_options.update({key: float(value)})
+                else:
+                    pass
             return linesearch_options
         except Exception as e:
             raise IncorrectSyntaxException

@@ -173,9 +173,9 @@ def create_abstractions(data_obj):
     remainder_reach = 1e-2
     verbose = False
 
-    data_obj.manifolds_times = manifolds_times
-    #if (data_obj.Homogenization_Flag == False):
-    #    print('Computing radii for one manifold')
+    #self.manifolds_times = manifolds_times
+    if (data_obj.Homogenization_Flag == False):
+        print('Computing radii for one manifold')
     #    data_obj.spherical_sectors(manifolds_times[len(manifolds_times) - 1], nr_cones_small_angles, nr_cones_big_angle,
     #                           verbose)
     #    print('Finished Computing the radii')
@@ -185,8 +185,61 @@ def create_abstractions(data_obj):
     #    data_obj.timing_upper_bounds(len(manifolds_times), time_out_upper_bounds, remainder_upper_bounds, heartbeat,
     #                             verbose=False)
     #    data_obj.transitions(verbose, time_out_reach, remainder_reach)
-    #else:
-    #    data_obj.create_grid(state_space_limits, grid_points_per_dim)
-    #    data_obj.create_regions_objects_nonhomogeneous(manifolds_times, heartbeat)
-    #    data_obj.timing_upper_bounds(None, time_out_upper_bounds, remainder_upper_bounds, heartbeat, verbose)
-    #    data_obj.transitions(False, time_out_reach, remainder_reach)
+    else:
+        # Create a grid object
+        data_obj.grid = data_obj.create_grid(data_obj.hyperbox_states, data_obj.grid_points_per_dim)
+
+        """INPUTS:
+            manifolds_times: list of int, >0 (practically I only use manifolds_times[-1])
+
+        Creates the objects Region_NonHomogeneous (for homogeneous systems), using
+        the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
+        """
+        manifold_time = data_obj.manifolds_times[-1]
+        dimension = int(data_obj.n / 2) - 1
+        polytope_sides_lengths = []
+        for i in range(0, dimension):  # for each dimension
+            lim_min = data_obj.grid.State_space_limits[i][0]  # calculate what is the displacement
+            lim_max = data_obj.grid.State_space_limits[i][1]  # from the center of a grid polytope
+            side_length = (lim_max - lim_min) / data_obj.grid.Grid_points_per_dim[i]  # to its vertices
+            polytope_sides_lengths.append([-side_length / 2, side_length / 2])
+        # create a list with all combinations of displacement. each combination, when added to the center of
+        # a polytope, it gives one of its vertices.
+        differences_between_all_vertices_and_centroid = list(itertools.product(*polytope_sides_lengths))
+        region_index = 0
+        data_obj.regions = []
+        for centroid in data_obj.grid.Centroids:  # iterate along all polytopes, each of which representing a region
+            region_index = region_index + 1
+            polytope_vertices_in_rn = []
+            # add each element of differences_between_all_vertices_and_centroid to the center of the region
+            # to get its vertices
+            for i in range(0, len(differences_between_all_vertices_and_centroid)):
+                aux = np.array(centroid) + np.array(differences_between_all_vertices_and_centroid[i])
+                aux = aux.tolist()
+                polytope_vertices_in_rn.append(aux)
+            [halfspaces_b, halfspaces_A] = polytope_vrep2hrep(polytope_vertices_in_rn)  # get the hrep
+            #            aux2 = np.zeros(dimension)
+            #            polytope_vertices.append(aux2.tolist())
+            if all([v == 0 for v in centroid]) & data_obj.origin_neighbourhood_degeneracy_flag:
+                # if the polytope contains the origin and the manifolds there are degenerate
+                lower_bound = data_obj.timing_lower_bound_origin_polytope(data_obj.heartbeat)
+                temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
+                                             halfspaces_A, halfspaces_b, lower_bound, True)
+            else:
+                lower_bound = data_obj.timing_lower_bounds_grid(polytope_vertices_in_rn, manifold_time)
+                temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
+                                             halfspaces_A, halfspaces_b, lower_bound, False)
+            print('Region {} timing lower bound = {}'.format(region_index, lower_bound))
+            data_obj.regions.append(temp)
+        #data_obj.create_regions_objects_nonhomogeneous(manifolds_times, heartbeat)
+
+        for region in data_obj.regions:
+            #                if all([v == 0 for v in region.center]): #for the region of the origin
+            #                    region.insert_timing_upper_bound(heartbeat)
+            #                else: #for all other regions use reashability
+            upper_bound = data_obj.reach_analysis_upper_bounds(region, verbose, data_obj.time_out_upper_bounds,
+                                                               data_obj.remainder_upper_bounds, data_obj.heartbeat)
+            region.insert_timing_upper_bound(upper_bound)
+        #data_obj.timing_upper_bounds(None, data_obj.time_out_upper_bounds, data_obj.remainder_upper_bounds,  data_obj.heartbeat, verbose)
+
+        data_obj.transitions(False, data_obj.time_out_reachability, data_obj.remainder_reachability)

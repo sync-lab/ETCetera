@@ -124,7 +124,7 @@ requires = [
 setup(
     name='control_system_abstractions',
     cmdclass={
-    	'install' : CustomInstallCommand
+        'install': CustomInstallCommand
     },
     install_requires=requires,
 )

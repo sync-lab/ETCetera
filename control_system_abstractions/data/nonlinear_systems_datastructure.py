@@ -7,6 +7,8 @@ from scipy.optimize import linprog
 import control_system_abstractions.nonlinear_systems_utils.dReal_communication_2 as dReal
 import control_system_abstractions.nonlinear_systems_utils.dReach_communication as dReach
 import control_system_abstractions.nonlinear_systems_utils.flowstar_communication as flowstar
+from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+    DataObjectGeneralException
 from control_system_abstractions.nonlinear_systems_utils.auxilliary_data import *
 from scipy.linalg import expm
 from numba import prange
@@ -101,8 +103,10 @@ class InputDataStructureNonLinear(object):
 
     # constructor
     def __init__(self, path, dreal_path, dreach_path, flowstar_path, dynamics, homogeneity, lyapunov, lvl_set_c,
-                 function, state, init_cond_symbols, parameters, parameters_domain, order_approx, gridstep,
-                 dreal_precision, homogenization_flag, t_max=None, origin_neighbourhood_degeneracy_flag=True):
+                 function, state, init_cond_symbols, parameters, parameters_domain, hyperbox_states, order_approx,
+                 gridstep, dreal_precision, heart_beat, manifold_times, remainder_reachability,time_out_reachability,
+                 grid_pts_per_dim, time_out_upperbounds, remainder_upper_bounds, timeout, homogenization_flag,
+                 t_max=None, origin_neighbourhood_degeneracy_flag=True):
         """Constructor"""
         self.path = path
         self.dreal_path = dreal_path
@@ -164,6 +168,16 @@ class InputDataStructureNonLinear(object):
         self.manifolds_times = None
         self.dreal_precision = dreal_precision
         # self.max_Lie_difference = None
+        self.heart_beat = heart_beat
+        self.manifold_times = manifold_times
+        self.remainder_reachability = remainder_reachability
+        self.time_out_reachability = time_out_reachability
+        self.grid_pts_per_dim = grid_pts_per_dim
+        self.hyperbox_states = hyperbox_states
+        self.time_out_upperbounds = time_out_upperbounds
+        self.remainder_upper_bounds = remainder_upper_bounds
+        self.timeout = timeout
+
 
     def create_symbolic_domain_of_parameters(self):
         """Given the box domain of parameters self.parameters_domain, write it in a symbolic expression"""
@@ -414,9 +428,7 @@ class InputDataStructureNonLinear(object):
         and the number of grid points per dimension ."""
 
         if (grid_points_per_dim is None) | (state_space_limits is None):
-            print(
-                "Error. You should either manualy insert a grid, or specify number of hypercubes and limits of the state-space.")
-            return -1
+            raise DataObjectGeneralException("Error. You should either manualy insert a grid, or specify number of hypercubes and limits of the state-space.")
 
         dimension = int(self.n / 2) - 1
         linspace_list = []
