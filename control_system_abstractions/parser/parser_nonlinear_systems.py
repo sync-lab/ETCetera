@@ -168,7 +168,7 @@ def parse_nonlinear(line):
                     values = re.search('\{(.*)\}', value).group(1)
                     values = values.strip().split(' ')
                     sc.check_if_numerical_values(values)
-                    solver_options.update({key: [float(i) for i in values]})
+                    solver_options.update({key: [int(i) for i in values]})
                 elif key == 'remainder_reachability':
                     solver_options.update({key: float(value)})
                 elif key == 'time_out_reachability':

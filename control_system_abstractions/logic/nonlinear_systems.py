@@ -150,7 +150,7 @@ def create_abstractions(data_obj):
         nr_cones_small_angles: list of int, >0. (see self.spherical_sectors)
         nr_cones_big_angle: int, >0. (see self.spherical_sectors)
         state_space_limits: list of symmetric intervals (e.g. [[-1,1],[-2,2],[-1,1]]) (see self.create_grid)
-        grid_points_per_dim: list of odd int (e.g. [3,5,7]) (see self.create_grid)
+        grid_pts_per_dim: list of odd int (e.g. [3,5,7]) (see self.create_grid)
         heartbeat: float, >0 (the ad-hoc upper bound in timing upper bounds,
                               i.e. if can't find an upper bound for a region, use heartbeat)
         time_out: int, >0 (time after which, flowstar/dreach/dreal process is forcefully killed.)
@@ -159,13 +159,13 @@ def create_abstractions(data_obj):
         Creates the Abstraction.
         For homogeneous systems, it uses the arguments manifolds_times, nr_cones_small_angles, nr_cones_big_angle,
             heartbeat, time_out, verbose.
-        For non-homogeneous systems, it uses state_space_limits, grid_points_per_dim, heartbeat, time_out, verbose.
+        For non-homogeneous systems, it uses state_space_limits, grid_pts_per_dim, heartbeat, time_out, verbose.
     """
     manifolds_times = [0.0001, 0.0001]
     nr_cones_small_angles = []
     nr_cones_big_angle = 0
     state_space_limits = [[-1, 1], [-1, 1]]
-    grid_points_per_dim = [7, 7]
+    grid_pts_per_dim = [7, 7]
     heartbeat=0.04
     time_out_upper_bounds = 8
     time_out_reach = 5
@@ -174,7 +174,7 @@ def create_abstractions(data_obj):
     verbose = False
 
     #self.manifolds_times = manifolds_times
-    if (data_obj.Homogenization_Flag == False):
+    if not data_obj.homogenization_flag:
         print('Computing radii for one manifold')
     #    data_obj.spherical_sectors(manifolds_times[len(manifolds_times) - 1], nr_cones_small_angles, nr_cones_big_angle,
     #                           verbose)
@@ -187,7 +187,7 @@ def create_abstractions(data_obj):
     #    data_obj.transitions(verbose, time_out_reach, remainder_reach)
     else:
         # Create a grid object
-        data_obj.grid = data_obj.create_grid(data_obj.hyperbox_states, data_obj.grid_points_per_dim)
+        data_obj.grid = data_obj.create_grid(data_obj.hyperbox_states, data_obj.grid_pts_per_dim)
 
         """INPUTS:
             manifolds_times: list of int, >0 (practically I only use manifolds_times[-1])
@@ -199,16 +199,16 @@ def create_abstractions(data_obj):
         dimension = int(data_obj.n / 2) - 1
         polytope_sides_lengths = []
         for i in range(0, dimension):  # for each dimension
-            lim_min = data_obj.grid.State_space_limits[i][0]  # calculate what is the displacement
-            lim_max = data_obj.grid.State_space_limits[i][1]  # from the center of a grid polytope
-            side_length = (lim_max - lim_min) / data_obj.grid.Grid_points_per_dim[i]  # to its vertices
+            lim_min = data_obj.grid.state_space_limits[i][0]  # calculate what is the displacement
+            lim_max = data_obj.grid.state_space_limits[i][1]  # from the center of a grid polytope
+            side_length = (lim_max - lim_min) / data_obj.grid.grid_points_per_dim[i]  # to its vertices
             polytope_sides_lengths.append([-side_length / 2, side_length / 2])
         # create a list with all combinations of displacement. each combination, when added to the center of
         # a polytope, it gives one of its vertices.
         differences_between_all_vertices_and_centroid = list(itertools.product(*polytope_sides_lengths))
         region_index = 0
         data_obj.regions = []
-        for centroid in data_obj.grid.Centroids:  # iterate along all polytopes, each of which representing a region
+        for centroid in data_obj.grid.centroids:  # iterate along all polytopes, each of which representing a region
             region_index = region_index + 1
             polytope_vertices_in_rn = []
             # add each element of differences_between_all_vertices_and_centroid to the center of the region

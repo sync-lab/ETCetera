@@ -280,7 +280,7 @@ def main(argv):
                                                        dict_key_to_attrs['Solver Options']['timeout'],
                                                        is_homogenized)
             print(data_obj.__dict__)
-            #nonlinear_logic.create_abstractions(data_obj)
+            nonlinear_logic.create_abstractions(data_obj)
         except LPOptimizationFailedException:
             print("LP optimization failed, terminating script")
             sys.exit()

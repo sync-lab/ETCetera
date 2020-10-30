@@ -410,8 +410,8 @@ class InputDataStructureNonLinear(object):
         defined by all of them is degenerate (return True) or not (return False)."""
         A = np.zeros((int(self.n / 2) - 1, int(self.n / 2)))
         for i in range(1, len(cone)):  # iterate along all planar cones
-            A[i][i] = round((cone[i].Linear_Form[0]), 5)
-            A[i][i + 1] = round((cone[i].Linear_Form[1]), 5)
+            A[i][i] = round((cone[i].linear_Form[0]), 5)
+            A[i][i + 1] = round((cone[i].linear_Form[1]), 5)
             # print(np.array(A[i])+np.array(A[i-1]))
             if (
             np.all(np.array(A[i]) + np.array(A[i - 1]) == 0)):  # check if a linear constraint between the i-th and the
@@ -672,9 +672,9 @@ class InputDataStructureNonLinear(object):
                     # by iteratively taking conic_domain = conic_domain & [x_i x_{i+1}]*Q_i*[x_i x_{i+1}]^T & L_i*[x_i x_{i+1}]
                     # where Q_i and L_i are the quadratic and linear forms that define the cone, respectively
                     vec = sympy.Matrix([state_vector[i], state_vector[i + 1]])
-                    quadratic_form = sympy.Matrix(cone[i].Quadratic_Form)
+                    quadratic_form = sympy.Matrix(cone[i].quadratic_Form)
                     conic_domain = conic_domain & ((vec.transpose() * quadratic_form * vec)[0] >= 0)
-                    linear_form = sympy.Matrix(cone[i].Linear_Form)
+                    linear_form = sympy.Matrix(cone[i].linear_Form)
                     conic_domain = conic_domain & ((linear_form.transpose() * vec)[0] >= 0)
                 # refine the inner-approximation radius
                 inner_radius = self.radius_conic_section('i', conic_domain, manifold_time, small_ball, verbose)
@@ -740,16 +740,16 @@ class InputDataStructureNonLinear(object):
         dimension = int(self.n / 2) - 1
         polytope_sides_lengths = []
         for i in range(0, dimension):  # for each dimension
-            lim_min = self.grid.State_space_limits[i][0]  # calculate what is the displacement
-            lim_max = self.grid.State_space_limits[i][1]  # from the center of a grid polytope
-            side_length = (lim_max - lim_min) / self.grid.Grid_points_per_dim[i]  # to its vertices
+            lim_min = self.grid.state_space_limits[i][0]  # calculate what is the displacement
+            lim_max = self.grid.state_space_limits[i][1]  # from the center of a grid polytope
+            side_length = (lim_max - lim_min) / self.grid.grid_points_per_dim[i]  # to its vertices
             polytope_sides_lengths.append([-side_length / 2, side_length / 2])
         # create a list with all combinations of displacement. each combination, when added to the center of
         # a polytope, it gives one of its vertices.
         differences_between_all_vertices_and_centroid = list(itertools.product(*polytope_sides_lengths))
         region_index = 0
         self.regions = []
-        for centroid in self.grid.Centroids:  # iterate along all polytopes, each of which representing a region
+        for centroid in self.grid.centroids:  # iterate along all polytopes, each of which representing a region
             region_index = region_index + 1
             polytope_vertices_in_rn = []
             # add each element of differences_between_all_vertices_and_centroid to the center of the region

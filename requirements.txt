@@ -14,3 +14,7 @@ python-igraph
 slycot
 NetworkX
 dreal~=4.20.9.1
+pyparsing
+cycler
+python-dateutil
+kiwisolver
