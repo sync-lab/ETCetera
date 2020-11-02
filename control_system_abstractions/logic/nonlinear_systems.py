@@ -138,10 +138,10 @@ def create_abstractions(data_obj):
     if res_flag_final > 0:
         print('Valid bound found!')
         print('The deltas are:{}'.format(LP_data.solutions[-1][:-1]))
-        return 1
+        #return 1
     else:
-        print("No solution has been found. Try different LP or dReal settings")
-        return -1
+        raise DataObjectGeneralException("No solution has been found. Try different LP or dReal settings")
+        #return -1
 
 
     """INPUTS:
