@@ -1,11 +1,14 @@
 import control_system_abstractions.data.nonlinear_systems_datastructure as data
 import sympy
+import numpy as np
+import itertools
 import control_system_abstractions.nonlinear_systems_utils.dReal_communication_2 as dReal
 import control_system_abstractions.nonlinear_systems_utils.dReach_communication as dReach
 import control_system_abstractions.nonlinear_systems_utils.flowstar_communication as flowstar
 from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
     DataObjectGeneralException
-from control_system_abstractions.nonlinear_systems_utils.auxilliary_data import LPData
+from control_system_abstractions.nonlinear_systems_utils.auxilliary_data import LPData, polytope_vrep2hrep, \
+    RegionNonHomogeneous
 
 
 def create_abstractions(data_obj):
