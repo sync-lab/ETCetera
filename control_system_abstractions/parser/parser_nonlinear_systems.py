@@ -155,9 +155,9 @@ def parse_nonlinear(line):
                 elif key == 'gridstep':
                     assert int(value) > 1, "Gridstep should be greater than 1."
                     solver_options.update({key: int(value)})
-                elif key == 'dreal_precision':
+                elif key == 'dreal_precision_deltas':
                     solver_options.update({key: float(value)})
-                elif key == 'timeout':
+                elif key == 'timeout_deltas':
                     solver_options.update({key: int(value)})
                 elif key == 'opt_method':
                     assert value in ['revised simplex', 'simplex', 'interior-point']
@@ -171,7 +171,7 @@ def parse_nonlinear(line):
                     solver_options.update({key: [int(i) for i in values]})
                 elif key == 'remainder_reachability':
                     solver_options.update({key: float(value)})
-                elif key == 'time_out_reachability':
+                elif key == 'timeout_reachability':
                     solver_options.update({key: int(value)})
                 else:
                     pass
@@ -191,7 +191,7 @@ def parse_nonlinear(line):
                 re.search('[a-z_]+=[a-z0-9.{} ]+', item).group(0)
                 key = item.split('=')[0]
                 value = item.split('=')[1]
-                if key == 'time_out_upper_bounds':
+                if key == 'timeout_upper_bounds':
                     linesearch_options.update({key: int(value)})
                 elif key == 'remainder_upper_bounds':
                     linesearch_options.update({key: float(value)})

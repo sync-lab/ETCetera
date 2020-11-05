@@ -46,7 +46,7 @@ def create_abstractions(data_obj):
         # check if the box [-gues,guess] is contained in set expression, by doing a line search on the var guess
         while flag:
             res = dReal.dReal_verify(expression, sym_dom, None, data_obj.state[:int(len(data_obj.state) / 2)],
-                                     data_obj.dreal_precision, data_obj.dreal_path, data_obj.path, time_out=time_out,
+                                     data_obj.dreal_precision_deltas, data_obj.dreal_path, data_obj.path, time_out=time_out,
                                      verbose=False)  # check if the box is contained in the set expression
             if res['time-out']:  # if it is contained solution is found
                 break
@@ -91,8 +91,8 @@ def create_abstractions(data_obj):
 
     """
     # Initialize parameters to calculate upper bound
-    dreal_precision_upper_bound = 0.01
-    time_out_upper_bound = None
+    #dreal_precision_upper_bound = 0.01
+    #time_out_upper_bound = None
     lp_method = 'revised simplex'
     C_mat_lp = []
     D_mat_lp = []
@@ -115,17 +115,18 @@ def create_abstractions(data_obj):
         data_obj.UBF = ubf_temp
         # Verify the condition using dReal
 
-        res = data_obj.verify_upper_bound_constraint(dreal_precision_upper_bound,
-                                                 time_out=time_out_upper_bound)  # check if the found solutions verify the constraints
+        res = data_obj.verify_upper_bound_constraint(data_obj.dreal_precision_deltas,
+                                                 time_out=data_obj.timeout_deltas)  # check if the found solutions verify the constraints
         if res['time-out']:
             print(
                 "WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or adapt the specification")
             res_flag = -2
+            res_flag_final = 1  # Program continues with warnings
             break
 
         if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
             # Set the value to lp-data
-            LP_data.A, LP_data.B = LP_data.calculate_constraints(data_obj, res['violation'], dreal_precision_upper_bound)
+            LP_data.A, LP_data.B = LP_data.calculate_constraints(data_obj, res['violation'], data_obj.dreal_precision_deltas)
 
         if (LP_data.A[-1] == LP_data.A[-3]) and (LP_data.B[-1] == LP_data.B[-3]):
             # if the same counterexample as before is returned, then terminate

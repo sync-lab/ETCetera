@@ -104,8 +104,8 @@ class InputDataStructureNonLinear(object):
     # constructor
     def __init__(self, path, dreal_path, dreach_path, flowstar_path, dynamics, homogeneity, lyapunov, lvl_set_c,
                  function, state, init_cond_symbols, parameters, parameters_domain, hyperbox_states, order_approx,
-                 gridstep, dreal_precision, heartbeat, manifolds_times, remainder_reachability,time_out_reachability,
-                 grid_pts_per_dim, time_out_upper_bounds, remainder_upper_bounds, timeout, homogenization_flag,
+                 gridstep, dreal_precision_deltas, heartbeat, manifolds_times, remainder_reachability,time_out_reachability,
+                 grid_pts_per_dim, time_out_upper_bounds, remainder_upper_bounds, timeout_deltas, homogenization_flag,
                  t_max=None, origin_neighbourhood_degeneracy_flag=True):
         """Constructor"""
         self.path = path
@@ -166,7 +166,7 @@ class InputDataStructureNonLinear(object):
         self.grid = None
         self.origin_neighbourhood_degeneracy_flag = origin_neighbourhood_degeneracy_flag
         self.manifolds_times = manifolds_times
-        self.dreal_precision = dreal_precision
+        self.dreal_precision_deltas = dreal_precision_deltas
         # self.max_Lie_difference = None
         self.heartbeat = heartbeat
         #self.manifold_times = manifold_times
@@ -176,7 +176,7 @@ class InputDataStructureNonLinear(object):
         self.hyperbox_states = hyperbox_states
         self.time_out_upper_bounds = time_out_upper_bounds
         self.remainder_upper_bounds = remainder_upper_bounds
-        self.timeout = timeout
+        self.timeout_deltas = timeout_deltas
 
 
     def create_symbolic_domain_of_parameters(self):
