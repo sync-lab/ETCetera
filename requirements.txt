@@ -18,3 +18,4 @@ pyparsing
 cycler
 python-dateutil
 kiwisolver
+pycddlib

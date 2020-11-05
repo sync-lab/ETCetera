@@ -104,8 +104,8 @@ class InputDataStructureNonLinear(object):
     # constructor
     def __init__(self, path, dreal_path, dreach_path, flowstar_path, dynamics, homogeneity, lyapunov, lvl_set_c,
                  function, state, init_cond_symbols, parameters, parameters_domain, hyperbox_states, order_approx,
-                 gridstep, dreal_precision, heart_beat, manifolds_times, remainder_reachability,time_out_reachability,
-                 grid_pts_per_dim, time_out_upperbounds, remainder_upper_bounds, timeout, homogenization_flag,
+                 gridstep, dreal_precision, heartbeat, manifolds_times, remainder_reachability,time_out_reachability,
+                 grid_pts_per_dim, time_out_upper_bounds, remainder_upper_bounds, timeout, homogenization_flag,
                  t_max=None, origin_neighbourhood_degeneracy_flag=True):
         """Constructor"""
         self.path = path
@@ -168,13 +168,13 @@ class InputDataStructureNonLinear(object):
         self.manifolds_times = manifolds_times
         self.dreal_precision = dreal_precision
         # self.max_Lie_difference = None
-        self.heart_beat = heart_beat
+        self.heartbeat = heartbeat
         #self.manifold_times = manifold_times
         self.remainder_reachability = remainder_reachability
         self.time_out_reachability = time_out_reachability
         self.grid_pts_per_dim = grid_pts_per_dim
         self.hyperbox_states = hyperbox_states
-        self.time_out_upperbounds = time_out_upperbounds
+        self.time_out_upper_bounds = time_out_upper_bounds
         self.remainder_upper_bounds = remainder_upper_bounds
         self.timeout = timeout
 
@@ -1014,4 +1014,4 @@ class InputDataStructureNonLinear(object):
                         region.index, region2.index))
                 if (res['sat']):  # there is transition
                     print('Transition found from Region {} to Region {}'.format(region.index, region2.index))
-                    region.insert_transition(region2.index)
+                    region.set_transition(region2.index)

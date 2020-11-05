@@ -146,7 +146,7 @@ def create_abstractions(data_obj):
         raise DataObjectGeneralException("No solution has been found. Try different LP or dReal settings")
         #return -1
 
-
+    data_obj.LP_data = LP_data
     """INPUTS:
         manifolds_times: list of float, >0. (for homogeneous systems, see self.spherical_sectors.
                                              for nonhomogeneous, see self.create_regions_objects_nonhomogeneous.)
@@ -223,6 +223,7 @@ def create_abstractions(data_obj):
             [halfspaces_b, halfspaces_A] = polytope_vrep2hrep(polytope_vertices_in_rn)  # get the hrep
             #            aux2 = np.zeros(dimension)
             #            polytope_vertices.append(aux2.tolist())
+
             if all([v == 0 for v in centroid]) & data_obj.origin_neighbourhood_degeneracy_flag:
                 # if the polytope contains the origin and the manifolds there are degenerate
                 lower_bound = data_obj.timing_lower_bound_origin_polytope(data_obj.heartbeat)

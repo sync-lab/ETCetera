@@ -1,7 +1,7 @@
 import numpy as np
 import sympy
 from scipy.optimize import linprog
-#import cdd
+import cdd
 from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import LPGeneralException, \
     LPOptimizationFailedException
 
@@ -152,11 +152,10 @@ class RegionNonHomogeneous(object):
         A = sympy.Matrix(polytope_halfspaces_A)
         b = sympy.Matrix(polytope_halfspaces_b)
         A_times_state = A * sympy.Matrix(state_vector)
-        self.symbolic_region_for_reachability_analysis = all((A_times_state[i] <= b[i]) for i in range(0, len(b)))
-        # Commented from original expression = True
-        # Commented from original for i in range(0, len(b)):
-        # Commented from original    expression = expression & (A_times_state[i] <= b[i])
-        # Commented from original self.symbolic_region_for_reachability_analysis = expression
+        expression = True
+        for i in range(0, len(b)):
+            expression = expression & (A_times_state[i] <= b[i])
+        self.symbolic_region_for_reachability_analysis = expression
 
     def insert_timing_upper_bound(self, upper_bound):
         self.timing_upper_bound = upper_bound
@@ -204,7 +203,7 @@ class LPData(object):
 
         if not C:  # if cost function is not given use default
             self.C = np.zeros(s.p + 1)
-            self.C[s.p - 1::1] = [0, 1]
+            self.C[s.p - 1::1] = [2, 1]     # self.C[s.p - 1::1] = [0, 1]
             # Commented from original self.C[s.p - 1] = 0 self.C[s.p] = 1
         elif C and len(C) != s.p + 1:   # If cost function is given but incorrect length
             raise LPGeneralException('User defined c vector is of the wrong dimension. Default cost function used instead')
@@ -213,7 +212,7 @@ class LPData(object):
 
         if not D:  # if bounds are not given, use default bounds
             # Commented from original self.D = []
-            self.D = [(None, 10**3) for d in range(1, s.p)]
+            self.D = [(None, 10**2) for d in range(1, s.p)]     #self.D = [(None, 10**3) for d in range(1, s.p)]
             # Commented from original self.D.append((0, None))  # Delta_n self.D.append((0, None))  # Gamma >= 0
             self.D.append((0, None))    # Delta_n and Gamma >= 0
             self.D.append((0, None))
