@@ -212,7 +212,7 @@ class LPData(object):
 
         if not D:  # if bounds are not given, use default bounds
             # Commented from original self.D = []
-            self.D = [(None, 10**2) for d in range(1, s.p)]     #self.D = [(None, 10**3) for d in range(1, s.p)]
+            self.D = [(0, 10**2) for d in range(1, s.p)]     #self.D = [(None, 10**3) for d in range(1, s.p)]
             # Commented from original self.D.append((0, None))  # Delta_n self.D.append((0, None))  # Gamma >= 0
             self.D.append((0, None))    # Delta_n and Gamma >= 0
             self.D.append((0, None))

@@ -126,9 +126,16 @@ def create_abstractions(data_obj):
 
         if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
             # Set the value to lp-data
-            LP_data.A, LP_data.B = LP_data.calculate_constraints(data_obj, res['violation'], data_obj.dreal_precision_deltas)
-
-        if (LP_data.A[-1] == LP_data.A[-3]) and (LP_data.B[-1] == LP_data.B[-3]):
+            An, Bn = LP_data.calculate_constraints(data_obj, res['violation'], data_obj.dreal_precision_deltas)
+            tempA = An[:]
+            tempB = Bn[:]
+            LP_data.A.append(tempA[0][:])
+            LP_data.A.append(tempA[1][:])
+            LP_data.A.append(tempA[2][:])
+            LP_data.B.append(tempB[0])
+            LP_data.B.append(tempB[1])
+            LP_data.B.append(tempB[2])
+        if (not (np.array(LP_data.A[-1]) - np.array(LP_data.A[-3])).all()) and (not (np.array(LP_data.B[-1]) - np.array(LP_data.B[-3])).all()):
             # if the same counterexample as before is returned, then terminate
             print('ERROR: Same counterexample found by dReal. Terminating script.')
             res_flag = -3
