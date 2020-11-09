@@ -115,10 +115,13 @@ def parse_nonlinear(line):
             value = line.split(':')[1].strip()
         except IndexError:
             raise EmptyValueException
-        sc.check_if_numerical_values(re.split(', ', value))    # Check that comma separated values are numerical
-        for time in line.split(':')[1].strip().split(', '):
-            triggering_times.append(float(time))
-        return triggering_times
+        if len(value) > 0:
+            sc.check_if_numerical_values(re.split(', ', value))    # Check that comma separated values are numerical
+            for time in line.split(':')[1].strip().split(', '):
+                triggering_times.append(float(time))
+            return triggering_times
+        else:
+            return None
 
 
     # If the line is 'deg_of_homogeneity'
@@ -167,8 +170,19 @@ def parse_nonlinear(line):
                 elif key == 'grid_pts_per_dim':
                     values = re.search('\{(.*)\}', value).group(1)
                     values = values.strip().split(' ')
-                    sc.check_if_numerical_values(values)
-                    solver_options.update({key: [int(i) for i in values]})
+                    values = list(filter(None, values))
+                    if len(values) > 0:
+                        sc.check_if_numerical_values(values)
+                        solver_options.update({key: [int(i) for i in values]})
+                elif key == 'nr_cones_small_angles':
+                    values = re.search('\{(.*)\}', value).group(1)
+                    values = values.strip().split(' ')
+                    values = list(filter(None, values))
+                    if len(values) > 0:
+                        sc.check_if_numerical_values(values)
+                        solver_options.update({key: [int(i) for i in values]})
+                elif key == 'nr_cones_big_angle':
+                    solver_options.update({key: int(value)})
                 elif key == 'remainder_reachability':
                     solver_options.update({key: float(value)})
                 elif key == 'timeout_reachability':

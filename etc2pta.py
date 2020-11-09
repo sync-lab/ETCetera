@@ -73,11 +73,12 @@ def main(argv):
         # Dictionary to hold non-linear data
         dict_key_to_attrs = {'Dynamics': None, 'Controller': None, 'Hyperbox States': None,
                              'Triggering Condition': None, 'Triggering Times': None, 'Hyperbox Disturbances': None,
-                             'Solver Options': {'p': 1, 'gridstep': 2, 'heart_beat': float(1.2),
-                                                'dreal_precision_deltas': 0.01, 'timeout_deltas': 0,
-                                                'opt_method': 'revised simplex', 'remainder_reachability': math.exp(-1),
-                                                'timeout_reachability': None, 'grid_pts_per_dim': None},
-                             'Linesearch Options': {'timeout_upper_bounds': 15, 'remainder_upper_bounds': None},
+                             'Solver Options': {'p': 1, 'gridstep': 2, 'heart_beat': float(0.4), 'manifolds_times': None,
+                                                'dreal_precision_deltas': 0.001, 'timeout_deltas': 1000,
+                                                'opt_method': 'revised simplex', 'remainder_reachability': 0.1,
+                                                'timeout_reachability': None, 'grid_pts_per_dim': None,
+                                                'nr_cones_small_angles': None, 'nr_cones_big_angle': 4},
+                             'Linesearch Options': {'timeout_upper_bounds': 15, 'remainder_upper_bounds': 0.1},
                              'Lyapunov Function': None, 'Deg. of Homogeneity': None}
         # Dictionary to hold symbols in expressions
         dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set(), 'w': set()}
@@ -218,6 +219,16 @@ def main(argv):
         else:
             pass
 
+        # Number of values for 'nr_cones_small_angles' should be equal to num of 'x' variables
+        if not dict_key_to_attrs['Solver Options']['nr_cones_small_angles']: # If not user specified, create list of len of 'x'
+            dict_key_to_attrs['Solver Options']['nr_cones_small_angles'] = [4] * (len(dict_symbol_to_attr['x']) - 2)
+        elif not (len(dict_symbol_to_attr['x']) - 2) == len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']):
+            print('nr_cones_small_angles should be equal to number of \'x\' variables!')
+            sys.exit()
+        else:
+            pass
+
+
         # Generate etc_controller data from controller data
         dynamics_errors, etc_controller = nlp.get_etc_controller(dict_key_to_attrs['Controller'])
         dict_symbol_to_attr['e'] = dynamics_errors.union(dynamics_errors)      # Union with existing error symbols
@@ -233,8 +244,23 @@ def main(argv):
         dynamics_new.extend([-1 * expr for expr in dynamics_new])
         dynamics_new = sp.Matrix(dynamics_new)
 
+        if 'w1' in set_symbols:
+            is_homogenized = True
+        else:
+            is_homogenized = False
+
+        if is_homogenized and (not dict_key_to_attrs['Triggering Times']): #(len(dict_key_to_attrs['Triggering Times']) == 0):
+            dict_key_to_attrs['Triggering Times'] = [0.0001]
+        elif is_homogenized and (len(dict_key_to_attrs['Triggering Times']) >= 1):
+            dict_key_to_attrs['Triggering Times'] = [min(dict_key_to_attrs['Triggering Times'])]
+        elif not is_homogenized and (not dict_key_to_attrs['Triggering Times'] or
+                                     (len(dict_key_to_attrs['Triggering Times']) < 2)):
+            dict_key_to_attrs['Triggering Times'] = [0.0001, 0.001]
+        else:
+            dict_key_to_attrs['Triggering Times'] = sorted(dict_key_to_attrs['Triggering Times'], key=float)
+
         # Check if only one time mentioned, then the system is homogeneous
-        is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
+        #is_homogenized = True if (len(dict_key_to_attrs['Triggering Times']) == 1) else False
 
         # To get parameters, sort the d symbols
         d_str_sorted = sorted([i for i in dict_symbol_to_attr['d']])
@@ -251,11 +277,12 @@ def main(argv):
 
         init_cond_symbols = tuple(sp.Symbol(i) for i in a_str_sorted)
 
-        x_str_sorted.append(list(dict_symbol_to_attr['w'])[0])
+        print(dict_symbol_to_attr)
+        x_str_sorted.append(list(dict_symbol_to_attr['w'])[0]) if 'w1' in dict_symbol_to_attr['w'] else print('')
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
 
-        #print(dict_key_to_attrs)
+        print(dict_key_to_attrs)
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
@@ -279,9 +306,12 @@ def main(argv):
                                                        dict_key_to_attrs['Linesearch Options']['timeout_upper_bounds'],
                                                        dict_key_to_attrs['Linesearch Options']['remainder_upper_bounds'],
                                                        dict_key_to_attrs['Solver Options']['timeout_deltas'],
+                                                       dict_key_to_attrs['Solver Options']['nr_cones_small_angles'],
+                                                       dict_key_to_attrs['Solver Options']['nr_cones_big_angle'],
                                                        is_homogenized)
+
             print(data_obj.__dict__)
-            nonlinear_logic.create_abstractions(data_obj)
+            #nonlinear_logic.create_abstractions(data_obj)
         except LPOptimizationFailedException:
             print("LP optimization failed, terminating script")
             sys.exit()

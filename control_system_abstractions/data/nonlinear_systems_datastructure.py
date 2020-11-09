@@ -104,9 +104,10 @@ class InputDataStructureNonLinear(object):
     # constructor
     def __init__(self, path, dreal_path, dreach_path, flowstar_path, dynamics, homogeneity, lyapunov, lvl_set_c,
                  function, state, init_cond_symbols, parameters, parameters_domain, hyperbox_states, order_approx,
-                 gridstep, dreal_precision_deltas, heartbeat, manifolds_times, remainder_reachability,time_out_reachability,
-                 grid_pts_per_dim, time_out_upper_bounds, remainder_upper_bounds, timeout_deltas, homogenization_flag,
-                 t_max=None, origin_neighbourhood_degeneracy_flag=True):
+                 gridstep, dreal_precision_deltas, heartbeat, manifolds_times, remainder_reachability,
+                 timeout_reachability, grid_pts_per_dim, timeout_upper_bounds, remainder_upper_bounds, timeout_deltas,
+                 nr_cones_small_angles, nr_cones_big_angle, homogenization_flag, t_max=None,
+                 origin_neighbourhood_degeneracy_flag=True):
         """Constructor"""
         self.path = path
         self.dreal_path = dreal_path
@@ -171,12 +172,14 @@ class InputDataStructureNonLinear(object):
         self.heartbeat = heartbeat
         #self.manifold_times = manifold_times
         self.remainder_reachability = remainder_reachability
-        self.time_out_reachability = time_out_reachability
+        self.timeout_reachability = timeout_reachability
         self.grid_pts_per_dim = grid_pts_per_dim
         self.hyperbox_states = hyperbox_states
-        self.time_out_upper_bounds = time_out_upper_bounds
+        self.timeout_upper_bounds = timeout_upper_bounds
         self.remainder_upper_bounds = remainder_upper_bounds
         self.timeout_deltas = timeout_deltas
+        self.nr_cones_small_angles = nr_cones_small_angles
+        self.nr_cones_big_angle = nr_cones_big_angle
 
 
     def create_symbolic_domain_of_parameters(self):
@@ -691,7 +694,7 @@ class InputDataStructureNonLinear(object):
         self.spherical_domains object. For each region, it calculates the timing lower bound,
         and the inner and outer approximating radii.
         It is called by the function self.abstraction()."""
-        self.regions = []
+        local_regions = []
 
         region_index = [0, 0]  # index of each region
         for j in range(0, len(manifolds_times)):  # We iterate along all manifolds
@@ -727,7 +730,8 @@ class InputDataStructureNonLinear(object):
                                                 outer_manifold_time, cone, inner_radius, outer_radius,
                                                 contains_origin_flag)
                 temp = new_region
-                self.regions.append(temp)
+                local_regions.append(temp)
+        return local_regions
 
     def create_regions_objects_nonhomogeneous(self, manifolds_times, heartbeat):
         """INPUTS:
