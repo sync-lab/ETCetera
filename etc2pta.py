@@ -192,6 +192,17 @@ def main(argv):
                   str(dict_key_to_attrs['Triggering Condition']) + str(dict_key_to_attrs['Lyapunov Function'])
         set_symbols = set(re.findall('[a-z]\\d+', all_exprs))       # Get symbols of the form x0, e0, ...
 
+        # If 'd' variables specified, 'Hyperbox Disturbances' should not be empty
+        if re.search('[d]\d+', ''.join(set_symbols)) and not dict_key_to_attrs['Hyperbox Disturbances']:
+            print('If \'d\' variables specified, \'Hyperbox Disturbances\' should not be empty')
+            sys.exit()
+        # If 'd' variables specified not specified, 'Hyperbox Disturbances' should be empty
+        elif (not re.search('[d]\d+', ''.join(set_symbols)) and dict_key_to_attrs['Hyperbox Disturbances']):
+            print('If \'d\' variables specified not specified, \'Hyperbox Disturbances\' should be empty')
+            sys.exit()
+        else:
+            pass
+
         # Add the symbol to correct attr
         for symbol in set_symbols:
             dict_symbol_to_attr[symbol[0]].add(symbol)
@@ -311,7 +322,7 @@ def main(argv):
                                                        is_homogenized)
 
             print(data_obj.__dict__)
-            #nonlinear_logic.create_abstractions(data_obj)
+            nonlinear_logic.create_abstractions(data_obj)
         except LPOptimizationFailedException:
             print("LP optimization failed, terminating script")
             sys.exit()

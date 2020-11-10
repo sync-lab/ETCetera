@@ -4,7 +4,7 @@ import control_system_abstractions.parser.syntax_checker as sc
 import sympy as sp
 
 from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import EmptyValueException, \
-    MultipleValuesFoundException, NotPositiveRealNumberException, IncorrectSyntaxException
+    MultipleValuesFoundException, NotPositiveRealNumberException, IncorrectSyntaxException, GenericParsingException
 from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
     ArbitraryVariableNumberingException, IncorrectNumOfSymbolicExpressionException
 
@@ -101,10 +101,19 @@ def parse_nonlinear(line):
             hyperbox_disturbances_vectors = line.split(':')[1].strip().split(', ')
         except IndexError:
             raise IncorrectSyntaxException
+
+        len_vectors = len(hyperbox_disturbances_vectors)
+
         for item in hyperbox_disturbances_vectors:   # Split the vectors delimited by ','
             list_of_values = sc.check_keyvalue_syntax(' ', '\[(.*)\]', item)    # Check the vector syntax
-            sc.check_if_numerical_values(list_of_values)    # Check the values are real numbers
-            hyperbox_disturbances.append([float(i) for i in list_of_values])  # Convert list into vector and append
+            if len(list_of_values) == 0 and len_vectors > 1:
+                raise GenericParsingException('No other vectors can be specified when an empty vector defined. Syntax '
+                                              'Error on line ')
+            elif len(list_of_values) == 0 and len_vectors == 1:
+                pass
+            else:
+                sc.check_if_numerical_values(list_of_values)    # Check the values are real numbers
+                hyperbox_disturbances.append([float(i) for i in list_of_values])  # Convert list into vector and append
         return hyperbox_disturbances
 
 

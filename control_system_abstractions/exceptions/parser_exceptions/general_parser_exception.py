@@ -26,3 +26,8 @@ class IncorrectSyntaxException(Exception):
 class MultipleScalarsSpecifiedException(Exception):
     """Raised when multiple scalar values separated by comma is found when a single value is expected"""
     pass
+
+class GenericParsingException(Exception):
+    """Raised when generic exceptions when using LPData class"""
+    def __init__(self, msg):
+        self.msg = msg

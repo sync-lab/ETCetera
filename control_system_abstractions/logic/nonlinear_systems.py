@@ -79,7 +79,6 @@ def create_abstractions(data_obj):
 
     data_obj.lie_n = data_obj.lie[-1]
 
-
     """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
     if the found solutions verify the constraints.
 
