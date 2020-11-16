@@ -70,7 +70,7 @@ def main(argv):
                              'Triggering Condition': None, 'Triggering Sampling Time': None, 'Lyapunov Function': None,
                              'Solver Options': {}, 'Abstraction Options': {}}
     else:
-        # Dictionary to hold non-linear data
+        # Dictionary to hold non-linear data, and default vqlues where applicable
         dict_key_to_attrs = {'Dynamics': None, 'Controller': None, 'Hyperbox States': None,
                              'Triggering Condition': None, 'Triggering Times': None, 'Hyperbox Disturbances': None,
                              'Solver Options': {'p': 1, 'gridstep': 2, 'heart_beat': float(0.4), 'manifolds_times': None,
@@ -203,10 +203,11 @@ def main(argv):
         else:
             pass
 
-        # Add the symbol to correct attr
+        # Add the symbol to correct attr in 'dict_symbol_to_attr'
         for symbol in set_symbols:
             dict_symbol_to_attr[symbol[0]].add(symbol)
 
+        # Check that each symbol type numbering begins with '1' and is sequential, e.g. x1, x2, ...
         for key in dict_symbol_to_attr.keys():
             sorted_list = sorted(list(dict_symbol_to_attr[key]))
             i = 1
@@ -239,12 +240,11 @@ def main(argv):
         else:
             pass
 
-
         # Generate etc_controller data from controller data
         dynamics_errors, etc_controller = nlp.get_etc_controller(dict_key_to_attrs['Controller'])
         dict_symbol_to_attr['e'] = dynamics_errors.union(dynamics_errors)      # Union with existing error symbols
 
-        #
+        # Generate new dynamics variable by replacing expr from 'etc_controller'
         dynamics_new = []
         for expr in dict_key_to_attrs['Dynamics']:
             expr = str(expr)
@@ -255,18 +255,23 @@ def main(argv):
         dynamics_new.extend([-1 * expr for expr in dynamics_new])
         dynamics_new = sp.Matrix(dynamics_new)
 
+        # If 'w1' variable is specified, then system is homogenized
         if 'w1' in set_symbols:
             is_homogenized = True
         else:
             is_homogenized = False
 
+        # Initialize default value if homogenized but no triggering times specified
         if is_homogenized and (not dict_key_to_attrs['Triggering Times']): #(len(dict_key_to_attrs['Triggering Times']) == 0):
             dict_key_to_attrs['Triggering Times'] = [0.0001]
+        # Assign only lowest value if homogenized and multiple triggering times specified
         elif is_homogenized and (len(dict_key_to_attrs['Triggering Times']) >= 1):
             dict_key_to_attrs['Triggering Times'] = [min(dict_key_to_attrs['Triggering Times'])]
+        # Initialize default values if not homogenized but no triggering times or contains less than two values
         elif not is_homogenized and (not dict_key_to_attrs['Triggering Times'] or
                                      (len(dict_key_to_attrs['Triggering Times']) < 2)):
             dict_key_to_attrs['Triggering Times'] = [0.0001, 0.001]
+        # Default case not homogenized and triggering times specified and length >2, just sort the values
         else:
             dict_key_to_attrs['Triggering Times'] = sorted(dict_key_to_attrs['Triggering Times'], key=float)
 
@@ -277,6 +282,7 @@ def main(argv):
         d_str_sorted = sorted([i for i in dict_symbol_to_attr['d']])
         parameters = tuple(sp.Symbol(i) for i in d_str_sorted)
 
+
         # State is a union of sorted x and e symbols
         x_str_sorted = sorted([i for i in dict_symbol_to_attr['x']])
 
@@ -285,15 +291,12 @@ def main(argv):
         a_str_sorted.append('aw') if 'w1' in dict_symbol_to_attr['w'] else print('')
         e_str_sorted = sorted([i.replace('x', 'e') for i in dict_symbol_to_attr['x']])
         e_str_sorted.append('ew') if 'w1' in dict_symbol_to_attr['w'] else print('')  # only append if w1 exists
-
         init_cond_symbols = tuple(sp.Symbol(i) for i in a_str_sorted)
 
-        print(dict_symbol_to_attr)
         x_str_sorted.append(list(dict_symbol_to_attr['w'])[0]) if 'w1' in dict_symbol_to_attr['w'] else print('')
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
 
-        print(dict_key_to_attrs)
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,

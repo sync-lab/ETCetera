@@ -23,7 +23,7 @@ class IncorrectMatrixDefinitionException(Exception):
     pass
 
 class MatricesUnequalRowsException(Exception):
-    """Raised when multiple matrices should supposed to be having same number of rows"""
+    """Raised when multiple matrices supposed to be having same number of rows but do not"""
     pass
 
 class MultipleMatricesSpecifiedException(Exception):

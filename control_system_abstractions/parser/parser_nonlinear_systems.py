@@ -142,7 +142,7 @@ def parse_nonlinear(line):
         if len(value.strip().split(',')) != 1:  # There should be only one value
             raise MultipleValuesFoundException
         sc.check_if_numerical_values(value.strip().split(' '))     # Check if float value
-        if float(value.strip()) < 0:
+        if float(value.strip()) < 0:    # value shpuld be positive integer
             raise NotPositiveRealNumberException
         return float(value.strip())
 
@@ -150,13 +150,12 @@ def parse_nonlinear(line):
     # If the line is 'solver_options'
     elif line.split(':')[0].strip() == 'Solver Options':
         solver_options = dict()
-        solver_options.update({'opt_method': 'revised simplex'})
         try:
-            if len(list(filter(None, line.split(':')[1].strip().split(', ')))) == 0:   # Check if no values specified, this data structure can be empty
+            # Check if no values specified as this data structure can be empty,
+            if len(list(filter(None, line.split(':')[1].strip().split(', ')))) == 0:
                 return solver_options
 
             for item in line.split(':')[1].strip().split(', '):
-                solver_options
                 re.search('[a-z_]+=[a-z0-9.{} ]+', item).group(0)
                 key = item.split('=')[0]
                 value = item.split('=')[1]

@@ -10,7 +10,7 @@ class ArbitraryVariableNumberingException(Exception):
 
 
 class IncorrectSymbolicExpressionException(Exception):
-    """Raised when the symbolic expression is incorrect"""
+    """Raised when the symbolic expression is invalid"""
     pass
 
 

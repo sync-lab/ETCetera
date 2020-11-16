@@ -185,12 +185,15 @@ class InputDataStructureNonLinear(object):
     def create_symbolic_domain_of_parameters(self):
         """Given the box domain of parameters self.parameters_domain, write it in a symbolic expression"""
         try:
-            domain = True
-            for i in range(0, len(self.parameters)):  # iterate along the self.parameters tuple
-                # to write the box constraint for each parameter in a symbolic way
-                domain = domain & (self.parameters[i] >= self.parameters_domain[i][0])
-                domain = domain & (self.parameters[i] <= self.parameters_domain[i][1])
-            return domain
+            if len(self.parameters) == 0:
+                return None
+            else:
+                domain = True
+                for i in range(0, len(self.parameters)):  # iterate along the self.parameters tuple
+                    # to write the box constraint for each parameter in a symbolic way
+                    domain = domain & (self.parameters[i] >= self.parameters_domain[i][0])
+                    domain = domain & (self.parameters[i] <= self.parameters_domain[i][1])
+                return domain
         except Exception:
             raise Exception('Exception Occurred')
 
@@ -983,39 +986,39 @@ class InputDataStructureNonLinear(object):
             lower_bound = 0.9 * lower_bound  # increase upper bound
         return lower_bound
 
-    def transitions(self, verbose, time_out=None, remainder_reach=1e-1):
+    #def transitions(self, verbose, time_out=None, remainder_reach=1e-1):
+    def find_transitions_of_region(self, verbose, region, time_out=None, remainder_reach=1e-1, dreal_precision=0.0001):
         """INPUTS:
-            verbose: boolean.
-            time_out, float, >0.
+        verbose: boolean.
+        time_out, float, >0.
 
-            Computes transitions for all Regions.
+        Computes transitions for all Regions.
         """
-        dreal_precision = 0.0001
         tau = sympy.symbols('tau')
-        for region in self.regions:  # for each region
-            for region2 in self.regions:  # check if there is transition with each of all regions
-                goal_set = region2.symbolic_region_for_reachability_analysis
-                goal_set = goal_set & (tau >= region.timing_lower_bound) & (tau <= region.timing_upper_bound)
-                if (self.parameters == ()):  # use dreach if no parameters
-                    # for dReach the initial set is given in the common symbolic format
-                    initial_set = region.symbolic_region_for_reachability_analysis
-                    for e in self.original_state[int(len(self.original_state) / 2):]:
-                        initial_set = initial_set & (e >= 0) & (e <= 0)
-                    res = dReach.dReach_verify(initial_set, goal_set, region.timing_upper_bound, self.original_state,
-                                               self.original_dynamics, dreal_precision, self.dreach_path, self.path,
-                                               "reach_analysis.drh", verbose, time_out)
-                else:  # use flowstar if there are parameters
-                    # for flowstar the initial set in the form of iintervals (list of lists)
-                    box_domain = region.region_box[:]
-                    for e in self.original_state[int(len(self.original_state) / 2):]:
-                        box_domain.append([0, 0])
-                    res = flowstar.flowstar_verify(box_domain, goal_set, region.timing_upper_bound, self.original_state,
-                                                   self.original_dynamics, self.parameters, self.parameters_domain,
-                                                   self.flowstar_path, self.path, "reach_analysis.model", verbose,
-                                                   time_out, remainder_reach, )
-                if (res['time-out']):  # if time out, enforce transition
-                    print('dReach or flowstar time out. Enforcing Transition from Region {} to Region {}'.format(
-                        region.index, region2.index))
-                if (res['sat']):  # there is transition
-                    print('Transition found from Region {} to Region {}'.format(region.index, region2.index))
-                    region.set_transition(region2.index)
+        #for region in self.regions:  # for each region
+        for region2 in self.regions:  # check if there is transition with each of all regions
+            goal_set = region2.symbolic_region_for_reachability_analysis
+            goal_set = goal_set & (tau >= region.timing_lower_bound) & (tau <= region.timing_upper_bound)
+            if (self.parameters == ()):  # use dreach if no parameters
+            # for dReach the initial set is given in the common symbolic format
+                initial_set = region.symbolic_region_for_reachability_analysis
+                for e in self.original_state[int(len(self.original_state) / 2):]:
+                    initial_set = initial_set & (e >= 0) & (e <= 0)
+                res = dReach.dReach_verify(initial_set, goal_set, region.timing_upper_bound, self.original_state,
+                                           self.original_dynamics, dreal_precision, self.dreach_path, self.path,
+                                           "reach_analysis.drh", verbose, time_out)
+            else:  # use flowstar if there are parameters
+                # for flowstar the initial set in the form of iintervals (list of lists)
+                box_domain = region.region_box[:]
+                for e in self.original_state[int(len(self.original_state) / 2):]:
+                    box_domain.append([0, 0])
+                res = flowstar.flowstar_verify(box_domain, goal_set, region.timing_upper_bound, self.original_state,
+                                               self.original_dynamics, self.parameters, self.parameters_domain,
+                                               self.flowstar_path, self.path, "reach_analysis.model", verbose,
+                                               time_out, remainder_reach, )
+            if (res['time-out']):  # if time out, enforce transition
+                print('dReach or flowstar time out. Enforcing Transition from Region {} to Region {}'.format(
+                    region.index, region2.index))
+            if (res['sat']):  # there is transition
+                print('Transition found from Region {} to Region {}'.format(region.index, region2.index))
+                region.set_transition(region2.index)

@@ -28,6 +28,6 @@ class MultipleScalarsSpecifiedException(Exception):
     pass
 
 class GenericParsingException(Exception):
-    """Raised when generic exceptions when using LPData class"""
+    """Raised when any generic exceptions occurs"""
     def __init__(self, msg):
         self.msg = msg

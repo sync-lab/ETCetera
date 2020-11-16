@@ -4,6 +4,8 @@ import control_system_abstractions.data.nonlinear_systems_datastructure as data
 import sympy
 import numpy as np
 import itertools
+from joblib import Parallel, delayed
+import multiprocessing
 import control_system_abstractions.nonlinear_systems_utils.dReal_communication_2 as dReal
 import control_system_abstractions.nonlinear_systems_utils.dReach_communication as dReach
 import control_system_abstractions.nonlinear_systems_utils.flowstar_communication as flowstar
@@ -114,18 +116,19 @@ def create_abstractions(data_obj):
         # Construct the UBF given the set of obtained delta's
         ubf_temp = data_obj.construct_UBF()
         data_obj.UBF = ubf_temp
-        # Verify the condition using dReal
 
-        res = data_obj.verify_upper_bound_constraint(data_obj.dreal_precision_deltas,
-                                                 time_out=data_obj.timeout_deltas)  # check if the found solutions verify the constraints
+        # Verify the condition using dReal
+        # check if the found solutions verify the constraints
+        res = data_obj.verify_upper_bound_constraint(data_obj.dreal_precision_deltas, time_out=data_obj.timeout_deltas)
+
         if res['time-out']:
-            print(
-                "WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or adapt the specification")
+            print("WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or "
+                  "adapt the specification")
             res_flag = -2
             res_flag_final = 1  # Program continues with warnings
             break
 
-        if not res['sat']:  # if they dont verify the constraints append a new constraint employing the counterexample res['violation']
+        if not res['sat']:  # if they dont verify constraints, append a new constraint employing the counterexample res['violation']
             # Set the value to lp-data
             An, Bn = LP_data.calculate_constraints(data_obj, res['violation'], data_obj.dreal_precision_deltas)
             tempA = An[:]
@@ -188,6 +191,8 @@ def create_abstractions(data_obj):
     #self.manifolds_times = manifolds_times
     if not data_obj.homogenization_flag:
         print('Computing radii for one manifold')
+
+        #def spherical_sectors(self, manifold_time, nr_cones_small_angles=[], nr_cones_big_angle=5, verbose=True):
         """INPUT:
             manifold_time: float >0
             nr_cones_small_angles: list of positive int, of length self.n-2
@@ -306,45 +311,144 @@ def create_abstractions(data_obj):
                     raise DataObjectGeneralException("Error in trying to find small_ball...")
                     #return -1
 
+        # -------Parallelized part--------
+        data_obj.spherical_domains = []
         # Refine the obtained small_ball and big_ball for each conic section of the manifold
-        for cone in all_combinations_of_cone_matrices:  # iterate along all n-dimensional cones
+        def generate_spherical_domains(cone):
             # in order to consider each conic section of the manifold
-            flag = True
-            if (dimension / 2 > 2):  # if dimension>=3, check if the considered cone is degenerate
-                flag = data_obj.check_cone_degeneracy(cone)
-            if (flag):  # if the cone is empty, delete it and move on to the next cone
-                print('deleted')
+            flag_inner = True
+            if (dimension / 2) > 2:  # if dimension>=3, check if the considered cone is degenerate
+                flag_inner = data_obj.check_cone_degeneracy(cone)
+            if flag_inner:  # if the cone is empty, delete it and move on to the next cone
+                print('cone deleted')
             else:
                 conic_domain = True  # this is going to be the symbolic expression defining the conic domain
-                for i in range(0, int(
-                        dimension / 2) - 1):  # create iteratively the symbolic expression for the conic domain
+                for i_inner in range(0, int(dimension / 2) - 1):  # create iteratively symbolic expr for conic domain
                     # by iteratively taking conic_domain = conic_domain & [x_i x_{i+1}]*Q_i*[x_i x_{i+1}]^T & L_i*[x_i x_{i+1}]
                     # where Q_i and L_i are the quadratic and linear forms that define the cone, respectively
-                    vec = sympy.Matrix([state_vector[i], state_vector[i + 1]])
-                    quadratic_form = sympy.Matrix(cone[i].quadratic_Form)
+                    vec = sympy.Matrix([state_vector[i_inner], state_vector[i_inner + 1]])
+                    quadratic_form = sympy.Matrix(cone[i_inner].quadratic_Form)
                     conic_domain = conic_domain & ((vec.transpose() * quadratic_form * vec)[0] >= 0)
-                    linear_form = sympy.Matrix(cone[i].linear_Form)
+                    linear_form = sympy.Matrix(cone[i_inner].linear_Form)
                     conic_domain = conic_domain & ((linear_form.transpose() * vec)[0] >= 0)
                 # refine the inner-approximation radius
                 inner_radius = data_obj.radius_conic_section('i', conic_domain, manifold_time, small_ball, verbose)
                 # refine the outer-approximation radius
                 outer_radius = data_obj.radius_conic_section('o', conic_domain, manifold_time, big_ball, verbose)
                 # create the Spherical_Domain object and append it to self.spherical_domains
-                data_obj.spherical_domains.append(SphericalDomain(manifold_time, cone, inner_radius, outer_radius))
-        #data_obj.spherical_sectors(manifolds_times[len(manifolds_times) - 1], nr_cones_small_angles, nr_cones_big_angle,
+                return SphericalDomain(manifold_time, cone, inner_radius, outer_radius)
+
+        num_cores = multiprocessing.cpu_count()
+        generated_spherical_domains = Parallel(n_jobs=num_cores)(delayed(generate_spherical_domains)(cone)
+                                                                 for cone in all_combinations_of_cone_matrices)
+        data_obj.spherical_domains.extend(list(filter(None, generated_spherical_domains)))
+        print('new spherical domains:', data_obj.spherical_domains)
+        # -------Parallelized part--------
+
+        # -------Copy of parallelized part--------
+        # Refine the obtained small_ball and big_ball for each conic section of the manifold
+        #for cone in all_combinations_of_cone_matrices:  # iterate along all n-dimensional cones
+        #    # in order to consider each conic section of the manifold
+        #    flag = True
+        #    if (dimension / 2 > 2):  # if dimension>=3, check if the considered cone is degenerate
+        #        flag = data_obj.check_cone_degeneracy(cone)
+        #    if (flag):  # if the cone is empty, delete it and move on to the next cone
+        #        print('deleted')
+        #    else:
+        #
+        #        conic_domain = True  # this is going to be the symbolic expression defining the conic domain
+        #        for i in range(0, int(
+        #                dimension / 2) - 1):  # create iteratively the symbolic expression for the conic domain
+        #            # by iteratively taking conic_domain = conic_domain & [x_i x_{i+1}]*Q_i*[x_i x_{i+1}]^T & L_i*[x_i x_{i+1}]
+        #            # where Q_i and L_i are the quadratic and linear forms that define the cone, respectively
+        #            vec = sympy.Matrix([state_vector[i], state_vector[i + 1]])
+        #            quadratic_form = sympy.Matrix(cone[i].quadratic_Form)
+        #            conic_domain = conic_domain & ((vec.transpose() * quadratic_form * vec)[0] >= 0)
+        #            linear_form = sympy.Matrix(cone[i].linear_Form)
+        #            conic_domain = conic_domain & ((linear_form.transpose() * vec)[0] >= 0)
+        #        # refine the inner-approximation radius
+        #        inner_radius = data_obj.radius_conic_section('i', conic_domain, manifold_time, small_ball, verbose)
+        #        # refine the outer-approximation radius
+        #        outer_radius = data_obj.radius_conic_section('o', conic_domain, manifold_time, big_ball, verbose)
+        #        # create the Spherical_Domain object and append it to self.spherical_domains
+        #        data_obj.spherical_domains.append(SphericalDomain(manifold_time, cone, inner_radius, outer_radius))
+        #functioncalled data_obj.spherical_sectors(manifolds_times[len(manifolds_times) - 1], nr_cones_small_angles, nr_cones_big_angle,
         #                           verbose)
+        # -------Copy of parallelized part--------
 
         print('Finished Computing the radii')
         print('Creating the Regions and their over-approximations')
         data_obj.regions = data_obj.create_regions_objects(data_obj.manifolds_times)
         print('Moving on to timing upper bounds')
-        data_obj.timing_upper_bounds(len(data_obj.manifolds_times), data_obj.timeout_upper_bounds,
-                                     data_obj.remainder_upper_bounds, data_obj.heartbeat, verbose=False)
-        data_obj.transitions(verbose, data_obj.timeout_reachability, data_obj.remainder_reachability)
+
+        #data_obj.timing_upper_bounds(len(data_obj.manifolds_times), data_obj.timeout_upper_bounds,
+        #                             data_obj.remainder_upper_bounds, data_obj.heartbeat, verbose=False)
+        ###For homogeneous systems (regions=conic sections of manifolds)
+        nr_manifolds = len(data_obj.manifolds_times)
+        if verbose:
+            print('Computing timing upper bounds for all outer strips of regions')
+        #--------Parallel part-------
+        def find_upper_bounds_regions_second_strip_homogeneous(region):
+            # First find upper bounds for the second innermost strip of regions
+            if region.index[0] == (nr_manifolds - 1):
+                data_obj.reach_analysis_upper_bounds(region, verbose)
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(find_upper_bounds_regions_second_strip_homogeneous)(region)
+                                   for region in data_obj.regions)
+
+        def find_upper_bounds_regions_remaining_homogeneous(region):
+            if region.index[0] < (nr_manifolds - 1):  # for each outer strip
+                for region2 in data_obj.regions:
+                    # find the one in the second strip that is in the same cone
+                    if (region.index[1] == region2.index[1]) & (region2.index[0] == nr_manifolds - 1):
+                        # use the scaling law to scale its timing upper bound
+                        lamda = (region2.outer_manifold_time / region.outer_manifold_time) ** (
+                                1 / data_obj.homogeneity_degree)
+                        region.insert_timing_upper_bound(
+                            lamda ** (-data_obj.homogeneity_degree) * region2.timing_upper_bound)
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(find_upper_bounds_regions_remaining_homogeneous)(region)
+                                   for region in data_obj.regions)
+        #--------Parallel part-------
+
+        #--------Copy of parallel part-------
+        #for region in data_obj.regions:
+        #    # First find upper bounds for the second innermost strip of regions
+        #    if region.index[0] == nr_manifolds - 1:
+        #        data_obj.reach_analysis_upper_bounds(region, verbose)
+        #for region in data_obj.regions:
+        #    if (region.index[0] < nr_manifolds - 1):  # for each outer strip
+        #        for region2 in data_obj.regions:
+        #            # find the one in the second strip that is in the same cone
+        #            if ((region.index[1] == region2.index[1]) & (region2.index[0] == nr_manifolds - 1)):
+        #                # use the scaling law to scale its timing upper bound
+        #                lamda = (region2.outer_manifold_time / region.outer_manifold_time) ** (
+        #                        1 / data_obj.homogeneity_degree)
+        #                region.insert_timing_upper_bound(
+        #                    lamda ** (-data_obj.homogeneity_degree) * region2.timing_upper_bound)
+        #--------Copy of parallel part-------
+
+        if verbose:
+            print('Declaring timing upper bounds for the inner regions that contain the origin')
+        for region in data_obj.regions:
+            if (region.index[0] == nr_manifolds):
+                for region2 in data_obj.regions:
+                    # For the first strip of regions
+                    if ((region.index[1] == region2.index[1]) & (region2.index[0] == nr_manifolds - 1)):
+                        # Self-declare upper bounds
+                        region.insert_timing_upper_bound(1.5 * region2.timing_upper_bound)
+        #data_obj.timing_upper_bounds(len(data_obj.manifolds_times), data_obj.timeout_upper_bounds,
+        #                             data_obj.remainder_upper_bounds, data_obj.heartbeat, verbose=False)
+
+        #data_obj.transitions(verbose, data_obj.timeout_reachability, data_obj.remainder_reachability) # replaced by below
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(data_obj.find_transitions_of_region)(False, region)
+                                   for region in data_obj.regions)
     else:
         # Create a grid object
         data_obj.grid = data_obj.create_grid(data_obj.hyperbox_states, data_obj.grid_pts_per_dim)
 
+        # data_obj.create_regions_objects_nonhomogeneous(manifolds_times, heartbeat)
         """INPUTS:
             manifolds_times: list of int, >0 (practically I only use manifolds_times[-1])
 
@@ -362,15 +466,17 @@ def create_abstractions(data_obj):
         # create a list with all combinations of displacement. each combination, when added to the center of
         # a polytope, it gives one of its vertices.
         differences_between_all_vertices_and_centroid = list(itertools.product(*polytope_sides_lengths))
-        region_index = 0
-        data_obj.regions = []
-        for centroid in data_obj.grid.centroids:  # iterate along all polytopes, each of which representing a region
+        #region_index = 0
+        #data_obj.regions = []
+
+        #--------Parallelized part--------
+        def generate_regions(centroid, region_index):  # iterate on all polytopes, each of which represents a region
             region_index = region_index + 1
             polytope_vertices_in_rn = []
             # add each element of differences_between_all_vertices_and_centroid to the center of the region
             # to get its vertices
-            for i in range(0, len(differences_between_all_vertices_and_centroid)):
-                aux = np.array(centroid) + np.array(differences_between_all_vertices_and_centroid[i])
+            for i_inner in range(0, len(differences_between_all_vertices_and_centroid)):
+                aux = np.array(centroid) + np.array(differences_between_all_vertices_and_centroid[i_inner])
                 aux = aux.tolist()
                 polytope_vertices_in_rn.append(aux)
             [halfspaces_b, halfspaces_A] = polytope_vrep2hrep(polytope_vertices_in_rn)  # get the hrep
@@ -380,23 +486,66 @@ def create_abstractions(data_obj):
             if all([v == 0 for v in centroid]) & data_obj.origin_neighbourhood_degeneracy_flag:
                 # if the polytope contains the origin and the manifolds there are degenerate
                 lower_bound = data_obj.timing_lower_bound_origin_polytope(data_obj.heartbeat)
-                temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
-                                             halfspaces_A, halfspaces_b, lower_bound, True)
+                temp_region = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid,
+                                                   polytope_vertices_in_rn, halfspaces_A, halfspaces_b, lower_bound,
+                                                   True)
             else:
                 lower_bound = data_obj.timing_lower_bounds_grid(polytope_vertices_in_rn, manifold_time)
-                temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
-                                             halfspaces_A, halfspaces_b, lower_bound, False)
+                temp_region = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid,
+                                                   polytope_vertices_in_rn, halfspaces_A, halfspaces_b, lower_bound,
+                                                   False)
             print('Region {} timing lower bound = {}'.format(region_index, lower_bound))
-            data_obj.regions.append(temp)
+            return temp_region
+
+        num_cores = multiprocessing.cpu_count()
+        range_region_index = range(len(data_obj.grid.centroids))
+        data_obj.regions = Parallel(n_jobs=num_cores)(delayed(generate_regions)(centroid, region_index)
+                                                      for centroid, region_index in
+                                                      zip(data_obj.grid.centroids, range_region_index))
+        #---------Parallelized part-----------
+
+        #--------Copy of parallelized part--------
+        #for centroid in data_obj.grid.centroids:  # iterate along all polytopes, each of which representing a region
+        #    region_index = region_index + 1
+        #    polytope_vertices_in_rn = []
+        #    # add each element of differences_between_all_vertices_and_centroid to the center of the region
+        #    # to get its vertices
+        #    for i in range(0, len(differences_between_all_vertices_and_centroid)):
+        #        aux = np.array(centroid) + np.array(differences_between_all_vertices_and_centroid[i])
+        #        aux = aux.tolist()
+        #        polytope_vertices_in_rn.append(aux)
+        #    [halfspaces_b, halfspaces_A] = polytope_vrep2hrep(polytope_vertices_in_rn)  # get the hrep
+        #    #            aux2 = np.zeros(dimension)
+        #    #            polytope_vertices.append(aux2.tolist())
+        #
+        #    if all([v == 0 for v in centroid]) & data_obj.origin_neighbourhood_degeneracy_flag:
+        #        # if the polytope contains the origin and the manifolds there are degenerate
+        #        lower_bound = data_obj.timing_lower_bound_origin_polytope(data_obj.heartbeat)
+        #        temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
+        #                                     halfspaces_A, halfspaces_b, lower_bound, True)
+        #    else:
+        #        lower_bound = data_obj.timing_lower_bounds_grid(polytope_vertices_in_rn, manifold_time)
+        #        temp = RegionNonHomogeneous(data_obj.state[:dimension], region_index, centroid, polytope_vertices_in_rn,
+        #                                     halfspaces_A, halfspaces_b, lower_bound, False)
+        #    print('Region {} timing lower bound = {}'.format(region_index, lower_bound))
+        #    data_obj.regions.append(temp)
+        #------Copy of parallelized part-----------
         #data_obj.create_regions_objects_nonhomogeneous(manifolds_times, heartbeat)
 
-        for region in data_obj.regions:
-            #                if all([v == 0 for v in region.center]): #for the region of the origin
-            #                    region.insert_timing_upper_bound(heartbeat)
-            #                else: #for all other regions use reashability
-            upper_bound = data_obj.reach_analysis_upper_bounds(region, verbose, data_obj.timeout_upper_bounds,
+        #----------Parallelized part-------------
+        def find_upper_bounds_nonhomogeneous(region):
+            if all([v == 0 for v in region.center]): #for the region of the origin
+                region.insert_timing_upper_bound(heartbeat)
+            else: #for all other regions use reashability
+                upper_bound = data_obj.reach_analysis_upper_bounds(region, verbose, data_obj.timeout_upper_bounds,
                                                                data_obj.remainder_upper_bounds, data_obj.heartbeat)
-            region.insert_timing_upper_bound(upper_bound)
+                region.insert_timing_upper_bound(upper_bound)
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(generate_regions)(region) for region in data_obj.regions)
+        # ----------Parallelized part-------------
         #data_obj.timing_upper_bounds(None, data_obj.time_out_upper_bounds, data_obj.remainder_upper_bounds,  data_obj.heartbeat, verbose)
 
-        data_obj.transitions(False, data_obj.timeout_reachability, data_obj.remainder_reachability)
+        #data_obj.transitions(False, data_obj.timeout_reachability, data_obj.remainder_reachability) #replaces with below
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(data_obj.find_transitions_of_region)(False, region)
+                                   for region in data_obj.regions)
