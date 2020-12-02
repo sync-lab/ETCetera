@@ -1,3 +1,9 @@
+"""
+Created on Sat May 16 14:53:58 2020
+
+@author: gmaddodi
+"""
+
 import re
 import sys
 import numpy as np
@@ -11,18 +17,23 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
 
 def parse_linear(line):
     """
-    The function takes a string represting the value of non-linear control system input, checks which input
-    datastructure it is and extracts the value. The extracted value is filled into to the provided
-    InputDataStructureNonLinear from input_datastructure module.
+    The function takes a string representing the key-value pair of linear control system input, checks which input
+    datastructure it is and extracts the value. Returns the value in appropriate form if checks are passed, else raises
+    an exception.
 
     Parameters:
     ----------
         line : string
-            A string of key and value corresponding to an attribute of InputDataStructureNonLinear.
+            A string of key and value corresponding to an attribute of InputDataStructureLinear, e.g. Dynamics = [1 2; 3 4].
 
     Returns:
     -------
-        An instance of InputDataStructureNonLinear class.
+        An appropriate data structure (list, string, dictionary).
+
+    Exceptions:
+    ----------
+        IncorrectSyntaxException, MatricesUnequalRowsException, MultipleMatricesSpecifiedException,
+        MultipleScalarsSpecifiedException, MatrixNotQuadraticException
     """
 
     if line.split(':')[0].strip() == 'Dynamics':
@@ -37,11 +48,12 @@ def parse_linear(line):
             sc.check_if_numerical_values(list_of_values)    # Check if all the items are real numbers
             matrix_shaped = np.array(list_of_values, dtype='f')     # Convert values into a matrix
             shape_current = sc.check_matrix_syntax(matrix)  # Check if matrix has same number of cols for each row
-            if len(shape) == 0 or shape[0] == shape_current[0]:
+            if len(shape) == 0 or shape[0] == shape_current[0]: # Check all matrices have same shape
                 shape = shape_current
                 dynamics.append(matrix_shaped.reshape(shape))
-            else:
+            else:                                               # If matrices not same shape, raise exception
                 raise MatricesUnequalRowsException
+        return dynamics
 
 
     elif line.split(':')[0].strip() == 'Controller':

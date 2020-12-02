@@ -16,9 +16,14 @@ from control_system_abstractions.nonlinear_systems_utils.auxilliary_data import 
 
 
 def create_abstractions(data_obj):
-    """ If the system has not been homogenized, it computes an inner box of the lyapunov level set provided.
-    Otherwise, it dictates a box arbitrarily.
-    This will serve as the domain of the initial conditions for the feasibility problem."""
+    """
+        Function takes InputDataStructureNonLinear class object as input and creates traffic models for non-linear
+        systems.
+
+        Parameters:
+        ----------
+            data_obj: Instance of InputDataStructureNonLinear class.
+    """
     # create_box_domain_for_init_cond
     print(data_obj.state)
 
@@ -81,18 +86,17 @@ def create_abstractions(data_obj):
 
     data_obj.lie_n = data_obj.lie[-1]
 
-    """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
-    if the found solutions verify the constraints.
 
-    optional argument:
-        dreal_precision (rational): Precision used in dReal. Default = 0.01
-        time_out: maximum time in seconds, after which the verification with dReal is canceled. Default = None
-        lp-method: The LP method 'revised simplex' or 'interior-point'. Default =' revisedsimplex'
-        C (numpy array): Cost function vector c of the LP problem
-        D (tuple of tuples): Bounds on the delta's
-        verbose (Boolean): Print LP solver information. Default = False
+    # Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
+    # if the found solutions verify the constraints.
+    # optional argument:
+    #    dreal_precision (rational): Precision used in dReal. Default = 0.01
+    #    time_out: maximum time in seconds, after which the verification with dReal is canceled. Default = None
+    #    lp-method: The LP method 'revised simplex' or 'interior-point'. Default =' revisedsimplex'
+    #    C (numpy array): Cost function vector c of the LP problem
+    #    D (tuple of tuples): Bounds on the delta's
+    #    verbose (Boolean): Print LP solver information. Default = False
 
-    """
     # Initialize parameters to calculate upper bound
     #dreal_precision_upper_bound = 0.01
     #time_out_upper_bound = None
@@ -159,33 +163,32 @@ def create_abstractions(data_obj):
         #return -1
 
     data_obj.LP_data = LP_data
-    """INPUTS:
-        manifolds_times: list of float, >0. (for homogeneous systems, see self.spherical_sectors.
-                                             for nonhomogeneous, see self.create_regions_objects_nonhomogeneous.)
-        nr_cones_small_angles: list of int, >0. (see self.spherical_sectors)
-        nr_cones_big_angle: int, >0. (see self.spherical_sectors)
-        state_space_limits: list of symmetric intervals (e.g. [[-1,1],[-2,2],[-1,1]]) (see self.create_grid)
-        grid_pts_per_dim: list of odd int (e.g. [3,5,7]) (see self.create_grid)
-        heartbeat: float, >0 (the ad-hoc upper bound in timing upper bounds,
-                              i.e. if can't find an upper bound for a region, use heartbeat)
-        time_out: int, >0 (time after which, flowstar/dreach/dreal process is forcefully killed.)
-        verbose: boolean. (if True print, if False don't print.)
 
-        Creates the Abstraction.
-        For homogeneous systems, it uses the arguments manifolds_times, nr_cones_small_angles, nr_cones_big_angle,
-            heartbeat, time_out, verbose.
-        For non-homogeneous systems, it uses state_space_limits, grid_pts_per_dim, heartbeat, time_out, verbose.
-    """
-    manifolds_times = [0.0001, 0.0001]
+    # Create the Abstraction.
+    #    For homogeneous systems, it uses the arguments manifolds_times, nr_cones_small_angles, nr_cones_big_angle,
+    #        heartbeat, time_out, verbose.
+    #    For non-homogeneous systems, it uses state_space_limits, grid_pts_per_dim, heartbeat, time_out, verbose.
+    # INPUTS:
+    #    manifolds_times: list of float, >0. (for homogeneous systems, see self.spherical_sectors.
+    #                                         for nonhomogeneous, see self.create_regions_objects_nonhomogeneous.)
+    #    nr_cones_small_angles: list of int, >0. (see self.spherical_sectors)
+    #    nr_cones_big_angle: int, >0. (see self.spherical_sectors)
+    #    state_space_limits: list of symmetric intervals (e.g. [[-1,1],[-2,2],[-1,1]]) (see self.create_grid)
+    #    grid_pts_per_dim: list of odd int (e.g. [3,5,7]) (see self.create_grid)
+    #    heartbeat: float, >0 (the ad-hoc upper bound in timing upper bounds,
+    #                          i.e. if can't find an upper bound for a region, use heartbeat)
+    #    time_out: int, >0 (time after which, flowstar/dreach/dreal process is forcefully killed.)
+    #    verbose: boolean. (if True print, if False don't print.)
+    #manifolds_times = [0.0001, 0.0001]
     #nr_cones_small_angles = []
     #nr_cones_big_angle = 0
-    state_space_limits = [[-1, 1], [-1, 1]]
-    grid_pts_per_dim = [7, 7]
-    heartbeat=0.04
-    time_out_upper_bounds = 8
-    time_out_reach = 5
-    remainder_upper_bounds = 1e-3
-    remainder_reach = 1e-2
+    #state_space_limits = [[-1, 1], [-1, 1]]
+    #grid_pts_per_dim = [7, 7]
+    #heartbeat=0.04
+    #time_out_upper_bounds = 8
+    #time_out_reach = 5
+    #remainder_upper_bounds = 1e-3
+    #remainder_reach = 1e-2
     verbose = False
 
     #self.manifolds_times = manifolds_times
@@ -193,35 +196,28 @@ def create_abstractions(data_obj):
         print('Computing radii for one manifold')
 
         #def spherical_sectors(self, manifold_time, nr_cones_small_angles=[], nr_cones_big_angle=5, verbose=True):
-        """INPUT:
-            manifold_time: float >0
-            nr_cones_small_angles: list of positive int, of length self.n-2
-            nr_cones_big_angle: int, >0
-
-        First, creates a conic partition of the state space into isotropic cones, by calling
-        the function self.cone_matrices.
-
-        Then, approximates the partitions defined by the intersections of the isochronous manifold
-        of time = manifold_time with the previously defined cones,
-        by spherical sectors. Firstly two balls are computed: small_ball which inner-approximates a manifold,
-        and big_ball which outer-approximates a manifold. Then, for each conic partition the radii of the
-        balls are optimized, such that the spherical sectors defined by the radii and the cones
-        better inner- and outer-approximate the conic partitions.
-
-        Finally creates the corresponding Spherical_Domain objects.
-        It is called by the function self.abstraction().
-        """
+        # First, creates a conic partition of the state space into isotropic cones, by calling the function self.cone_matrices.
+        # Then, approximates the partitions defined by the intersections of the isochronous manifold of
+        # time = manifold_time with the previously defined cones, by spherical sectors. Firstly two balls are computed:
+        # small_ball which inner-approximates a manifold, and big_ball which outer-approximates a manifold. Then,
+        # for each conic partition the radii of the balls are optimized, such that the spherical sectors defined by the
+        # radii and the cones better inner- and outer-approximate the conic partitions.
+        # Finally creates the corresponding Spherical_Domain objects. It is called by the function self.abstraction().
+        # INPUT:
+        #    manifold_time: float >0
+        #    nr_cones_small_angles: list of positive int, of length self.n-2
+        #    nr_cones_big_angle: int, >0
         manifold_time = data_obj.manifolds_times[len(data_obj.manifolds_times) - 1]
         state_vector = data_obj.state[:int(data_obj.n / 2)]
         dimension = data_obj.n
 
         #data_obj.cone_matrices(data_obj.nr_cones_small_angles, data_obj.nr_cones_big_angle)  # partition each angular coordinate into
-        """Given the number of cones corresponding to the small angles
-        of the coordinate system (nr_cones_small_angle list of int)
-        and the number of cones for the big angle (nr_cones_big_angle int),
-        it discretizes each angular coordinate into a conic partition, creating a list of Cone_on_Plane
-        objects (i.e. planar cones) for the big angle (i.e. self.cones_big_angle)
-        and a list of lists containing Cone_on_Plane objects for each small angle (i.e. self.cones_small_angles)."""
+        # Given the number of cones corresponding to the small angles
+        # of the coordinate system (nr_cones_small_angle list of int)
+        # and the number of cones for the big angle (nr_cones_big_angle int),
+        # it discretizes each angular coordinate into a conic partition, creating a list of Cone_on_Plane
+        # objects (i.e. planar cones) for the big angle (i.e. self.cones_big_angle)
+        # and a list of lists containing Cone_on_Plane objects for each small angle (i.e. self.cones_small_angles).
         # Isotropic covering
         big_angle_discr = np.linspace(0, math.pi, int(data_obj.nr_cones_big_angle / 2 + 1))  # Discretize the big angle
                                                                                              # from 0 to pi.
@@ -315,6 +311,9 @@ def create_abstractions(data_obj):
         data_obj.spherical_domains = []
         # Refine the obtained small_ball and big_ball for each conic section of the manifold
         def generate_spherical_domains(cone):
+            """
+                Parallelized part
+            """
             # in order to consider each conic section of the manifold
             flag_inner = True
             if (dimension / 2) > 2:  # if dimension>=3, check if the considered cone is degenerate
@@ -389,6 +388,9 @@ def create_abstractions(data_obj):
             print('Computing timing upper bounds for all outer strips of regions')
         #--------Parallel part-------
         def find_upper_bounds_regions_second_strip_homogeneous(region):
+            """
+
+            """
             # First find upper bounds for the second innermost strip of regions
             if region.index[0] == (nr_manifolds - 1):
                 data_obj.reach_analysis_upper_bounds(region, verbose)
@@ -449,12 +451,10 @@ def create_abstractions(data_obj):
         data_obj.grid = data_obj.create_grid(data_obj.hyperbox_states, data_obj.grid_pts_per_dim)
 
         # data_obj.create_regions_objects_nonhomogeneous(manifolds_times, heartbeat)
-        """INPUTS:
-            manifolds_times: list of int, >0 (practically I only use manifolds_times[-1])
-
-        Creates the objects Region_NonHomogeneous (for homogeneous systems), using
-        the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
-        """
+        # Creates the objects Region_NonHomogeneous (for homogeneous systems), using
+        # the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
+        # INPUTS:
+        #    manifolds_times: list of int, >0 (practically I only use manifolds_times[-1])
         manifold_time = data_obj.manifolds_times[-1]
         dimension = int(data_obj.n / 2) - 1
         polytope_sides_lengths = []
@@ -535,7 +535,7 @@ def create_abstractions(data_obj):
         #----------Parallelized part-------------
         def find_upper_bounds_nonhomogeneous(region):
             if all([v == 0 for v in region.center]): #for the region of the origin
-                region.insert_timing_upper_bound(heartbeat)
+                region.insert_timing_upper_bound(data_obj.heartbeat)
             else: #for all other regions use reashability
                 upper_bound = data_obj.reach_analysis_upper_bounds(region, verbose, data_obj.timeout_upper_bounds,
                                                                data_obj.remainder_upper_bounds, data_obj.heartbeat)

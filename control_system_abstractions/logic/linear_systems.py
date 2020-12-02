@@ -3,6 +3,13 @@ from control_system_abstractions.linear_systems_utils.abstraction import Traffic
 
 
 def create_abstractions(data_obj: data.InputDataStructureLinear):
+    """
+        Function takes InputDataStructureLinear class object as input and creates traffic models for linear systems.
+
+        Parameters:
+        ----------
+            data_obj: Instance of InputDataStructureLinear class
+    """
     traffic_model = TrafficModelPETC(data_obj.triggering_mechanism,
                                      **data_obj.solver_options,
                                      **data_obj.abstraction_options)

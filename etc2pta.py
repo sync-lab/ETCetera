@@ -39,6 +39,10 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
 
 
 def main(argv):
+    """
+        This is the main function from which executio starts. Function reads the data from the specified file, checks
+        validity, creates data object for linear or non-linear system, and calls the functions to create abstractions.
+    """
     inputfile = ''      # Variable to hold input file path
     systemtype = ''     # Variable to hold system type data, either 'linear' or 'non-linear'
 
@@ -296,6 +300,19 @@ def main(argv):
         x_str_sorted.append(list(dict_symbol_to_attr['w'])[0]) if 'w1' in dict_symbol_to_attr['w'] else print('')
         state_str = x_str_sorted + e_str_sorted
         state = tuple(sp.Symbol(i) for i in state_str)
+
+        if not path:
+            print('Path to SMT files is not set.')
+            sys.exit()
+        if not dreal_path:
+            print('Path to dreal executable is not set.')
+            sys.exit()
+        if not dreach_path:
+            print('Path to dreach executable is not set.')
+            sys.exit()
+        if not flowstar_path:
+            print('Path to flow* executable is not set.')
+            sys.exit()
 
         try:
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,

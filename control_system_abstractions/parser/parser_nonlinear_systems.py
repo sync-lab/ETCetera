@@ -1,3 +1,9 @@
+"""
+Created on Sat May 16 14:53:58 2020
+
+@author: gmaddodi
+"""
+
 import re
 import numpy as np
 import control_system_abstractions.parser.syntax_checker as sc
@@ -11,18 +17,23 @@ from control_system_abstractions.exceptions.parser_exceptions.symbolic_expressio
 
 def parse_nonlinear(line):
     """
-	The function takes a string represting the value of non-linear control system input, checks which input
-	datastructure it is and extracts the value. The extracted value is filled into to the provided
-	InputDataStructureNonLinear from input_datastructure module.
+    The function takes a string representing the key-value pair of non-linear control system input, checks which input
+    datastructure it is and extracts the value. Returns the value in appropriate form if checks are passed, else raises
+    an exception.
 
     Parameters:
     ----------
         line : string
-            A string of key and value corresponding to an attribute of InputDataStructureNonLinear.
+            A string of key and value corresponding to an attribute of InputDataStructureLinear, e.g. Dynamics = [1 2 3 4].
 
     Returns:
     -------
-        An instance of InputDataStructureNonLinear class.
+        An appropriate data structure (list, string, dictionary).
+
+    Exceptions:
+    ----------
+        IncorrectSyntaxException, EmptyValueException, IncorrectNumOfSymbolicExpressionException,
+        NotPositiveRealNumberException.
     """
 
     # If the key is 'dynamics'

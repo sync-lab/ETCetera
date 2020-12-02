@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+"""
+Created on Sat May 16 14:53:58 2020
+
+@author: gmaddodi
+"""
+
 import re
 import sympy as sp
 import tokenize

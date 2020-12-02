@@ -1,3 +1,10 @@
+
+"""
+Created on Sat May 16 14:53:58 2020
+
+@author: gmaddodi
+"""
+
 import random
 from tkinter import *
 import control_system_abstractions.parser.parser_linear_systems as lp
@@ -28,7 +35,29 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
 
 
 class LinearSystemLayout:
+    """
+        Class to hold labels and entries of linear system layout on the tkinter based GUI.
 
+        Attributes:
+        ----------
+            dynamics_label: Text label for 'Dynamics'
+            dynamics_entry: Text entry for 'Dynamics'
+            controller_label: Text label for 'Controller'
+            controller_entry: Text entry for 'Controller'
+            triggering_condition_label: Text label for 'Triggering Condition'
+            triggering_condition_entry: Text entry for 'Triggering Condition'
+            triggering_heartbeat_label: Text label for 'Triggering Heartbeat'
+            triggering_heartbeat_entry: Text entry for 'Triggering Heartbeat'
+            triggering_samplingtime_label: Text label for 'Triggering Sampling Time'
+            triggering_samplingtime_entry: Text entry for 'Triggering Sampling Time'
+            lyapunov_func_label: Text label for 'Lyapunov Function'
+            lyapunov_func_entry: Text entry for 'Lyapunov Function'
+            solver_options_label: Text label for 'Solver Options'
+            solver_options_entry: Text entry for 'Solver Options'
+            abstraction_options_label: Text label for 'Abstaction Options'
+            abstraction_options_entry: Text entry for 'Abstaction Options'
+
+    """
     def __init__(self, frame):
         self.dynamics_label = Label(frame, text='Dynamics')
         self.dynamics_entry = Entry(frame)
@@ -50,7 +79,32 @@ class LinearSystemLayout:
 
 # Non-linear system definitions
 class NonlinearSystemLayout:
+    """
+        Class to hold labels and entries of non-linear system layout on the tkinter based GUI.
 
+        Attributes:
+        ----------
+            hyperbox_states_label: Text label for 'Hyperbox States'
+            hyperbox_states_entry: Text entry for 'Hyperbox States'
+            hyperbox_disturbances_label: Text label for 'Hyperbox Disturbances'
+            hyperbox_disturbances_entry: Text entry for 'Hyperbox Disturbances'
+            dynamics_label: Text label for 'Dynamics'
+            dynamics_entry: Text entry for 'Dynamics'
+            controller_label: Text label for 'Controller'
+            controller_entry: Text entry for 'Controller'
+            triggering_condition_label: Text label for 'Triggering Condition'
+            triggering_condition_entry: Text entry for 'Triggering Condition'
+            triggering_times_label: Text label for 'Triggering Times'
+            triggering_times_entry: Text entry for 'Triggering Times'
+            deg_of_homogeneity_label: Text label for 'Deg of Homogeneity'
+            deg_of_homogeneity_entry: Text entry for 'Deg of Homogeneity'
+            lyapunov_func_label: Text label for 'Lyapunov Function'
+            lyapunov_func_entry: Text entry for 'Lyapunov Function'
+            solver_options_label: Text label for 'Solver Options'
+            solver_options_entry: Text entry for 'Solver Options'
+            linesearch_options_label: Text label for 'Linesearch Options'
+            linesearch_options_entry: Text entry for 'Linesearch Options'
+    """
     def __init__(self, frame):
         self.hyperbox_states_label = Label(frame, text='Hyperbox States')
         self.hyperbox_states_entry = Entry(frame)
@@ -75,6 +129,10 @@ class NonlinearSystemLayout:
 
 
 def toggle_linear_or_nonlinear():
+    """
+        Function toggles layout between linear and non-linear based on user's selection. It clear the current selection,
+        and creates layout for the other.
+    """
     if var_system_type.get():  # Linear system layout
         for k, v in layout_nonlinear.__dict__.items():
             getattr(layout_nonlinear, k).grid_forget()
@@ -86,6 +144,10 @@ def toggle_linear_or_nonlinear():
 
 
 def submit_data():
+    """
+        Function reads the data from the GUI, checks validity, creates data object for linear or non-linear system, and
+        calls the functions to create abstractions.
+    """
     parsing_success = True
     if var_system_type.get():  # Linear system data submitted
         layout_current = layout_linear
@@ -106,7 +168,7 @@ def submit_data():
                              'Linesearch Options': {'timeout_upper_bounds': 15, 'remainder_upper_bounds': 0.1},
                              'Lyapunov Function': None, 'Deg. of Homogeneity': None}
         # Dictionary to hold symbols in expressions
-        dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set()}
+        dict_symbol_to_attr = {'e': set(), 'u': set(), 'd': set(), 'x': set(), 'w': set()}
 
     set_entries_border_black(var_system_type.get())    # Set the border to default white
 
@@ -129,58 +191,74 @@ def submit_data():
     except ArbitraryVariableNumberingException:
         error_label.config(text='Incorrect numbering of variables.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except ArbitraryVariableNamingException:
         error_label.config(text='Incorrect naming of variables.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except NonnumbericValuesFoundException:
         error_label.config(text='Numerical values expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except MultipleValuesFoundException:
         error_label.config(text='Single value expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except NotPositiveRealNumberException:
         error_label.config(text='IPositive real number expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectSyntaxException:
         error_label.config(text='Incorrect syntax.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectMatrixBoundaryException:
         error_label.config(text='Incorrect matrix syntax.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectVectorBoundaryException:
         error_label.config(text='Incorrect vector syntax.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except NonnumericValueInMatrixException:
         error_label.config(text='Non-numeric values found in matrix.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except NonnumericValueInVectorException:
         error_label.config(text='Non-numeric values found in vector.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectMatrixDefinitionException:
         error_label.config(text='Incorrect matrix shape.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectSymbolicExpressionException:
         error_label.config(text='Incorrect symbolic expression.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except IncorrectNumOfSymbolicExpressionException:
         error_label.config(text='Incorrect number of symbolic expressions found.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except MatricesUnequalRowsException:
         error_label.config(text='Matrices should have same number of rows.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except MultipleMatricesSpecifiedException:
         error_label.config(text='Only one matrix expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except MultipleScalarsSpecifiedException:
         error_label.config(text='Only one scalar expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except MatrixNotQuadraticException:
         error_label.config(text='Quadratic matrix expected.')
         v.config(highlightbackground="RED")
+        parsing_success = False
     except Exception as e:
         error_label.config(text=str(e))
         v.config(highlightbackground="RED")
-    finally:
         parsing_success = False
 
     if parsing_success and var_system_type.get():   # If system is non-linear
@@ -223,6 +301,7 @@ def submit_data():
             print(str(e))
             sys.exit()
     elif parsing_success and (not var_system_type.get()):
+        print('here')
         try:
             # Get all the symbols from expressions and assign symbols to correct attr
             all_exprs = str(dict_key_to_attrs['Dynamics']) + str(dict_key_to_attrs['Controller']) + \
@@ -326,7 +405,7 @@ def submit_data():
             # To get parameters, sort the d symbols
             d_str_sorted = sorted([i for i in dict_symbol_to_attr['d']])
             parameters = tuple(sp.Symbol(i) for i in d_str_sorted)
-
+            print(dict_symbol_to_attr)
             # State is a union of sorted x and e symbols
             x_str_sorted = sorted([i for i in dict_symbol_to_attr['x']])
 
@@ -344,6 +423,19 @@ def submit_data():
             # Destroy the GUI as input data is correct
             root.destroy()
             root.quit()
+
+            if not path:
+                print('Path to SMT files is not set.')
+                sys.exit()
+            if not dreal_path:
+                print('Path to dreal executable is not set.')
+                sys.exit()
+            if not dreach_path:
+                print('Path to dreach executable is not set.')
+                sys.exit()
+            if not flowstar_path:
+                print('Path to flow* executable is not set.')
+                sys.exit()
 
             data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
@@ -387,11 +479,19 @@ def submit_data():
             print(str(e))
             sys.exit()
     else:
+        print('else')
         pass
 
 
 
 def grids_label_and_entries(layout_type):
+    """
+        Function prints the layout for the specifies system type specified.
+
+        Parameters:
+        ----------
+            layout_type: the type of the system of which the layout to be drawn.
+    """
     row = 0
     for k, v in layout_type.__dict__.items():
         if 'label' in v._name:
@@ -402,6 +502,14 @@ def grids_label_and_entries(layout_type):
 
 
 def set_entries_border_black(linear_or_nonlinear):
+    """
+        Function makes all the entry boxes in the layout black. This helps to erase any red marked boxes in case of
+        incorrect data entered by the user.
+
+        Parameters:
+        ----------
+            linear_or_nonlinear: Specifies if system is linear or non_linear
+    """
     if linear_or_nonlinear:  # Linear system layout
         for k, v in layout_linear.__dict__.items():
             v.config(highlightbackground="WHITE")

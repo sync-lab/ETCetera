@@ -14,7 +14,7 @@ from scipy.linalg import expm
 from numba import prange
 import itertools
 from collections import namedtuple
-#import cdd
+import cdd
 
 """Know issues: each variable name cannot be a part of another variable name: variables x and x0 will cause
 problems, as x0 contains x. x1 and x0 is a proper naming"""
@@ -31,69 +31,62 @@ problems, as x0 contains x. x1 and x0 is a proper naming"""
 
 class InputDataStructureNonLinear(object):
     """
-    Attributes:
-        path (string): Location where auxilliary files are stored
-        dreal_path (string): Locatin of dReal
-        dreach_path (string): Location of dReach
-        flowstar_path (string): Location of flowstar
-        Homogeneity_degree (float): Homogeneity degree of the system
-        Homogenization_flag (boolean): True if system has been homogenized, false
-                                        otherwise
-        Dynamics (symbolic matrix): User defined dynamics
-        Lyapunov_function (symbolic expression): Lyapunov function of the system
-                                                (if given)
-        Lyapunov_lvl_set_c (float): Constant that defines the Lyapunov level set
-                                    (if given)
-        State (tuple): User defined state vector
-        Original_State (tuple): State vector without the homogenization variable
-                                andcorresponding measurement error
-        Original_Dynamics (symbolic matrix): Dynamics without the homogenization
-                                    variable andcorresponding measurement error
-        Init_cond_symbols (tuple): Symbols denoting initial conditions for state
-                                variables (e.g. x0, y0, w0)
-        n (int): state dimension, with measurement errors
-        n_init_cond (int): initial condition vector dimension
-        Parameters (tuple): unknown parameters in the dynamics (disturbances,
-                            uncertainties, etc.) (e.g. (d1,d2))
-        Parameters_domain (list of lists): list of intervals where each parameter
-                                            belongs (e.g. [[-1,1],[-2,2]])
-        Function (symbolic expression): the (triggering) function
-        Init_cond_domain (list of lists): box where the initial condition belongs,
-                                    for the feasibility problem of the deltas
-        Symbolic_variables (tuple): All symbolic variables escept for measurement
-                                    errors
-        Symbolic_Box_of_Initial_Conditions (symbolic expression): Init_cond_domain
+        Class to hold all the data metrics of calculation of traffic models for linear systems.
+
+
+        Attributes:
+            path (string): Location where auxilliary files are stored
+            dreal_path (string): Locatin of dReal
+            dreach_path (string): Location of dReach
+            flowstar_path (string): Location of flowstar
+            homogeneity_degree (float): Homogeneity degree of the system
+            homogenization_flag (boolean): True if system has been homogenized, false otherwise
+            dynamics (symbolic matrix): User defined dynamics
+            lyapunov_function (symbolic expression): Lyapunov function of the system (if given)
+            lyapunov_lvl_set_c (float): Constant that defines the Lyapunov level set (if given)
+            state (tuple): User defined state vector
+            original_State (tuple): State vector without the homogenization variable and corresponding measurement error
+            original_Dynamics (symbolic matrix): Dynamics without the homogenization variable and corresponding measurement error
+            init_cond_symbols (tuple): Symbols denoting initial conditions for state variables (e.g. x0, y0, w0)
+            n (int): state dimension, with measurement errors
+            n_init_cond (int): initial condition vector dimension
+            parameters (tuple): unknown parameters in the dynamics (disturbances, uncertainties, etc.) (e.g. (d1,d2))
+            parameters_domain (list of lists): list of intervals where each parameter belongs (e.g. [[-1,1],[-2,2]])
+            function (symbolic expression): the (triggering) function
+            init_cond_domain (list of lists): box where the initial condition belongs, for the feasibility problem of the deltas
+            symbolic_variables (tuple): All symbolic variables escept for measurement errors
+            symbolic_Box_of_Initial_Conditions (symbolic expression): Init_cond_domain
                                             written in a symbolic expression
-        Symbolic_Domain_of_Parameters (symbolic expression): Parameters_domain
+            symbolic_Domain_of_Parameters (symbolic expression): Parameters_domain
                                                 written in a symbolic expression
-        p (int): order of approximation of the triggering function.
-        Symbolic_Domain: Box of initial conditions in sympy logic format
-        p (int): order of the approximation. p= 1 corresponds to bounding the 0th
+            p (int): order of approximation of the triggering function.
+            symbolic_Domain: Box of initial conditions in sympy logic format
+            p (int): order of the approximation. p= 1 corresponds to bounding the 0th
                                             lie derivative. Must be larger than 0
-        Lie (symbolic matrix): Lie derivatives of self.function up to order self.p
-        Gridstep (int): number of points per state dimension, used for creating
+            lie (symbolic matrix): Lie derivatives of self.function up to order self.p
+            gridstep (int): number of points per state dimension, used for creating
               an initial sample set in the box Init_cond_domain. Recommended >= 2
-        Samples (List of lists): List of all the samples from the box domain used
+            samples (List of lists): List of all the samples from the box domain used
                                                            in the LP optimization
-        Deltas (list): The deltas found after the construction of a UBF.
+            deltas (list): The deltas found after the construction of a UBF.
                 Synthesized by create_upper_bound. 'None' if no UBF is constructed
-        Gamma (float): The bound on the infinity norm of the error
+            gamma (float): The bound on the infinity norm of the error
                                                     (over the sampled states)
-        UBF (symbolic expression): The symbolic UBF. Synthesized by create_upper_bound. 'None' if no UBF is constructed.
-        Lie_n (symbolic expression): The p-1th Lie derivative of the function f,
+            UBF (symbolic expression): The symbolic UBF. Synthesized by create_upper_bound. 'None' if no UBF is constructed.
+            lie_n (symbolic expression): The p-1th Lie derivative of the function f,
                                                 which is bounded by the UBF
-        LP_data (LPdata): LP object created within create_upper_bound
-        Spherical_Domains (list of objects): This is created only if the system
+            LP_data (LPdata): LP object created within create_upper_bound
+            spherical_Domains (list of objects): This is created only if the system
                         has not been homogenized. list of Spherical_Domain objects
-        cones_big_angle (list of objects): List of Cone_on_Plane objects, for the
+            cones_big_angle (list of objects): List of Cone_on_Plane objects, for the
                                                big angle of the coordinate system
-        cones_small_angles (list of lists of objects): Contains a list of
+            cones_small_angles (list of lists of objects): Contains a list of
                    Cone_on_Plane objects, for each secondary angle of the
                                                            coordinate system.
-        Regions (list of objects): List of Region_Homogeneous or Region_NonHomogeneous
+            regions (list of objects): List of Region_Homogeneous or Region_NonHomogeneous
                                                                         objects.
-        Grid (object): Created only if the system has been homogenized.
-        origin_neighbourhood_degeneracy_flag (boolean): If true, means that due to
+            grid (object): Created only if the system has been homogenized.
+            origin_neighbourhood_degeneracy_flag (boolean): If true, means that due to
             the triggering function provided, the manifolds are degenerate
             in a neighbourhood around the origin (i.e. when phi(0)=0). If so, later on
             the timing lower bound of this region is enforced apriori as the heartbeat.

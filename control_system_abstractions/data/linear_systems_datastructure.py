@@ -4,6 +4,24 @@ import control_system_abstractions.linear_systems_utils.linearetc as etc
 import control_system_abstractions.linear_systems_utils.linearsys as linearsys
 
 class InputDataStructureLinear():
+    """
+        Class to hold all the data metrics of calculation of traffic models for linear systems.
+
+        Attributes:
+        ----------
+            traffic_model:
+            dynamics:
+            controller:
+            triggering_condition:
+            triggering_heartbeat:
+            triggering_sampling_time:
+            is_PETC:
+            lyapunov_func:
+            solver_options:
+            abstraction_options:
+            plant:
+            triggering_mechanism:
+    """
     traffic_model : abstraction.TrafficModelPETC
 
     # Construtor
