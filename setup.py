@@ -213,7 +213,8 @@ requires = [
     'pycddlib',
     'pyparsing',
     'cycler',
-    'python-dateutil'
+    'python-dateutil',
+    'slycot'
 ]
 
 setup(
