@@ -105,7 +105,7 @@ def parse_linear(line):
             raise IncorrectSyntaxException
         if len(value.strip().split(', ')) == 0:     # It is possible to have no value specified
             return None
-        elif len(value.strip.split(', ')) > 1:    # Check if value contains more than one scalar definition
+        elif len(value.strip().split(', ')) > 1:    # Check if value contains more than one scalar definition
             raise MultipleScalarsSpecifiedException
         else:
             sc.check_if_numerical_values(re.split(', ', value.strip()))    # Check if all the items are real numbers
