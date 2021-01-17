@@ -183,9 +183,9 @@ def submit_data():
                 parsed_data = nlp.parse_nonlinear(line + ' : ' + v.get())
 
             # If data is 'Solver Options', merge with default already defined
-            if parsed_data and line in ('Solver Options', 'Linesearch Options'):
+            if parsed_data is not None and line in ('Solver Options', 'Linesearch Options'):
                 dict_key_to_attrs[line.split(':')[0].strip()].update(parsed_data)
-            elif parsed_data:  # For all other data, simple assignment is fine
+            elif parsed_data is not None:  # For all other data, simple assignment is fine
                 dict_key_to_attrs[line.split(':')[0].strip()] = parsed_data
             parsed_data = None
     except ArbitraryVariableNumberingException:
