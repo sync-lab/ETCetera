@@ -1,0 +1,10 @@
+Hyperbox States : [-1 1], [-1 1]
+Hyperbox Disturbances : [-0.1 0.1]
+Dynamics : -x1*w1**2, x1**2*x2 + x2**3 + u1 + d1*w1**3, 0
+Controller : -x2*w1**2 - x1**2*x2 - x2**3
+Triggering Condition : e1**2 + e2**2 - 0.01**2*w1**2
+Triggering Times :
+Lyapunov Function : x1**2+x2**2+w1**2
+Deg. of Homogeneity: 2
+Solver Options : p=2, gridstep=2, heart_beat=1.7, dreal_precision_deltas=0.001, opt_method=revised simplex, grid_pts_per_dim={}, manifolds_times={0.0001}, remainder_reachability=1.2, timeout_reachability=2, timeout_deltas=1000, nr_cones_small_angles={}, nr_cones_big_angle=5
+Linesearch Options : timeout_upper_bounds=3, remainder_upper_bounds=2.2
