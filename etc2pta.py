@@ -36,6 +36,9 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
     NonnumericValueInVectorException, IncorrectMatrixDefinitionException, MatricesUnequalRowsException, \
     MultipleMatricesSpecifiedException, MatrixNotQuadraticException
 
+def help_message():
+    help_str = 'Usage: etc2pta.py -i <inputfile> -s <linear|non-linear>' 
+    print(help_str)
 
 
 def main(argv):
@@ -50,12 +53,12 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, "hi:s:", ["ifile=", "systype="])
     except getopt.GetoptError:
-        print('etc2pta.py -i <inputfile> -s <systemtype>')
+        help_message()
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':                                                 # If user asks for info on input arguments
-            print('etc2pta.py -i <inputfile> -s <systemtype>')
+            help_message()
             sys.exit()
         elif opt in ("-i", "--ifile") and os.path.exists(arg):          # If argument is file string and file exists
             inputfile = arg
