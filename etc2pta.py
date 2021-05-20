@@ -113,7 +113,7 @@ def main(argv):
                 else:                               # For all other data, simple assignment is fine
                     dict_key_to_attrs[line_key] = parsed_data
     except GenericParsingException as e:
-        print(f'Parsing Error Occured on line: {line_num}')
+        print(f'Parsing Error Occured on line {line_num}:     {line}')
         print(str(e))
         sys.exit()
 
