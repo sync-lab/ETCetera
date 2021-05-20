@@ -25,6 +25,9 @@ from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exce
     LPOptimizationFailedException, LPGeneralException
 from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
     DataObjectGeneralException
+
+from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import GenericParsingException
+
 from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
     NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
     IncorrectSyntaxException, MultipleScalarsSpecifiedException
@@ -36,7 +39,13 @@ from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_synt
     NonnumericValueInVectorException, IncorrectMatrixDefinitionException, MatricesUnequalRowsException, \
     MultipleMatricesSpecifiedException, MatrixNotQuadraticException
 
-
+def print_help_message():
+    # print('Usage: ')
+    # print('     etc2pta.py -i <inputfile> -s <systemtype>')
+    # print('     ')
+    help_str = 'Usage: '\
+    ' etc2pta.py -i <inputfile> -s <linear|non-linear>\n'
+    print(help_str)
 
 def main(argv):
     """
@@ -55,7 +64,8 @@ def main(argv):
 
     for opt, arg in opts:
         if opt == '-h':                                                 # If user asks for info on input arguments
-            print('etc2pta.py -i <inputfile> -s <systemtype>')
+            # print('etc2pta.py -i <inputfile> -s <systemtype>')
+            print_help_message()
             sys.exit()
         elif opt in ("-i", "--ifile") and os.path.exists(arg):          # If argument is file string and file exists
             inputfile = arg
@@ -102,59 +112,66 @@ def main(argv):
                     dict_key_to_attrs[line_key].update(parsed_data)
                 else:                               # For all other data, simple assignment is fine
                     dict_key_to_attrs[line_key] = parsed_data
-    except ArbitraryVariableNumberingException:
-        print('Incorrect numbering of variables in line: ', line_num)
+    except GenericParsingException as e:
+        print(f'Parsing Error Occured on line: {line_num}')
+        print(str(e))
         sys.exit()
-    except ArbitraryVariableNamingException:
-        print('Incorrect naming of variables in line: ', line_num)
-        sys.exit()
-    except NonnumbericValuesFoundException:
-        print('Numerical values expected line: ', line_num)
-        sys.exit()
-    except MultipleValuesFoundException:
-        print('Single value expected on line:', line_num)
-        sys.exit()
-    except NotPositiveRealNumberException:
-        print('Positive real number expected on line: ', line_num)
-        sys.exit()
-    except IncorrectSyntaxException:
-        print('Incorrect syntax on line: ', line_num)
-        sys.exit()
-    except IncorrectMatrixBoundaryException:
-        print('Incorrect matrix syntax on line: ', line_num)
-        sys.exit()
-    except IncorrectVectorBoundaryException:
-        print('Incorrect vector syntax on line: ', line_num)
-        sys.exit()
-    except NonnumericValueInMatrixException:
-        print('Non-numeric values found in matrix on line: ', line_num)
-        sys.exit()
-    except NonnumericValueInVectorException:
-        print('Non-numeric values found in vector on line: ', line_num)
-        sys.exit()
-    except IncorrectMatrixDefinitionException:
-        print('Incorrect matrix shape on line: ', line_num)
-        sys.exit()
-    except IncorrectSymbolicExpressionException:
-        print('Incorrect symbolic expression on line: ', line_num)
-        sys.exit()
-    except IncorrectNumOfSymbolicExpressionException:
-        print('Incorrect number of symbolic expressions found on line:, ', line_num)
-        sys.exit()
-    except MatricesUnequalRowsException:
-        print('Matrices should have same number of rows on line:, ', line_num)
-        sys.exit()
-    except MultipleMatricesSpecifiedException:
-        print('Only one matrix expected on line: ', line_num)
-        sys.exit()
-    except MultipleScalarsSpecifiedException:
-        print('Only one scalar expected on line: ', line_num)
-        sys.exit()
-    except MatrixNotQuadraticException:
-        print('Quadratic matrix expected on line: ', line_num)
-        sys.exit()
+
+    # except ArbitraryVariableNumberingException:
+    #     print('Incorrect numbering of variables in line: ', line_num)
+    #     sys.exit()
+    # except ArbitraryVariableNamingException:
+    #     print('Incorrect naming of variables in line: ', line_num)
+    #     sys.exit()
+    # except NonnumbericValuesFoundException:
+    #     print('Numerical values expected line: ', line_num)
+    #     sys.exit()
+    # except MultipleValuesFoundException:
+    #     print('Single value expected on line:', line_num)
+    #     sys.exit()
+    # except NotPositiveRealNumberException:
+    #     print('Positive real number expected on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectSyntaxException:
+    #     print('Incorrect syntax on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectMatrixBoundaryException:
+    #     print('Incorrect matrix syntax on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectVectorBoundaryException:
+    #     print('Incorrect vector syntax on line: ', line_num)
+    #     sys.exit()
+    # except NonnumericValueInMatrixException:
+    #     print('Non-numeric values found in matrix on line: ', line_num)
+    #     sys.exit()
+    # except NonnumericValueInVectorException:
+    #     print('Non-numeric values found in vector on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectMatrixDefinitionException as e:
+    #     print(str(e))
+    #     print('Incorrect matrix shape on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectSymbolicExpressionException:
+    #     print('Incorrect symbolic expression on line: ', line_num)
+    #     sys.exit()
+    # except IncorrectNumOfSymbolicExpressionException:
+    #     print('Incorrect number of symbolic expressions found on line:, ', line_num)
+    #     sys.exit()
+    # except MatricesUnequalRowsException:
+    #     print('Matrices should have same number of rows on line:, ', line_num)
+    #     sys.exit()
+    # except MultipleMatricesSpecifiedException:
+    #     print('Only one matrix expected on line: ', line_num)
+    #     sys.exit()
+    # except MultipleScalarsSpecifiedException:
+    #     print('Only one scalar expected on line: ', line_num)
+    #     sys.exit()
+    # except MatrixNotQuadraticException:
+    #     print('Quadratic matrix expected on line: ', line_num)
+    #     sys.exit()
     except Exception as e:
         print(str(e) + str(line_num))
+        print(type(Exception))
         sys.exit()
 
 
