@@ -1,33 +1,49 @@
-class NonnumbericValuesFoundException(Exception):
+from ..BaseException import BaseException
+
+class GenericParsingException(BaseException):
+    """ General Parser Exception. """
+    base_msg = 'General Parsing Exception Occurred. '
+
+    def __init__(self, msg=None, param=None):
+        if msg is None:
+            msg = self.base_msg
+        if param is not None:
+            msg += ','.join(map(str, param))
+        super().__init__('Parsing Error: ' + msg)
+
+
+class NonnumbericValuesFoundException(GenericParsingException):
     """Raised when non-numeric values found in input"""
-    pass
+    base_msg = 'Found Unexpected Non-Numeric Value. '
 
 
-class EmptyValueException(Exception):
+class EmptyValueException(GenericParsingException):
     """Raised when the value of key is empty"""
-    pass
+    base_msg = 'Unexpected Empty Value Found. '
 
 
-class MultipleValuesFoundException(Exception):
+class MultipleValuesFoundException(GenericParsingException):
     """Raised when one value is expected but multiple specified"""
-    pass
+    base_msg = 'Found Multiple Values, But Expected Only One. '
 
 
-class NotPositiveRealNumberException(Exception):
+class NotPositiveRealNumberException(GenericParsingException):
     """Raised when a negative number is specified when a non-negative real number is expected"""
-    pass
+    base_msg = 'Expected Non-Negative Number But Given Negative Number. '
 
 
-class IncorrectSyntaxException(Exception):
+class IncorrectSyntaxException(GenericParsingException):
     """Raised when the incorrect syntax is encountered"""
-    pass
+    base_msg = 'Incorrect Syntax. '
 
 
-class MultipleScalarsSpecifiedException(Exception):
+class MultipleScalarsSpecifiedException(GenericParsingException):
     """Raised when multiple scalar values separated by comma is found when a single value is expected"""
-    pass
+    base_msg = 'Expected Single Scalar, But Found Multiple. '
 
-class GenericParsingException(Exception):
-    """Raised when any generic exceptions occurs"""
-    def __init__(self, msg):
-        self.msg = msg
+
+# class GenericParsingException(BaseException):
+#     """Raised when any generic exceptions occurs"""
+#
+#     def __init__(self, msg):
+#         self.msg = msg

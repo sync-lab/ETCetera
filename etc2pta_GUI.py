@@ -188,74 +188,78 @@ def submit_data():
             elif parsed_data is not None:  # For all other data, simple assignment is fine
                 dict_key_to_attrs[line.split(':')[0].strip()] = parsed_data
             parsed_data = None
-    except ArbitraryVariableNumberingException:
-        error_label.config(text='Incorrect numbering of variables.')
+    except GenericParsingException as e:
+        error_label.config(text=str(e))
         v.config(highlightbackground="RED")
         parsing_success = False
-    except ArbitraryVariableNamingException:
-        error_label.config(text='Incorrect naming of variables.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumbericValuesFoundException:
-        error_label.config(text='Numerical values expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleValuesFoundException:
-        error_label.config(text='Single value expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NotPositiveRealNumberException:
-        error_label.config(text='IPositive real number expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectSyntaxException:
-        error_label.config(text='Incorrect syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectMatrixBoundaryException:
-        error_label.config(text='Incorrect matrix syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectVectorBoundaryException:
-        error_label.config(text='Incorrect vector syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumericValueInMatrixException:
-        error_label.config(text='Non-numeric values found in matrix.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumericValueInVectorException:
-        error_label.config(text='Non-numeric values found in vector.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectMatrixDefinitionException:
-        error_label.config(text='Incorrect matrix shape.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectSymbolicExpressionException:
-        error_label.config(text='Incorrect symbolic expression.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectNumOfSymbolicExpressionException:
-        error_label.config(text='Incorrect number of symbolic expressions found.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MatricesUnequalRowsException:
-        error_label.config(text='Matrices should have same number of rows.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleMatricesSpecifiedException:
-        error_label.config(text='Only one matrix expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleScalarsSpecifiedException:
-        error_label.config(text='Only one scalar expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MatrixNotQuadraticException:
-        error_label.config(text='Quadratic matrix expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
+    # except ArbitraryVariableNumberingException:
+    #     error_label.config(text='Incorrect numbering of variables.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except ArbitraryVariableNamingException:
+    #     error_label.config(text='Incorrect naming of variables.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumbericValuesFoundException:
+    #     error_label.config(text='Numerical values expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleValuesFoundException:
+    #     error_label.config(text='Single value expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NotPositiveRealNumberException:
+    #     error_label.config(text='IPositive real number expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectSyntaxException:
+    #     error_label.config(text='Incorrect syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectMatrixBoundaryException:
+    #     error_label.config(text='Incorrect matrix syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectVectorBoundaryException:
+    #     error_label.config(text='Incorrect vector syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumericValueInMatrixException:
+    #     error_label.config(text='Non-numeric values found in matrix.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumericValueInVectorException:
+    #     error_label.config(text='Non-numeric values found in vector.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectMatrixDefinitionException:
+    #     error_label.config(text='Incorrect matrix shape.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectSymbolicExpressionException:
+    #     error_label.config(text='Incorrect symbolic expression.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectNumOfSymbolicExpressionException:
+    #     error_label.config(text='Incorrect number of symbolic expressions found.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MatricesUnequalRowsException:
+    #     error_label.config(text='Matrices should have same number of rows.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleMatricesSpecifiedException:
+    #     error_label.config(text='Only one matrix expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleScalarsSpecifiedException:
+    #     error_label.config(text='Only one scalar expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MatrixNotQuadraticException:
+    #     error_label.config(text='Quadratic matrix expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
     except Exception as e:
         error_label.config(text=str(e))
         v.config(highlightbackground="RED")
