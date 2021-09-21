@@ -1,0 +1,4 @@
+Dynamics: -x1**3 + x1*x2**2, x1*x2**2 - x2*x1**2 + u1
+Controller: -x2**3 - x1*x2**2
+Hyperbox States: [-2.5 2.5], [-2.5 2.5]
+Solver Options: partition_method=grid
