@@ -11,6 +11,8 @@ large_sys_file = os.path.join(root_path, 'tests/scheduling/files/_large_linpetc_
 traffic1_file = os.path.join(root_path, 'tests/scheduling/files/traffic1.pickle')
 traffic1_ref_file = os.path.join(root_path, 'tests/scheduling/files/traffic1_ref.pickle')
 
+sys_refsim_file = os.path.join(root_path, 'tests/scheduling/files/sys_testrefsim.txt')
+
 class TestEnumControlLoop(unittest.TestCase):
     longMessage = True
 
@@ -288,13 +290,18 @@ class TestEnumControlLoop(unittest.TestCase):
 
     # TODO: (More) Tests for constr with refined traffic model
     def testRefinedTrafficIsSimilar(self):
-        with open(traffic1_file, 'rb') as f:
-            traffic = pickle.load(f)
-        with open(traffic1_ref_file, 'rb') as f:
-            traffic_ref = pickle.load(f)
+        # with open(traffic1_file, 'rb') as f:
+        #     traffic = pickle.load(f)
+        # with open(traffic1_ref_file, 'rb') as f:
+        #     traffic_ref = pickle.load(f)
+
+        from sentient.util import construct_linearPETC_traffic_from_file
+        traffic = construct_linearPETC_traffic_from_file(sys_refsim_file)
 
         c1 = controlloop(traffic, use_bdd=False)
-        c2 = controlloop(traffic_ref, use_bdd=False)
+
+        traffic.refine()
+        c2 = controlloop(traffic, use_bdd=False)
 
         _, b1 = c1.check_similar(c2) # c1 <= c2 ?
         _, b2 = c2.check_similar(c1) # c2 <= c1 ?
