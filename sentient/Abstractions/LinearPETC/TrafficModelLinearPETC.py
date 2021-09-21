@@ -20,7 +20,7 @@ from sentient.util.etcgraph_python_specific import TrafficAutomaton
 # from sentient.Systems.Automata.timed_automaton import TimedAutomaton
 # from sentient.Systems.Automata.priced_timed_automaton import PricedTimedAutomaton
 from sentient.Systems.Automata import Automaton
-from sentient.Systems.Automata import TimedAutomaton, PricedTimedAutomaton
+from sentient.Systems.Automata import TimedAutomaton#, PricedTimedAutomaton
 
 SMALL_NUMBER = 1e-7
 
