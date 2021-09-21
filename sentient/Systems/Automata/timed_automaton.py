@@ -249,27 +249,27 @@ transitions: {self.transitions}
         return TimedGameAutomaton(self.name, self.locations, self.invariants, self.actions,
                                   c_actions, uncontrolled_actions, self.clocks, new_tr, self.initial_location)
 
-    def convert_to_pta(self, transition_prices, location_prices):
-        """
-        Converts the TA into a PTA, with prices specified in the two arguments.
-        If a transitions/location is not given in the list, it will be given price 1.
-        @param transition_prices:
-        @param location_prices:
-        """
+    # def convert_to_pta(self, transition_prices, location_prices):
+    #     """
+    #     Converts the TA into a PTA, with prices specified in the two arguments.
+    #     If a transitions/location is not given in the list, it will be given price 1.
+    #     @param transition_prices:
+    #     @param location_prices:
+    #     """
 
-        from .priced_timed_automaton import PricedTimedAutomaton
-        raise NotImplementedError
-        templp = location_prices.copy()
-        temptp = transition_prices.copy()
-        for x in self.locations:
-            if x not in location_prices:
-                print(f'Location {x} not specified in location_prices. Give it price 0.')
-                templp[x] = 0
+    #     from .priced_timed_automaton import PricedTimedAutomaton
+    #     raise NotImplementedError
+    #     templp = location_prices.copy()
+    #     temptp = transition_prices.copy()
+    #     for x in self.locations:
+    #         if x not in location_prices:
+    #             print(f'Location {x} not specified in location_prices. Give it price 0.')
+    #             templp[x] = 0
 
-        for i, x in enumerate(self.transitions):
-            if i not in transition_prices:
-                print(f'Transition {x} not specified in transition_prices. Give it price 0.')
-                temptp[x] = 0
+    #     for i, x in enumerate(self.transitions):
+    #         if i not in transition_prices:
+    #             print(f'Transition {x} not specified in transition_prices. Give it price 0.')
+    #             temptp[x] = 0
 
 
 if __name__ == '__main__':
