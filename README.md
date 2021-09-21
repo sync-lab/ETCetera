@@ -1,7 +1,7 @@
 # SENTIENT
 Toolchain for abstraction and scheduling of event-triggered controllers.
 
-##Installation
+## Installation
 
 ---------------------------------------
 
