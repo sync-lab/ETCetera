@@ -88,7 +88,7 @@ $ python etc2pta.py linear examples/linear_ifac.txt --output_file=ex.json
 
 
 -------------------------
-Full documentation see [Documentation](docs/build/html/index.html)
+Full documentation see [Documentation](docs/build/Documentation.html)
 
 # Examples
 
