@@ -1,7 +1,7 @@
 # Loading the traffic models
 import sentient.Abstractions as abstr
-traffic1 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic1.pickle')
-traffic2 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic1.pickle')
+traffic1 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic_petc.pickle')
+traffic2 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic_petc.pickle')
 
 
 # Scheduling using UPPAAL Stratego
