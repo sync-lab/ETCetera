@@ -1,4 +1,4 @@
-name: sentient3            # default is root
+name: sentient            # default is root
 channels:
 - defaults
 - conda-forge
