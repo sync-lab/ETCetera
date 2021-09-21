@@ -29,10 +29,14 @@ class CustomInstallCommand(install):
         checks if smt file path, dreal path, dreach path, and flow* paths are set in config.py, if not sets the path to
         third-party directory.
     """
+    # user_options = install.user_options + [
+    #     ('--cudd', None, None),  # a 'flag' option
+    # ]
+
     def run(self):
         pwd = os.getcwd()
         config_str = ''
-        if not config.path:
+        if not config.smt_path:
             config_str = config_str + 'path = ' + pwd + '/resources\n'
 
 
@@ -74,6 +78,7 @@ class CustomInstallCommand(install):
             config_write.write(config_str)
 
         install.run(self)
+        subprocess.call(['pip', 'install', '-r', 'dd.txt'])#'--install-option="--fetch"', 'install-option="--cudd"'])
 
         # Check if the OS is Linux or Mac
         #if platform == "linux" or platform == "linux2":
@@ -214,13 +219,17 @@ requires = [
     'pyparsing',
     'cycler',
     'python-dateutil',
-    'slycot'
+    'slycot',
+    'pygraphviz',
+    'shortuuid',
+    'dd>=0.1.1'
 ]
 
 setup(
-    name='control_system_abstractions',
+    name='sentient',
     cmdclass={
         'install': CustomInstallCommand
     },
+    scripts=['pip install dd>=0.1.1 --install-option="--fetch" --install-option="--cudd"'],
     install_requires=requires,
 )

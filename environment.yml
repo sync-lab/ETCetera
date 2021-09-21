@@ -1,4 +1,4 @@
-name: sentient            # default is root
+name: sentient3            # default is root
 channels:
 - defaults
 - conda-forge
@@ -21,7 +21,7 @@ dependencies:         # everything under this, installed by conda
 - pyparsing
 - cycler
 - python-dateutil
-- kiwisolver
+#- kiwisolver
 - shortuuid
 - pygraphviz
 - pip:                # everything under this, installed by pip

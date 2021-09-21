@@ -1,13 +1,11 @@
 from unittest import TestCase
-from unittest.mock import patch
-import sympy as sp
 import numpy as np
 
 
 class TestParserNonLinearInputData(TestCase):
 
     def test_dynamics(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertTrue(np.allclose(parse_linear('Dynamics : [1 2; 3 4; 5 6]'), np.array([[1, 2], [3, 4], [5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
         for item in parse_linear('Dynamics : [1 2; 3 4], [1 2; 3 4]'):
             with self.subTest(line=item):
@@ -41,7 +39,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_controller(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertTrue(np.allclose(parse_linear('Controller : [1 2; 3 4; 5 6]'), np.array([[1, 2], [3, 4], [5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Controller : [1 2; 3 4]'), np.array([[1, 2], [3, 4]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Controller : [-1 2; 3.6 4; 5 6]'), np.array([[-1, 2], [3.6, 4], [5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
@@ -74,7 +72,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_triggering_condition(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertTrue(np.allclose(parse_linear('Triggering Condition : [1 2; 3 4; 5 6]'), np.array([[1, 2], [3, 4], [5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Triggering Condition : [1 2 3; 4 5 6]'), np.array([[1, 2, 3], [4, 5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Triggering Condition : [1 2 3; -4 5 6]'), np.array([[1, 2, 3], [-4, 5, 6]], dtype='f'), rtol=1e-05, atol=1e-08))
@@ -107,7 +105,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_triggering_heartbeat(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertEqual(parse_linear('Triggering Heartbeat : 2.5'), float('2.5'))
         self.assertEqual(parse_linear('Triggering Heartbeat : 2'), float('2'))
         with self.assertRaises(Exception) as context:
@@ -133,7 +131,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_triggering_sampling_time(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertEqual(parse_linear('Triggering Sampling Time : 2.5'), float('2.5'))
         self.assertEqual(parse_linear('Triggering Sampling Time : 2'), float('2'))
         with self.assertRaises(Exception) as context:
@@ -159,7 +157,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_lyapunov_func(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertTrue(np.allclose(parse_linear('Lyapunov Function : [1 2; 3 4]'), np.array([[1, 2], [3, 4]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Lyapunov Function : [1.0 2.1; 3.2 4.3]'), np.array([[1, 2.1], [3.2, 4.3]], dtype='f'), rtol=1e-05, atol=1e-08))
         self.assertTrue(np.allclose(parse_linear('Lyapunov Function : [1.1 2.2 3.3; 4.4 5.5 6.6; 7.7 8.8 9.9]'), np.array([[1.1, 2.2, 3.3], [4.4, 5.5, 6.6], [7.7, 8.8, 9.9]], dtype='f'), rtol=1e-05, atol=1e-08))
@@ -186,7 +184,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_solver_options(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertEqual(parse_linear('Solver Options : 1, 2, 3'), [1.0, 2.0, 3.0])
         self.assertEqual(parse_linear('Solver Options : 1.2, 2.4, 3.7'), [1.2, 2.4, 3.7])
         self.assertEqual(parse_linear('Solver Options : 12., 3.7'), [12.0, 3.7])
@@ -209,7 +207,7 @@ class TestParserNonLinearInputData(TestCase):
         self.assertTrue('Syntax error' in str(context.exception))
 
     def test_linesearch_options(self):
-        from control_system_abstractions.parser.parser_linear_systems import parse_linear
+        from sentient.util.parsing.parser_linear_systems import parse_linear
         self.assertEqual(parse_linear('Linesearch Options : 1, 2, 3'), [1.0, 2.0, 3.0])
         self.assertEqual(parse_linear('Linesearch Options : 1.2, 2.4, 3.7'), [1.2, 2.4, 3.7])
         self.assertEqual(parse_linear('Linesearch Options : 12., 3.7'), [12.0, 3.7])

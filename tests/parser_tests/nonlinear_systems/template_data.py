@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import control_system_abstractions.data.nonlinear_systems_datastructure as data
+import sentient.data.nonlinear_systems_datastructure as data
 import sympy as sp
 
 def create_template():

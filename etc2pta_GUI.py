@@ -7,31 +7,23 @@ Created on Sat May 16 14:53:58 2020
 
 import random
 from tkinter import *
-import control_system_abstractions.parser.parser_linear_systems as lp
-import control_system_abstractions.parser.parser_nonlinear_systems as nlp
-import control_system_abstractions.data.linear_systems_datastructure as ld
+import sentient.util.parsing.parser_linear_systems as lp
+import sentient.util.parsing.parser_nonlinear_systems as nlp
+import sentient.data.linear_systems_datastructure as ld
 import sympy as sp
-#import control_system_abstractions.nonlinear_systems_utils as nonlinear
-import control_system_abstractions.data.nonlinear_systems_datastructure as nld
-import control_system_abstractions.logic.nonlinear_systems as nonlinear_logic
-import control_system_abstractions.logic.linear_systems as linear_logic
-from config import dreach_path, flowstar_path, path, dreal_path
+#import sentient.nonlinear_systems_utils as nonlinear
+import sentient.data.nonlinear_systems_datastructure as nld
+import sentient.logic.nonlinear_systems as nonlinear_logic
+import sentient.logic.linear_systems as linear_logic
+from config import dreach_path, flowstar_path, smt_path, dreal_path
 
 # Linear system layout definitions
-from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
+from sentient.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
     LPOptimizationFailedException, LPGeneralException
-from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+from sentient.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
     DataObjectGeneralException
-from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
-    NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
-    IncorrectSyntaxException, MultipleScalarsSpecifiedException, GenericParsingException
-from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
-    ArbitraryVariableNumberingException, ArbitraryVariableNamingException, IncorrectSymbolicExpressionException, \
-    IncorrectNumOfSymbolicExpressionException
-from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_syntax_exceptions import \
-    IncorrectMatrixBoundaryException, IncorrectVectorBoundaryException, NonnumericValueInMatrixException, \
-    NonnumericValueInVectorException, IncorrectMatrixDefinitionException, MatricesUnequalRowsException, \
-    MultipleMatricesSpecifiedException, MatrixNotQuadraticException
+from sentient.exceptions.parser_exceptions.general_parser_exception import \
+    GenericParsingException
 
 
 class LinearSystemLayout:
@@ -428,7 +420,7 @@ def submit_data():
             root.destroy()
             root.quit()
 
-            if not path:
+            if not smt_path:
                 print('Path to SMT files is not set.')
                 sys.exit()
             if not dreal_path:
@@ -441,7 +433,7 @@ def submit_data():
                 print('Path to flow* executable is not set.')
                 sys.exit()
 
-            data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
+            data_obj = nld.InputDataStructureNonLinear(smt_path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
                                                        dict_key_to_attrs['Deg. of Homogeneity'],
                                                        dict_key_to_attrs['Lyapunov Function'],
