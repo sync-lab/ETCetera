@@ -109,7 +109,7 @@ class Abstraction(metaclass=ABCMeta):
     def from_bytestream_file(cls, file_name) -> 'Abstraction':
         file_name = cls._check_file(file_name)
         if file_name is None:
-            return None
+            raise FileNotFoundError
 
         with open(file_name, 'rb') as f:
             obj = pickle.load(f)
