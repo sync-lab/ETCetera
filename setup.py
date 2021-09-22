@@ -230,6 +230,5 @@ setup(
     cmdclass={
         'install': CustomInstallCommand
     },
-    scripts=['pip install dd>=0.1.1 --install-option="--fetch" --install-option="--cudd"'],
     install_requires=requires,
 )
