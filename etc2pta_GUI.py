@@ -7,31 +7,23 @@ Created on Sat May 16 14:53:58 2020
 
 import random
 from tkinter import *
-import control_system_abstractions.parser.parser_linear_systems as lp
-import control_system_abstractions.parser.parser_nonlinear_systems as nlp
-import control_system_abstractions.data.linear_systems_datastructure as ld
+import sentient.util.parsing.parser_linear_systems as lp
+import sentient.util.parsing.parser_nonlinear_systems as nlp
+import sentient.data.linear_systems_datastructure as ld
 import sympy as sp
-#import control_system_abstractions.nonlinear_systems_utils as nonlinear
-import control_system_abstractions.data.nonlinear_systems_datastructure as nld
-import control_system_abstractions.logic.nonlinear_systems as nonlinear_logic
-import control_system_abstractions.logic.linear_systems as linear_logic
-from config import dreach_path, flowstar_path, path, dreal_path
+#import sentient.nonlinear_systems_utils as nonlinear
+import sentient.data.nonlinear_systems_datastructure as nld
+import sentient.logic.nonlinear_systems as nonlinear_logic
+import sentient.logic.linear_systems as linear_logic
+from config import dreach_path, flowstar_path, smt_path, dreal_path
 
 # Linear system layout definitions
-from control_system_abstractions.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
+from sentient.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
     LPOptimizationFailedException, LPGeneralException
-from control_system_abstractions.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+from sentient.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
     DataObjectGeneralException
-from control_system_abstractions.exceptions.parser_exceptions.general_parser_exception import \
-    NonnumbericValuesFoundException, MultipleValuesFoundException, NotPositiveRealNumberException, \
-    IncorrectSyntaxException, MultipleScalarsSpecifiedException, GenericParsingException
-from control_system_abstractions.exceptions.parser_exceptions.symbolic_expression_exceptions import \
-    ArbitraryVariableNumberingException, ArbitraryVariableNamingException, IncorrectSymbolicExpressionException, \
-    IncorrectNumOfSymbolicExpressionException
-from control_system_abstractions.exceptions.parser_exceptions.vector_matrix_syntax_exceptions import \
-    IncorrectMatrixBoundaryException, IncorrectVectorBoundaryException, NonnumericValueInMatrixException, \
-    NonnumericValueInVectorException, IncorrectMatrixDefinitionException, MatricesUnequalRowsException, \
-    MultipleMatricesSpecifiedException, MatrixNotQuadraticException
+from sentient.exceptions.parser_exceptions.general_parser_exception import \
+    GenericParsingException
 
 
 class LinearSystemLayout:
@@ -188,74 +180,78 @@ def submit_data():
             elif parsed_data is not None:  # For all other data, simple assignment is fine
                 dict_key_to_attrs[line.split(':')[0].strip()] = parsed_data
             parsed_data = None
-    except ArbitraryVariableNumberingException:
-        error_label.config(text='Incorrect numbering of variables.')
+    except GenericParsingException as e:
+        error_label.config(text=str(e))
         v.config(highlightbackground="RED")
         parsing_success = False
-    except ArbitraryVariableNamingException:
-        error_label.config(text='Incorrect naming of variables.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumbericValuesFoundException:
-        error_label.config(text='Numerical values expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleValuesFoundException:
-        error_label.config(text='Single value expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NotPositiveRealNumberException:
-        error_label.config(text='IPositive real number expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectSyntaxException:
-        error_label.config(text='Incorrect syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectMatrixBoundaryException:
-        error_label.config(text='Incorrect matrix syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectVectorBoundaryException:
-        error_label.config(text='Incorrect vector syntax.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumericValueInMatrixException:
-        error_label.config(text='Non-numeric values found in matrix.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except NonnumericValueInVectorException:
-        error_label.config(text='Non-numeric values found in vector.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectMatrixDefinitionException:
-        error_label.config(text='Incorrect matrix shape.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectSymbolicExpressionException:
-        error_label.config(text='Incorrect symbolic expression.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except IncorrectNumOfSymbolicExpressionException:
-        error_label.config(text='Incorrect number of symbolic expressions found.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MatricesUnequalRowsException:
-        error_label.config(text='Matrices should have same number of rows.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleMatricesSpecifiedException:
-        error_label.config(text='Only one matrix expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MultipleScalarsSpecifiedException:
-        error_label.config(text='Only one scalar expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
-    except MatrixNotQuadraticException:
-        error_label.config(text='Quadratic matrix expected.')
-        v.config(highlightbackground="RED")
-        parsing_success = False
+    # except ArbitraryVariableNumberingException:
+    #     error_label.config(text='Incorrect numbering of variables.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except ArbitraryVariableNamingException:
+    #     error_label.config(text='Incorrect naming of variables.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumbericValuesFoundException:
+    #     error_label.config(text='Numerical values expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleValuesFoundException:
+    #     error_label.config(text='Single value expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NotPositiveRealNumberException:
+    #     error_label.config(text='IPositive real number expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectSyntaxException:
+    #     error_label.config(text='Incorrect syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectMatrixBoundaryException:
+    #     error_label.config(text='Incorrect matrix syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectVectorBoundaryException:
+    #     error_label.config(text='Incorrect vector syntax.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumericValueInMatrixException:
+    #     error_label.config(text='Non-numeric values found in matrix.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except NonnumericValueInVectorException:
+    #     error_label.config(text='Non-numeric values found in vector.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectMatrixDefinitionException:
+    #     error_label.config(text='Incorrect matrix shape.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectSymbolicExpressionException:
+    #     error_label.config(text='Incorrect symbolic expression.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except IncorrectNumOfSymbolicExpressionException:
+    #     error_label.config(text='Incorrect number of symbolic expressions found.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MatricesUnequalRowsException:
+    #     error_label.config(text='Matrices should have same number of rows.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleMatricesSpecifiedException:
+    #     error_label.config(text='Only one matrix expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MultipleScalarsSpecifiedException:
+    #     error_label.config(text='Only one scalar expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
+    # except MatrixNotQuadraticException:
+    #     error_label.config(text='Quadratic matrix expected.')
+    #     v.config(highlightbackground="RED")
+    #     parsing_success = False
     except Exception as e:
         error_label.config(text=str(e))
         v.config(highlightbackground="RED")
@@ -424,7 +420,7 @@ def submit_data():
             root.destroy()
             root.quit()
 
-            if not path:
+            if not smt_path:
                 print('Path to SMT files is not set.')
                 sys.exit()
             if not dreal_path:
@@ -437,7 +433,7 @@ def submit_data():
                 print('Path to flow* executable is not set.')
                 sys.exit()
 
-            data_obj = nld.InputDataStructureNonLinear(path, dreal_path, dreach_path, flowstar_path,
+            data_obj = nld.InputDataStructureNonLinear(smt_path, dreal_path, dreach_path, flowstar_path,
                                                        dynamics_new,
                                                        dict_key_to_attrs['Deg. of Homogeneity'],
                                                        dict_key_to_attrs['Lyapunov Function'],

@@ -1,0 +1,7 @@
+Hyperbox States: [-2.5 2.5], [-2.5 2.5]
+Dynamics : -x1**3 + x1*x2**2, x1*x2**2 - x2*x1**2 + u1
+Controller : -x2**3-x1*x2**2
+Triggering Condition : e1**2 + e2**2 - (0.0127*0.3)**2*(x1**2+x2**2)
+Deg. of Homogeneity: 2
+
+Solver Options : manifolds_times=[0.0006 0.0013], partition_method=manifold, verbose=True, nr_cones_big_angle=3, heartbeat=0.06, order_approx=4, precision_deltas=0.000001
