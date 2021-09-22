@@ -1,19 +1,6 @@
 import sympy
 import sentient.util as utils
 
-# import logging
-#
-# lv = logging.INFO
-# logger = logging.getLogger()
-# logger.setLevel(lv)
-# ch = logging.StreamHandler()
-# ch.setLevel(lv)
-# ch.setFormatter(
-#     logging.Formatter('[%(levelname)s - %(filename)s:%(lineno)s - '
-#                       '%(funcName)s()] %(message)s'))
-# if len(logger.handlers) <= 0:
-#     logger.addHandler(ch)
-
 # Define
 state_vector = x1, x2, e1, e2 = sympy.symbols('x1 x2 e1 e2')
 
