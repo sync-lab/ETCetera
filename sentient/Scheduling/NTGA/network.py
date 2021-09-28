@@ -12,8 +12,7 @@ class network(TimedGameAutomaton):
     Original author: P. Schalkwijk 
     """
 
-    def __init__(self, index=None,
-                 name='Network', sync='up',
+    def __init__(self, name='Network', index=None, sync='up',
                  ack='ack', nack='nack', timeout='timeout', down='down'):
 
         self.name = name
@@ -44,7 +43,7 @@ class network(TimedGameAutomaton):
         actions_c = {f'{timeout}?', f'{ack}!', f'{nack}!'}
 
         # Define edges
-        tranitions = self.create_all_edges()
+        tranitions = self._create_all_edges()
 
         l0 = 'Idle'
 
@@ -52,7 +51,7 @@ class network(TimedGameAutomaton):
                          clocks, tranitions, name=name, initial_location=l0,
                          urgent=urgent)
 
-    def create_all_edges(self):
+    def _create_all_edges(self):
 
         # Any edge = (source, guard, actions_c, actions_u, resets, target)
 
