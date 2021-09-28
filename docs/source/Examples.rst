@@ -2,6 +2,8 @@
 Examples
 ************
 
+The scripts of all the following examples can be found in ``examples/``.
+
 Traffic Model Examples
 =======================
 Here we discuss examples of how to construct traffic models for linear PETC and nonlinear ETC systems.
