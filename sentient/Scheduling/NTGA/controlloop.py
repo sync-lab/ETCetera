@@ -30,11 +30,11 @@ class controlloop(TimedGameAutomaton):
     count_decl = 'count'
     earnum_decl = 'EarNum'
 
-    def __init__(self, abstraction: TrafficModelNonlinearETC, name=None, initial_location=None,
-                 sync='up', nack='nack', ack='ack', timeout='timeout',
-                 down='down', clock='c', max_delay_steps=0, max_early=None, delta=None):
+    def __init__(self, abstraction: Abstraction, name=None, index=None,initial_location=None, max_delay_steps=0,
+                 max_early=None, max_early_triggers=0, delta=None,
+                 sync='up', nack='nack', ack='ack', timeout='timeout', down='down', clock='c'):
 
-        self.name = name or 'controlloop' + shortuuid.uuid()[:6]
+        self.name = name or 'controlloop'# + shortuuid.uuid()[:6]
 
         # communicating actions
         self.sync = sync
@@ -42,6 +42,7 @@ class controlloop(TimedGameAutomaton):
         self.ack = ack
         self.down = down
         self.timeout = timeout
+        self.max_early_triggers = max_early_triggers
 
         if delta is None:
             if type(abstraction) == TrafficModelLinearPETC:
@@ -52,7 +53,7 @@ class controlloop(TimedGameAutomaton):
             self.delta = delta
         self._clock = clock
 
-        self.index = shortuuid.uuid()[:6]
+        self.index = index or shortuuid.uuid()[:6]
         self.max_delay_steps = max_delay_steps
 
         maxdefault = 0
@@ -154,43 +155,75 @@ class controlloop(TimedGameAutomaton):
         transitions = set()
         reset = frozenset()
         for (start, guard, assignment, clocks, end) in edges:
+            print(guard)
+            # If late => continue
+            if guard[0] > h*start[0] or guard[0] < h*start[0]-self.max_early:
+                continue
+
             loc_t = '_'.join([str(i) for i in end])
 
-            # first R to trans_state
-            ia = set(assignment)
-            ia.update({f'{self.earnum_decl} = 0'})
-
-            # NOTE: the end should not have "R" before the region number
-            ia.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
-            natural_assignment = frozenset(ia)
-
-            # now ear_R to trans_state
-            ea = set(assignment)
-
-            # TODO:
-            #   NOTE: Ideally the "end" value should come from a separate
-            #   reachability analysis for early edges
-            ea.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
-            ea.update({f'{self.earnum_decl} = {self.earnum_decl} + 1'})
-            early_assignment = frozenset(ea)
-
-            # add edges
-            edge_nat = (f'R' + '_'.join([str(i) for i in start]), guard, natural_assignment,
-                        frozenset({f'{self.sync}!'}), reset, 'Trans_loc')
-
-            # Early edges should not have any guard
-            edge_earl = (f'Ear' + '_'.join([str(i) for i in start]), True,
+            # Add transition from Ear_i if early trigger
+            if guard[0] < h*start[0]:
+                # now ear_R to trans_state
+                ea = set(assignment)
+                ea.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
+                ea.update({f'{self.earnum_decl} = {self.earnum_decl} + 1'})
+                early_assignment = frozenset(ea)
+                edge_earl = (f'Ear' + '_'.join([str(i) for i in start]), True,
                          early_assignment, frozenset({f'{self.sync}!'}),
                          reset, 'Trans_loc')
+                transitions.update({edge_earl})
+            # Else add transition from R_i
+            else:
+                # # first R to trans_state
+                ia = set(assignment)
+                ia.update({f'{self.earnum_decl} = 0'})
 
-            transitions.update({edge_nat})
-            transitions.update({edge_earl})
+                # NOTE: the end should not have "R" before the region number
+                ia.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
+                natural_assignment = frozenset(ia)
+                edge_nat = (f'R' + '_'.join([str(i) for i in start]), guard, natural_assignment,
+                                        frozenset({f'{self.sync}!'}), reset, 'Trans_loc')
+                transitions.update({edge_nat})
+
+        print(transitions)
+            # loc_t = '_'.join([str(i) for i in end])
+            #
+            # # first R to trans_state
+            # ia = set(assignment)
+            # ia.update({f'{self.earnum_decl} = 0'})
+            #
+            # # NOTE: the end should not have "R" before the region number
+            # ia.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
+            # natural_assignment = frozenset(ia)
+            #
+            # # now ear_R to trans_state
+            # ea = set(assignment)
+            #
+            # # TODO:
+            # #   NOTE: Ideally the "end" value should come from a separate
+            # #   reachability analysis for early edges
+            # ea.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
+            # ea.update({f'{self.earnum_decl} = {self.earnum_decl} + 1'})
+            # early_assignment = frozenset(ea)
+            #
+            # # add edges
+            # edge_nat = (f'R' + '_'.join([str(i) for i in start]), guard, natural_assignment,
+            #             frozenset({f'{self.sync}!'}), reset, 'Trans_loc')
+            #
+            # # Early edges should not have any guard
+            # edge_earl = (f'Ear' + '_'.join([str(i) for i in start]), True,
+            #              early_assignment, frozenset({f'{self.sync}!'}),
+            #              reset, 'Trans_loc')
+            #
+            # transitions.update({edge_nat})
+            # transitions.update({edge_earl})
 
         for location in abstraction.regions:
             # assumption: location = number of steps
             loc = '_'.join([str(i) for i in location])
-            transitions.update([(f'R{loc}', frozenset({(location[0]*h, location[0]*h-self.max_early*h),
-                                                               f'{self.earnum_decl} <= EarMax'}), #f'{self._clock} < {location[0]} &&'
+            transitions.update([(f'R{loc}', frozenset({(location[0]*h-self.max_early*h, location[0]*h),
+                                                               f'{self.earnum_decl} <= {self.max_early_triggers}'}), #f'{self._clock} < {location[0]} &&'
                                                     #f'{location[0] - self.max_early} <= {self._clock} && {self.earnum_decl} <= EarMax',
                                  False, False, frozenset(), f'Ear{loc}')])
 
@@ -248,12 +281,13 @@ class controlloop(TimedGameAutomaton):
         self.initial_location = 'R0'
         self.transitions = transitions
         self.loc_dict_inv = {v:k for (k,v) in self.loc_dict.items()}
+        self.h = h
 
     def _constr_from_nonlinearetc(self, abstraction: Abstraction, initial_location=None):
 
         locations = {f'R{i}' if type(i := eval(r)) is not list else f'R{i[0]}_{i[1]}'
                      for r in abstraction.regions}
-        print(locations)
+        # print(locations)
         urgent = set()
 
 
@@ -276,7 +310,7 @@ class controlloop(TimedGameAutomaton):
                       for (r, t) in abstraction.regions.items()}
 
         invariants.update({i: None for i in common_locations})
-        print(invariants)
+        # print(invariants)
 
         if self.max_early > 0:
             early_loc = {f'Ear{i}' if type(i := eval(r)) is not list else f'Ear{i[0]}_{i[1]}'
@@ -291,6 +325,7 @@ class controlloop(TimedGameAutomaton):
 
         transitions = set()
         reset = frozenset()
+        # TODO: Transitions from Ear_i should ideally come from seperate reach. analysis
         for ((r, tau), post) in abstraction.transitions.items():
             loc_r = f'{i}' if type(i := eval(r)) is not list else f'{i[0]}_{i[1]}'
             # if i == [2,1]:
@@ -334,7 +369,7 @@ class controlloop(TimedGameAutomaton):
 
             if self.max_early > 0:
                 transitions.update([(f'R{loc_r}', frozenset({(tau[0] - self.max_early, tau[0]),
-                                                   f'{self.earnum_decl} <= EarMax'}),
+                                                   f'{self.earnum_decl} <= {self.max_early_triggers}'}),
                                     #  f'{self._clock} < {r.timing_lower_bound} &&'
                                     # f'{r.timing_lower_bound - self.max_early} <= {self._clock} &&'
                                     #  f'{self.earnum_decl} <= EarMax',
@@ -395,7 +430,7 @@ class controlloop(TimedGameAutomaton):
         self.initial_location = 'R0'
         self.transitions = transitions
         self.loc_dict_inv = {v: k for (k, v) in self.loc_dict.items()}
-        print(self.loc_dict_inv)
+        # print(self.loc_dict_inv)
         # print(transitions)
         # sys.exit()
         # pass
