@@ -8,7 +8,7 @@ state_vector = x1, x2, e1, e2 = sympy.symbols('x1 x2 e1 e2')
 u1 = -(x2+e2) - (x1+e1)**2*(x2+e2) - (x2+e2)**3
 
 # Define dynamics
-x1dot = x1
+x1dot = -x1
 x2dot = x1**2*x2 + x2**3 + u1
 dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 

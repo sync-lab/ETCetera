@@ -8,7 +8,7 @@ K = np.array([[0.518, -1.973, -0.448, -2.1356], [-3.812, -0.0231, -2.7961, 1.671
 # PETC parameters
 h = 0.01
 kmax = 20
-sigma = 0.01
+sigma = 0.1
 
 # Triggering condition
 Qtrigger = np.block([[(1-sigma)*np.eye(4), -np.eye(4)], [-np.eye(4), np.eye(4)]])
