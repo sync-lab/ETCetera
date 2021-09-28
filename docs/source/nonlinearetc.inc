@@ -37,16 +37,36 @@ Traffic Models of Nonlinear ETC Systems
     :param float timeout_timing_bounds:  Timeout for reachability analysis for timing bounds. Default: ``200``.
     :param float timeout_transitions:  Timeout for reachability analysis for transitions. Default: ``200``.
 
+    .. py:property:: regions
 
-    .. py:property:: regions:
-        List containing ``Region_Homogeneous`` or ``Region_Grid`` objects. Will generate this regions automatically on first access.
+        Dictionary containing the name/index of each region with the corresponding invariant. E.g.:
 
-    .. py:method:: create_abstraction():
+        .. math::
+
+            &\{1: \tau_1, 2: \tau_2, ...\}, \quad \text{or} \\
+            &\{[1, 1]: \tau_1, [1,2]: \tau_2, ...\}
+
+        Will be recomputed on access if necessary.
+
+    .. py:property:: transitions
+
+        Dictionary containing sets of possible next regions for all combinations of region, trigger time pairs. E.g.:
+
+        .. math::
+
+            &\{(1, (\underline{\tau}_1, \overline{\tau}_1)): \{l_1, l_2, \dots\}, (2, (\underline{\tau}_2, \overline{\tau}_2)): \dots \}, \quad \text{or} \\
+
+        Will be recomputed on access if necessary.
+
+    .. py:method:: create_abstraction
 
         Creates the regions and transitions of the traffic model.
 
         :return: ``self.regions``, ``self.transitions``
 
-.. py:class: Region_Homogeneous:
+    .. py:method:: return_regions_descriptors
 
-    Class representing one of the regions of a
+        Returns a dictionary containing symbolic expressions describing the regions.
+
+        :return: Region descriptors.
+        :rtype: dict
