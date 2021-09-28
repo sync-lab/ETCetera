@@ -1,5 +1,12 @@
 # SENTIENT
 Toolchain for abstraction and scheduling of event-triggered controllers.
+The project consists of two main parts:
+- Creating abstraction/traffic models of Event-Triggered Controllers (ETC):
+  - For linear PETC system (cite...)
+  - For nonlinear ETC systems, with or without disturbances (cite ...)
+- Generating schedulers for a collection of ETC systems:
+  - Using timed game automata and UPPAAL Stratego (cite ...)
+  - Using transitions systems and fixed point iterations (cite ...)
 
 ## Installation
 
@@ -83,9 +90,9 @@ The following shows an example input file for linear PETC systems:
 ![example_file](docs/linear_ifac2020.jpg) 
 
 
-For example, running the example `linear_ifac.txt` and outputting is done as:
+For example, running the example `linear_ifac2020.txt` and outputting is done as:
 ```shell
-$ python etc2pta.py linear examples/linear_ifac.txt --output_file=ex.json
+$ python etc2pta.py linear examples/linear_ifac2020.txt --output_file=ex.json
 ```
 
 
