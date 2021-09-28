@@ -8,6 +8,26 @@ The project consists of two main parts:
   - Using timed game automata and UPPAAL Stratego (cite ...)
   - Using transitions systems and fixed point iterations (cite ...)
 
+## Table of contents
+
+--------------------------------------
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+  - [Conda](#conda)
+  - [Pip](#pip)
+- [Quickstart](#quickstart)
+- [Command Line Interface](#command-line-interface)
+  - [Linear PETC](#linear-petc-input-fields)
+  - [Nonlinear ETC](#nonlinear-etc-input-fields)
+- [Examples](#examples)
+  - [Traffic Model Examples](#traffic-model-examples)
+    - [Linear PETC](#linear-petc)
+    - [Nonlinear ETC](#nonlinear-etc)
+  - [Scheduling Examples](#scheduling-examples)
+    - [NTGAs and UPPAAL Stratego](#scheduling-using-ntgas-and-uppaal-stratego)
+    - [Safety Games](#scheduling-by-solving-safety-games)
+
+
 ## Installation
 
 ---------------------------------------
@@ -15,8 +35,8 @@ The project consists of two main parts:
 ### Prerequisites
 This tool requires Python 3.8 to function correctly, so make sure it is installed beforehand. 
 
-First, download or clone the project to a local directory.
-Secondly, download and copy the third-party tools, dReal, dReach, and Flow* in the 'third-party' folder in the root project
+First, download or clone the project to a local directory. Secondly, run one of the scripts in ``scripts/`` (corresponding to your OS) to install the dependencies.
+Thirdly, download and copy the third-party tools, dReal, dReach, and Flow* in the 'third-party' folder in the root project
 directory if you want to install them. You can download them from below location:
 
     dReal - https://github.com/dreal/dreal4
@@ -59,8 +79,7 @@ where the last two lines are necessary (temporarily, until proper conda package 
 
 ### Pip
 
-Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS).
-First run one of the scripts in ``scripts/`` (corresponding to your OS) to install the dependencies. Then run
+Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS). Run
 ``` shell
    $ pip install wheel
    $ pip install .
