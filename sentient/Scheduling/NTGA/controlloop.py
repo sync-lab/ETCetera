@@ -155,7 +155,6 @@ class controlloop(TimedGameAutomaton):
         transitions = set()
         reset = frozenset()
         for (start, guard, assignment, clocks, end) in edges:
-            print(guard)
             # If late => continue
             if guard[0] > h*start[0] or guard[0] < h*start[0]-self.max_early:
                 continue
@@ -185,39 +184,6 @@ class controlloop(TimedGameAutomaton):
                 edge_nat = (f'R' + '_'.join([str(i) for i in start]), guard, natural_assignment,
                                         frozenset({f'{self.sync}!'}), reset, 'Trans_loc')
                 transitions.update({edge_nat})
-
-        print(transitions)
-            # loc_t = '_'.join([str(i) for i in end])
-            #
-            # # first R to trans_state
-            # ia = set(assignment)
-            # ia.update({f'{self.earnum_decl} = 0'})
-            #
-            # # NOTE: the end should not have "R" before the region number
-            # ia.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
-            # natural_assignment = frozenset(ia)
-            #
-            # # now ear_R to trans_state
-            # ea = set(assignment)
-            #
-            # # TODO:
-            # #   NOTE: Ideally the "end" value should come from a separate
-            # #   reachability analysis for early edges
-            # ea.update({f"{self.to_region_decl} = {self.loc_dict[loc_t]}"})
-            # ea.update({f'{self.earnum_decl} = {self.earnum_decl} + 1'})
-            # early_assignment = frozenset(ea)
-            #
-            # # add edges
-            # edge_nat = (f'R' + '_'.join([str(i) for i in start]), guard, natural_assignment,
-            #             frozenset({f'{self.sync}!'}), reset, 'Trans_loc')
-            #
-            # # Early edges should not have any guard
-            # edge_earl = (f'Ear' + '_'.join([str(i) for i in start]), True,
-            #              early_assignment, frozenset({f'{self.sync}!'}),
-            #              reset, 'Trans_loc')
-            #
-            # transitions.update({edge_nat})
-            # transitions.update({edge_earl})
 
         for location in abstraction.regions:
             # assumption: location = number of steps
