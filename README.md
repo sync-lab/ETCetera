@@ -323,7 +323,7 @@ Finally, the traffic model can be saved for future use:
 ```
 The files will be saved to the ``saves`` folder.
 
-###Nonlinear ETC
+### Nonlinear ETC
 
 In this example, a traffic model for a nonhomogeneous nonlinear system will be generated. 
 The dynamics are first declared and the controller is specified in ETC form:
