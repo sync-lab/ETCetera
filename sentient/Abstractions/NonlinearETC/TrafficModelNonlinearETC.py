@@ -165,14 +165,11 @@ class TrafficModelNonlinearETC(Abstraction):
         self.Original_State = original_state
         self.Original_Dynamics = original_dynamics
         if init_cond_symbols is None:
-            print(original_state)
-            print([str(i).replace('x', 'a') for i in original_state if 'x' in str(i)])
             init_cond_symbols = [sympy.Symbol(str(i).replace('x', 'a')) for i in original_state if 'x' in str(i)]
             if homogenization_flag:
                 init_cond_symbols.append(sympy.Symbol('aw'))
 
             init_cond_symbols = tuple(init_cond_symbols)
-        print(init_cond_symbols)
         self.Init_cond_symbols = init_cond_symbols
         self.n = len(state)
         self.n_init_cond = len(init_cond_symbols)
