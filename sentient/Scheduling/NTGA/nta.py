@@ -19,15 +19,14 @@ from sentient import pyuppaal
 
 class nta:
 
-    def __init__(self, net: network, closed_loops: List[controlloop],
-                 max_early_triggers=0, synchronization=None):
+    def __init__(self, net: network, closed_loops: List[controlloop], synchronization=None):
 
         # TODO: Check compatibility w.r.t. synchronization signals
         self.net = net
         self.closed_loops = closed_loops
         self.ns = len(closed_loops)
         self.synchronization = synchronization or ["up", "down", "timeout", "ack", "nack"]
-        self.max_early_triggers = max_early_triggers
+        # self.max_early_triggers = max_early_triggers
         # Calculate common scaling factor to make UPPAAL happy
         import math
         scale = 1
@@ -45,7 +44,7 @@ class nta:
         else:
             # return f'broadcast chan {", ".join(self.actions)};\n'
             decl = f'chan {", ".join(self.synchronization)};\n'
-            decl += f'int EarNum;\nconst int EarMax = {self.max_early_triggers};\n'
+            decl += f'int EarNum;\n'#const int EarMax = {self.max_early_triggers};\n'
             return decl
 
     def _generate_system(self):
