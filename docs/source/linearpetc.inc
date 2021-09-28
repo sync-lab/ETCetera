@@ -159,44 +159,31 @@ Traffic Models of Linear PETC Systems
 
         :type: int
 
+    .. py:property:: regions
 
-    .. py:attribute:: complete_cost : {}
-    .. py:attribute:: probability_region = {}
-    .. py:attribute:: probability_transition = {}
-    .. py:attribute:: predecessors = {}  # precedence (subset) relation for quadratic forms
-    .. py:attribute:: cost = {}  # Lyapunov reduction after a sequence of sampling times
+        Dictionary containing the sequence of trigger times and invariant corresponding to each region.
+        I.e. :math:`\{(k_1, k_2, ..): k_1, ...\}`. The length of the sequence is equal to :py:attr:`depth`.
 
-    .. py:property:: regions:
-
-        Set containing the sequence of trigger times corresponding to each region.
-        I.e. :math:`\{(k_1, k_2, ..), ...\}`. The length of the sequence is equal to :py:attr:`depth`.
-
-    .. py:property:: transitions:
+    .. py:property:: transitions
 
         Dictionary containing sets of possible next regions for all combinations of region, trigger time pairs.
         I.e. :math:`\{((k_1, \dots), u_1): \{(a_1, \dots), \dots \}, ((l_1, \dots), u_2): \{(b_1, \dots), \dots \} \dots \}`.
         Will be recomputed on access if necessary.
 
-    .. py:method:: create_abstraction():
+    .. py:method:: create_abstraction
 
         Creates the regions and transitions of the traffic model.
 
         :return: :py:attr:`~.TrafficModelLinearPETC.regions`, :obj:`transitions`
 
-    .. py:method:: generate_regions():
-
-        Generate the regions of the traffic model.
-
-        :return: None
-
-    .. py:method:: refine([, i=1]):
+    .. py:method:: refine([, i=1])
 
         Increases :attr:`depth` by ``i`` and recomputes the regions.
 
         :param int i: How many times the regions should be refined. Default: ``1``.
         :return: None
 
-    .. py:method:: return_regions_descriptors():
+    .. py:method:: return_regions_descriptors
 
         Returns a dictionary containing symbolic expressions describing the regions.
 
