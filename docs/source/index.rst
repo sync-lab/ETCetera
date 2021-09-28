@@ -6,6 +6,10 @@
 Welcome to SENTIENT's documentation!
 ====================================
 
+.. warning::
+
+   Documentation is still in development!
+
 Contents:
 
 .. toctree::
@@ -27,5 +31,7 @@ Contents:
    * :ref:`genindex`
    * :ref:`modindex`
    * :ref:`search`
+
+
 
 
