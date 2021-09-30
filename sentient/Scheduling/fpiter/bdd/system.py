@@ -74,6 +74,7 @@ class system(abstract_system):
         self.uvars = uvars
         self.bvars = bvars
         self.cvars = cvars
+        self.vars = xvars + uvars + yvars + bvars + cvars
 
     def safe_set(self):
         """
@@ -171,7 +172,7 @@ class system(abstract_system):
         if StatesOnlyZ:
             Ux = self.bdd.apply('&', Ux, Z)
 
-        if convert_blocks:
+        if convert_blocks and any([s._is_part for s in self.control_loops]):
             Ux_n = self.bdd.exist(self.bvars, self.bdd.apply('&', Ux, self.Q))
             return Ux_n, None
         else:
