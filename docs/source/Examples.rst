@@ -10,6 +10,17 @@ Here we discuss examples of how to construct traffic models for linear PETC and 
 
 Alternative to these approaches, the functions :func:`~sentient.util.construct_linearPETC_traffic_from_file` and :func:`~sentient.util.construct_nonlinearETC_traffic_from_file` can be used to construct the traffic models from a file.
 
+Command Line Interface
+-------------------------
+You can construct traffic models using the CLI ``etc2pta.py`` by running one of the examples:
+
+.. code-block:: console
+
+    $ python etc2pta.py linear examples/linear_ifac2020.txt --output_file=ex.json
+    $ python etc2pta.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
+    $ python etc2pta.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
+    $ python etc2pta.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+
 Linear PETC
 ------------
 In this example, a traffic model of a linear Periodic Event Triggered Control system will be generated.
@@ -200,9 +211,7 @@ In the two following examples, two identical linear PETC systems are used. These
 .. code-block:: python
 
     import sentient.Abstractions as abstr
-    traffic1 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic1.pickle')
-    traffic2 = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic1.pickle')
-
+    traffic_petc = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic_petc.pickle')
 
 To determine which of the scheduling algorithms should be used see ...
 
@@ -215,8 +224,8 @@ First both traffic models are converted:
 .. code-block:: python
 
     import sentient.Scheduling.NTGA as sched
-    cl1 = sched.controlloop(traffic1)
-    cl2 = sched.controlloop(traffic1)
+    cl1 = sched.controlloop(traffic_petc)
+    cl2 = sched.controlloop(traffic_petc)
 
 And a network is defined:
 
@@ -245,8 +254,8 @@ Similar to before, first both traffic models are converted:
 
     import sentient.Scheduling.fpiter as sched
     # For the example do not use BDDs to represent the models
-    cl1 = sched.controlloop(traffic1, use_bdd=False)
-    cl2 = sched.controlloop(traffic1, use_bdd=False)
+    cl1 = sched.controlloop(traffic_petc, use_bdd=False)
+    cl2 = sched.controlloop(traffic_petc, use_bdd=False)
 
 These are then combined into a system, and a scheduler is generated:
 
@@ -257,9 +266,23 @@ These are then combined into a system, and a scheduler is generated:
     # Results: ({('T12', 'W12,1'): {('w', 't'), ('w', 'w'), ('t', 'w')}, ('T12', 'W18,7'): {('w', 't'), ('w', 'w'), ...}, None)
 
 The method :func:`generate_safety_scheduler` will automatically choose the (likely) most efficient algorithm.
+To use BDDs, we simply set ``use_bdd=True``, and the rest is the same:
 
+.. code-block:: python
 
+    # Now do use BDDs
+    cl1 = sched.controlloop(traffic_petc, use_bdd=True)
+    cl2 = sched.controlloop(traffic_petc, use_bdd=True)
+    S = sched.system([cl1, cl2])
+    Ux = S.generate_safety_scheduler()  # Scheduler
+    # Result: BDD representing the boolean function of Ux
 
+To allow late triggers, at least specify ``maxLate``, and optionally ``maxLateStates`` and/or ``ratio``:
 
+.. code-block:: python
 
-
+    cl1 = sched.controlloop(traffic, use_bdd=True)
+    cl2 = sched.controlloop(traffic, use_bdd=True, maxLate=2, ratio=2)
+    S = sched.system([cl1, cl2])
+    Ux = S.generate_safety_scheduler()  # Scheduler
+    # Result: BDD representing the boolean function of Ux
