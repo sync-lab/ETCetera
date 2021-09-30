@@ -17,8 +17,8 @@ Scheduling with TGAs and UPPAAL Stratego
     Timed Game Automaton represention of a traffic model of a (P)ETC control loop as is discussed in :ref:`theory_ntga_uppaal`.
 
     :param ~sentient.Abstractions.Abstraction abstraction: Traffic model of the control loop.
-    :param str name: Name that this will be referred to (mainly in UPPAAL). Default: `controlloop`.
-    :param str or int: Index of the controlloop. This is to make sure no name clash occurs (in UPPAAL). Default: 6 random characters in ``[A-z0-9]``.
+    :param str name: Name that this will be referred to (mainly in UPPAAL). Default: ``'controlloop'``.
+    :param str or int index: Index of the controlloop. This is to make sure no name clash occurs (in UPPAAL). Default: 6 random characters in ``[A-z0-9]``.
     :param initial_location: Known initial location of the traffic model.
     :param int max_delay_steps: Maximum amount of extra samples available for retransmission. Default: ``0``.
     :param int max_early: Maximum amount of samples the control loop can trigger earlier. Default: ``2`` for PETC, ``0.01`` for ETC.
@@ -157,11 +157,9 @@ Scheduling by solving safety games
         Dictionary containing state, state index pairs. If the system is partitioned, then will return a dictionary containing pairs of blocks, set of states in the block.
         Additionally, if late triggers are allowed, will automatically compose the states with the auxiliary system.
 
-        :type: dict
-
     .. py:property:: transitions
 
-        Dictionary of the form :math:`\{x: \{w: Postw(x), t: Post_t(x)\}, \dots \}` which represent the transitions possible in the system.
+        Dictionary of the form :math:`\{x: \{w: Post_w(x), t: Post_t(x)\}, \dots \}` which represent the transitions possible in the system.
         If the system is partitioned, then the transitions will be in terms of the blocks.
         Additionally, if late triggers are allowed, will automatically compose the transitions with the auxiliary system.
 
@@ -191,6 +189,84 @@ Scheduling by solving safety games
         :return: Whether refinement is successful.
         :rtype: bool
 
+.. py:class:: system(cl)
+
+    Class representing the composition of multiple control loops (composition of :class:`enum.controlloop` objects).
+
+    :param list[enum.controlloop] cl: List of traffic models.
+
+    .. py:method:: compose
+
+        Composes the states, transitions, outputs, etc. of the traffic models, by allowing each combination to occur.
+
+    .. py:method:: safe_set
+
+        Creates the safe set for the system. I.e. :math:`W = \{(x_1, \dots, x_n) \in X_{comp.} \, \vert \, \exists_{\leq 1} x_i : \: H_i(x_i) \in \{T_1, T\}\}`. The system should be composed beforehand.
+
+        :return: :math:`W`.
+
+    .. py:method:: safety_game([, W=None])
+
+        Solves the safety game for the system.
+
+        :param set W: The safety set. If ``None``, will calculate by calling :func:`safe_set`. Default: ``None``.
+        :return: Solution to the safety game :math:`Z^*`.
+
+    .. py:method:: create_controller(Z [, StatesOnlyZ=True, convert_blocks=True])
+
+        Given an invariant set (e.g. :math:`Z` from :func:`safety_game`), will create a controller that will keep the system in the invariant set.
+        It returns a dictionary mapping state to possible inputs: :math:`U_c(x) = \{u \in U_{comp.} \mid \emptyset \neq Post_{u}(x) \subseteq Z \}.`
+
+        :param Z: The invariant set (for example solution to the safety game).
+        :param bool StatesOnlyZ: Whether to limit the states to only Z, or to the whole state set. Default:``True``.
+        :param bool convert_blocks: If the system is partitioned, whether :math:`U_c` should be in terms of the states (if false, in terms of the blocks). Default: ``True``.
+
+        :return: :math:`U_c`
+
+    .. py:method:: partition(idx)
+
+        This will create an initial partition for the specified control loops.
+
+        :param list[int] idx: List of indices which specify which of the control loops to partition.
+        :return: Whether partitioning is successful for at least one.
+
+    .. py:method:: partition_all
+
+        This will create an initial partition for all the control loops.
+
+        :return: Whether partitioning is successful for at least one.
+
+    .. py:method:: refine(idx)
+
+        This will refine the specified control loops.
+
+        :param list[int] idx: List of indices which specify which of the control loops to refine.
+        :return: Whether refinement is successful for at least one.
+
+    .. py:method:: refine_all
+
+        This will refine all the control loops.
+
+        :return: Whether refinement is successful for at least one.
+
+    .. py:method:: generate_safety_scheduler:
+
+        Will generate a safety controller/scheduler for the system. Automatically chooses which of the algorithms will likely perform best. In this case, it will always choose :func:`gen_safety_scheduler_part`.
+
+        :return: :math:`U_c`
+
+    .. py:method:: gen_safety_scheduler_basic
+
+        Will generate a safety controller/scheduler for the system by solving a safety game.
+
+        :return: :math:`U_c`
+
+    .. py:method:: gen_safety_scheduler_part
+
+        Tries to synthesize a scheduler somewhat more efficiently by reducing the size of all subsystem, and synthesizing on the composition of those. If it fails, it will refine each subsystem and try again, until refinement is no longer possible.
+
+        :return: :math:`U_c`
+
 .. py:currentmodule:: sentient.Scheduling.fpiter.bdd
 
 .. py:class:: controlloop(abstraction[, name: str = None, maxLate: int = None, maxLateStates: int = None, ratio: int = 1])
@@ -198,11 +274,20 @@ Scheduling by solving safety games
     Implementation of the traffic model as described in :ref:`theory_sg` with the use of Binary Decision Diagrams (BDDs) and the use of the tool `dd <https://pypi.org/project/dd/>`_.
     This represents the exact same traffic models as in :py:class:`.enum.controlloop`, except everything represented with BDDs (This object is actually constructed by first creating a :class:`.enum.controlloop` and creating the BDDs from that).
 
-    BDDs are constructed by assigning to each state in the system a unique (binary) number. So :math:`enc_x: X \to \mathbb{B}^n` converts states to binary values, and :math:`enc_u` similarly for inputs. A single transition
+    BDDs are constructed by assigning to each state in the system a unique (binary) number. So :math:`enc_x: X \to \mathbb{B}^n` converts states to binary values, and :math:`enc_u` similarly for inputs. A single transition is then a sequence of bits, which is created by stitching together the binary values of these encodings. The boolean function representing the transitions is then the function that returns one for these sequences, and zero otherwise.
 
+    :Example:
 
-    Example:
-        Suppose we want to get the set with all the states that could lead to themselves. Using set notation this would be:
+        Suppose we have the transitions: :math:`\{T_2 : \{w: \{W_{2,1}\}, t:\{T_2\}\}, W_{2,1}: \{w: \emptyset, t:\{T_2\}\}\}` and :math:`enc_x(T_2) = 0, \, enc_x(W_{2,1}) = 1, enc_u(w) = 0, enc_u(t) = 1`, then the boolean function which :attr:`tr` represents is:
+
+        .. math::
+
+            f_{tr}(x_0, u, y_0) = \bar{x}_0u\bar{y}_0 \lor \bar{x}_0uy_0 \lor x_0u\bar{y}_0.
+
+    These BDDs can also be used to represent any arbitrary sets in the same way, or by manipulating expressions:
+
+    :Example:
+        Suppose we want to get the set of all the states that could lead to themselves. Using set notation this would be:
 
         .. math::
 
@@ -252,13 +337,6 @@ Scheduling by solving safety games
         If the system is partitioned, this will be in terms of the blocks variables (:math:`b_i, c_i`) instead.
         Additionally, if late triggers are allowed, this will be the composition with the transitions from the auxiliary system: :math:`f_{tr} \land f_{tr}^{aux}`.
 
-        :Example:
-
-            Suppose we have the transitions: :math:`\{T_2 : \{w: \{W_{2,1}\}, t:\{T_2\}\}, W_{2,1}: \{w: \emptyset, t:\{T_2\}\}\}`, then the boolean function which :attr:`tr` represents is:
-
-            .. math::
-
-                f_{tr}(x_0, u, y_0) = \bar{x}_0u\bar{y}_0 \lor \bar{x}_0uy_0 \lor x_0u\bar{y}_0.
 
     .. py:property:: Q
 
@@ -301,4 +379,83 @@ Scheduling by solving safety games
 
         :return: Whether refinement is successful.
         :rtype: bool
+
+.. py:class:: system(cl)
+
+    Class representing the composition of multiple control loops with the use of BDDs (composition of :class:`bdd.controlloop` objects).
+
+    :param list[enum.controlloop] cl: List of traffic models.
+
+    .. py:method:: compose
+
+        Composes the different BDDs, by simply: :math:`f^{comp.}_{tr} = \bigwedge_i f_{tr}^i(x,u,y)`
+
+    .. py:method:: safe_set
+
+        Creates the safe set for the system. I.e. :math:`f_W = \lnot \bigvee_{\enspace i \neq j} f_{XT}^i(x_i) \land f_{XT}^j(x_j),`. The system should be composed beforehand.
+
+        :return: :math:`f_W(x)`.
+
+    .. py:method:: safety_game([, W=None])
+
+        Solves the safety game for the system, by iterating over: :math:`f_{F_W(Z)}(x) := f_W(x) \land \exists u. \{[\exists x'. f_{tr}(x,u,x')] \land [\forall x'. f_{tr}(x,u,x') \implies f_Z(x')]\},`
+
+        :param set W: The safety set. If ``None``, will calculate by calling :func:`safe_set`. Default: ``None``.
+        :return: Solution to the safety game :math:`f_{Z^*}(x)`.
+
+    .. py:method:: create_controller(Z [, StatesOnlyZ=True, convert_blocks=True])
+
+        Given an invariant set (e.g. :math:`Z` from :func:`safety_game`), will create a controller that will keep the system in the invariant set.
+        It returns a dictionary mapping state to possible inputs: :math:`f_{U_c(x)}(u) := f_{U_c}(x, u) = \exists x'. f_{tr}(x,u,x') \land [\forall \alpha. f_{tr}(x, u, \alpha) \implies f_{Z^*}(\alpha)]`.
+
+        :param Z: The invariant set (for example solution to the safety game).
+        :param bool StatesOnlyZ: Whether to limit the states to only Z, or to the whole state set. Default:``True``.
+        :param bool convert_blocks: If the system is partitioned, whether :math:`U_c` should be in terms of the states (if false, in terms of the blocks). Default: ``True``.
+
+        :return: :math:`f_{U_c(x)}(u)`
+
+
+    .. py:method:: partition(idx)
+
+        This will create an initial partition for the specified control loops.
+
+        :param list[int] idx: List of indices which specify which of the control loops to partition.
+        :return: Whether partitioning is successful for at least one.
+
+    .. py:method:: partition_all
+
+        This will create an initial partition for all the control loops.
+
+        :return: Whether partitioning is successful for at least one.
+
+    .. py:method:: refine(idx)
+
+        This will refine the specified control loops.
+
+        :param list[int] idx: List of indices which specify which of the control loops to refine.
+        :return: Whether refinement is successful for at least one.
+
+    .. py:method:: refine_all
+
+        This will refine all the control loops.
+
+        :return: Whether refinement is successful for at least one.
+
+    .. py:method:: generate_safety_scheduler:
+
+        Will generate a safety controller/scheduler for the system. Automatically chooses which of the algorithms will likely perform best. In this case, if the number of control loops is less than 5, it will choose :func:`gen_safety_scheduler_basic`, otherwise it will choose :func:`gen_safety_scheduler_part`.
+
+        :return: :math:`f_{U_c}(x)`
+
+    .. py:method:: gen_safety_scheduler_basic
+
+        Will generate a safety controller/scheduler for the system by solving a safety game.
+
+        :return: :math:`f_{U_c}(x)`
+
+    .. py:method:: gen_safety_scheduler_part
+
+        Tries to synthesize a scheduler somewhat more efficiently by reducing the size of all subsystem, and synthesizing on the composition of those. If it fails, it will refine each subsystem and try again, until refinement is no longer possible.
+
+        :return: :math:`f_{U_c}(x)`
 
