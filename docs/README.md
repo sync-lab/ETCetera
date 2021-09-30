@@ -9,6 +9,7 @@ This folder contains more extensive documentation regarding the project. It has 
 To build the documentation, [``sphinx``](https://www.sphinx-doc.org/en/master/index.html) has to be installed. Do this by running 
 ```shell
 $ pip install -U sphinx
+$ pip install sphinx-rtd-theme
 ```
 Then run
 ``` shell
