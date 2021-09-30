@@ -13,7 +13,7 @@ traffic1_ref_file = os.path.join(root_path, 'tests/scheduling/files/traffic1_ref
 
 sys_refsim_file = os.path.join(root_path, 'tests/scheduling/files/sys_testrefsim.txt')
 
-class TestEnumControlLoop(unittest.TestCase):
+class TestBDDControlLoop(unittest.TestCase):
     longMessage = True
 
     @classmethod
