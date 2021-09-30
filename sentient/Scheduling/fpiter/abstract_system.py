@@ -30,29 +30,29 @@ class abstract_system(metaclass=ABCMeta):
 
         return success
 
-    def partition(self, l):
+    def partition(self, idx: list):
         """
         Partitions systems in the list
-        :param l: List of subsystem numbers
+        :param idx: List of subsystem numbers
         :return: Whether partitioning is successful
         """
-        if any([x >= self.ns for x in l]):
+        if any([x >= self.ns for x in idx]):
             print("One or more specified indices out of range.")
             return False
 
-        s = [i not in l for i in range(0, self.ns)]
+        s = [i not in idx for i in range(0, self.ns)]
         for i in range(0, self.ns):
             s[i] = self.control_loops[i].create_initial_partition()
 
         return all(s)
 
-    def refine(self, l: list):
-        if any([x >= self.ns for x in l]):
+    def refine(self, idx: list):
+        if any([x >= self.ns for x in idx]):
             print("One or more specified indices out of range.")
             return False
 
         success = False
-        for n in l:
+        for n in idx:
             success |= self.control_loops[n].refine()
 
         return success
