@@ -113,6 +113,12 @@ For example, running the example `linear_ifac2020.txt` and outputting is done as
 ```shell
 $ python etc2pta.py linear examples/linear_ifac2020.txt --output_file=ex.json
 ```
+Or, for nonlinear ETC system, you can run one of the following examples:
+```shell
+$ python etc2pta.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
+$ python etc2pta.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
+$ python etc2pta.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+```
 
 
 -------------------------
