@@ -2,7 +2,6 @@
 Command Line Interface
 ***********************
 
-
 :mod:`etc2pta.py`
 =================
 The command line interface `etc2pta.py` can be used for generating traffic models for
@@ -10,7 +9,7 @@ both linear PETC and nonlinear ETC systems. The command line interface usage is 
 
 .. code-block:: console
 
-   $ usage: etc2pta system_type input_file [options]
+   $ python etc2pta.py system_type input_file [options]
 
 positional arguments:
 
@@ -50,32 +49,19 @@ Optional arguments are:
 * ``Lyapunov Function: P``, the positive definite matrix :math:`P` in the Lyapunov function :math:`V(x) = x^T Px`, which shows that the LTI system is stable. If this is not given, it will be generated automatically based on the provided LTI system and controller.
 * Solver Options: ``Solver Options``:
 
-  * ``kmaxextra: n``. Compute the transitions for inter-event times larger than ``kmax``.
-        Default: ``kmax + max_delay_steps``
-  * ``cost_computation=b``. Set to ``True`` if transition costs should be computed.
-        Default: ``False``
-  * ``mu_threshold=f``. If f > 0, tries to remove regions that are geometrically similar. The bigger the number the more regions that are likely removed.
-        Default: ``0.0``
-  * ``min_eig_threshold=f``. The minimum value the smallest eigenvalue of the matrix describing a state-space region must have for this region to be considered. If bigger than 0.0, it typically results in a maximum uniform inter-event time smaller than what would naturally occur, but for a very small subset of the state-space.
-        Default: ``0.0``
-  * ``reduced_actions=b``. If True, action set is equal to the set of possible inter-eventtimes.
-        Default: ``False``
-  * ``early_trigger_only=b``. If True, transitions from a region (i, ...) are computed for inter-event times up to i + max_delay_steps.
-        Default: ``False``
-  * ``max_delay_steps=f``. The maximum extra discrete time for which transitions are computed. That is, for a region :math:`(i, ...)`, transitions are computed from kmin until `min(kmaxetra, i + max_delay_steps)`.
-        Default: ``0``
-  * ``depth=n``. Maximum depth of the bisimulation algorithm. For :math:`n > 1`, it is recommended to set ``solver=z3``.
-        Default: ``1``.
-  * ``etc_only=f``. Set to True if early trigger transitions should not be computed. This is useful for verification, but not for scheduling, since the resulting abstraction becomes autonomous.
-        Default: ``False``
-  * ``end_level=f``: If stop_around_origin is true, specifies the sublevel set :math:`{x: x'Px <= end_level}` from which the bisimulation algorithm stops. This assumes that the initial states are normalized to satisfy :math:`x(0)^T Px(0) = 1`.
-        Default: ``0.01``
-  * ``solver=sdr|z3``. The solver to be used to compute the transition relations. ``sdr`` will use (approximate) semi-definite relaxations, ``z3`` will solve exactly.
-        Default: ``sdr``
-  * ``stop_around_origin=b``. Set to True if the bisimulation algorithm should stop one all statesare guaranteed to have entered a ball around the origin.
-        Default: ``False``
-  * ``stop_if_omega_bisimilar=b``. Set to True if the bisimulation algorithm should stop if an omega-bisimulation is found.
-        Default:``False``
+  * ``kmaxextra: n``. Compute the transitions for inter-event times larger than ``kmax``. Default: ``kmax + max_delay_steps``
+  * ``cost_computation=b``. Set to ``True`` if transition costs should be computed. Default: ``False``
+  * ``mu_threshold=f``. If f > 0, tries to remove regions that are geometrically similar. The bigger the number the more regions that are likely removed. Default: ``0.0``
+  * ``min_eig_threshold=f``. The minimum value the smallest eigenvalue of the matrix describing a state-space region must have for this region to be considered. If bigger than 0.0, it typically results in a maximum uniform inter-event time smaller than what would naturally occur, but for a very small subset of the state-space. Default: ``0.0``
+  * ``reduced_actions=b``. If True, action set is equal to the set of possible inter-eventtimes. Default: ``False``
+  * ``early_trigger_only=b``. If True, transitions from a region (i, ...) are computed for inter-event times up to i + max_delay_steps. Default: ``False``
+  * ``max_delay_steps=f``. The maximum extra discrete time for which transitions are computed. That is, for a region :math:`(i, ...)`, transitions are computed from kmin until `min(kmaxetra, i + max_delay_steps)`. Default: ``0``
+  * ``depth=n``. Maximum depth of the bisimulation algorithm. For :math:`n > 1`, it is recommended to set ``solver=z3``. Default: ``1``.
+  * ``etc_only=f``. Set to True if early trigger transitions should not be computed. This is useful for verification, but not for scheduling, since the resulting abstraction becomes autonomous. Default: ``False``
+  * ``end_level=f``: If stop_around_origin is true, specifies the sublevel set :math:`{x: x'Px <= end_level}` from which the bisimulation algorithm stops. This assumes that the initial states are normalized to satisfy :math:`x(0)^T Px(0) = 1`. Default: ``0.01``
+  * ``solver=sdr|z3``. The solver to be used to compute the transition relations. ``sdr`` will use (approximate) semi-definite relaxations, ``z3`` will solve exactly. Default: ``sdr``
+  * ``stop_around_origin=b``. Set to True if the bisimulation algorithm should stop one all statesare guaranteed to have entered a ball around the origin. Default: ``False``
+  * ``stop_if_omega_bisimilar=b``. Set to True if the bisimulation algorithm should stop if an omega-bisimulation is found. Default:``False``
 
   .. * ``symbolic=b``. (Current not yet working). Whether to perform the calculations symbolically.
   ..      Default: ``False``
@@ -128,34 +114,21 @@ The input fields are:
 * ``Deg. of Homogeneity: n``. The degree of homogeneity of the dynamics. If not specified, will automatically be calculated.
 * ``Hyperbox States: [a1 b1], [a2 b2], ...``. The state space region that is considered during generation of the traffic model, represented by an interval. The number of given intervals should match the number of state variables.
 * ``Hyperbox Disturbances: [a1 b1], [a2 b2], ...``. The intervals the disturbance variables are limited to. Number of intervals should match the number of disturbance variables.
-* ``Grid Points Per Dimension: [n1 n2 ...]``. Number of boxes each dimension is divided into. Number of given grid points should match the number of state variables.
-    Default: ``5`` for each dimension.
+* ``Grid Points Per Dimension: [n1 n2 ...]``. Number of boxes each dimension is divided into. Number of given grid points should match the number of state variables. Default: ``5`` for each dimension.
 * Solver Options: ``Solver Options: opt1=arg1, opt2=args,...``. These specify the options for abstraction:
 
-  * ``partitioning: grid|manifold``. Choose whether the state space is partitioned by isochronous manifolds, or by gridding. If ``manifold`` is specified, also the option ``manifold_times`` should be specified.
-      Default: ``grid``
-  * ``manifold_times: [t1, t2, ...]``. The times used for partitioning using isochronous manifolds. Should be specifiedwhen ``partition_method=manifold`` and have at least two elements. When ``partition_method=grid``, this value is used as a reference manifold for timing lower bounds.
-      Default: ``[1e*4]``
-  * ``nr_cones_small_angles: [n1, n2, ...]``. The number of divisions for the small angles. When the state space is represented using generalized spherical coordinates, there are ``n-2`` angle coordinates which run from ``0`` to ``pi``. These are the ``small angles``.
-      Default: ``[5, ...]``
-  * ``nr_cones_big_angle: n``. The number of divisions for the big angle. When the state space is represented using generalized spherical coordinates, there is only one angle that runs from ``-pi`` to ``pi``. This is the ``big angle``.
-      Default: ``None``
-  * ``heartbeat: f``. The maximum trigger time.
-      Default: ``0.1``
-  * ``order_approx: n``. The order to which the isochronous manifold are approximated.
-      Default: ``2``
-  * ``timeout_deltas: f``. The maximum time to calculate each delta.
-      Default: ``1000``
-  * ``precision_deltas: f``. The precision at which the deltas are calculated.
-      Default: ``1e-4``
-  * ``timeout_timing_bounds: f``. The maximum time to calculate upper and lower bounds to the regions.
-      Default: ``200``
-  * ``precision_timing_bounds: f``. Precision to which the upper and lower bounds to the regions are calculated.
-      Default: ``1e-3``
-  * ``timeout_transitions: f``. The maximum calculation time to calculate each transition.
-      Default: ``200``
-  * ``precision_transitions: f``. The precision to which the flowpipe is calculated.
-      Default: ``1e-3``
+  * ``partitioning: grid|manifold``. Choose whether the state space is partitioned by isochronous manifolds, or by gridding. If ``manifold`` is specified, also the option ``manifold_times`` should be specified. Default: ``grid``
+  * ``manifold_times: [t1, t2, ...]``. The times used for partitioning using isochronous manifolds. Should be specifiedwhen ``partition_method=manifold`` and have at least two elements. When ``partition_method=grid``, this value is used as a reference manifold for timing lower bounds. Default: ``[1e*4]``
+  * ``nr_cones_small_angles: [n1, n2, ...]``. The number of divisions for the small angles. When the state space is represented using generalized spherical coordinates, there are ``n-2`` angle coordinates which run from ``0`` to ``pi``. These are the ``small angles``. Default: ``[5, ...]``
+  * ``nr_cones_big_angle: n``. The number of divisions for the big angle. When the state space is represented using generalized spherical coordinates, there is only one angle that runs from ``-pi`` to ``pi``. This is the ``big angle``. Default: ``None``
+  * ``heartbeat: f``. The maximum trigger time. Default: ``0.1``
+  * ``order_approx: n``. The order to which the isochronous manifold are approximated. Default: ``2``
+  * ``timeout_deltas: f``. The maximum time to calculate each delta. Default: ``1000``
+  * ``precision_deltas: f``. The precision at which the deltas are calculated. Default: ``1e-4``
+  * ``timeout_timing_bounds: f``. The maximum time to calculate upper and lower bounds to the regions. Default: ``200``
+  * ``precision_timing_bounds: f``. Precision to which the upper and lower bounds to the regions are calculated. Default: ``1e-3``
+  * ``timeout_transitions: f``. The maximum calculation time to calculate each transition. Default: ``200``
+  * ``precision_transitions: f``. The precision to which the flowpipe is calculated. Default: ``1e-3``
 
 For example, the file ``examples/nl_nonhomogeneous.txt`` looks as follows::
 
