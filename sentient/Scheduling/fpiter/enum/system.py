@@ -53,9 +53,12 @@ class system(abstract_system):
         self.transitions = {x: {u: set() for u in self.actions} for x in self.states}
         for xxx in self.states:
             for uuu in self.actions:
-                s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
-                ls = set(itertools.product(*s))
-                self.transitions[xxx][uuu].update(ls)
+                try:
+                    s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
+                    ls = set(itertools.product(*s))
+                    self.transitions[xxx][uuu].update(ls)
+                except KeyError:
+                    continue
 
         # print(self.states)
         # print(self.transitions)
