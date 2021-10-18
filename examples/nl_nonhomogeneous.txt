@@ -1,6 +1,6 @@
 Hyperbox States: [-2 2], [-2 2]
 Grid Points Per Dimension: [3 3]
-Dynamics : x1*w1**2, x1**2*x2 + x2**3 + u1
+Dynamics : -x1*w1**2, x1**2*x2 + x2**3 + u1
 Controller: -(x2+e2)*w1**2 - (x1+e1)**2*(x2+e2) - (x2+e2)**3
 Triggering Condition : e1**2 + e2**2 - 0.01**2*w1**2
 
