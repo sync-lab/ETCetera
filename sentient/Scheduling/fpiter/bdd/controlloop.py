@@ -454,7 +454,7 @@ class controlloop:
         if i >= 2**len(bvars):
             return None
         else:
-            c = self.__enc_bin(i, len(bvars))
+            c = self._enc_bin(i, len(bvars))
             val = dict()
             for (j, k) in zip(c, bvars):
                 if j == '1':
