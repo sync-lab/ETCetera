@@ -12,14 +12,14 @@ Alternative to these approaches, the functions :func:`~sentient.util.construct_l
 
 Command Line Interface
 -------------------------
-You can construct traffic models using the CLI ``etc2pta.py`` by running one of the examples:
+You can construct traffic models using the CLI ``etc2traffic.py`` by running one of the examples:
 
 .. code-block:: console
 
-    $ python etc2pta.py linear examples/linear_ifac2020.txt --output_file=ex.json
-    $ python etc2pta.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
-    $ python etc2pta.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
-    $ python etc2pta.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+    $ python etc2traffic.py linear examples/linear_ifac2020.txt --output_file=ex.json
+    $ python etc2traffic.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
+    $ python etc2traffic.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
+    $ python etc2traffic.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
 
 Linear PETC
 ------------
