@@ -17,3 +17,6 @@ dreach_path = '<path>/sentient/third-party/dReal-3.16.06.02-*/bin/dReach'
 flowstar_path = '<path>/sentient/third-party/flowstar-2.0.0/flowstar-2.0.0/flowstar'
 
 VERIFYTA = '<path>/uppaal64-4.1.20-stratego-7/bin-Linux/verifyta'
+
+
+CPU_COUNT = os.cpu_count()-2
