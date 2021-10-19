@@ -13,7 +13,7 @@ def system(cl: list, trap_state=False):
     if not all(type(x) == type(cl[0]) for x in cl):
         print('Please specify same type of control loops')
         return None
-    elif not all(x._h == cl[0]._h for x in cl):
+    elif not all(x.h == cl[0].h for x in cl):
         print('All control loops should share same sampling period')
     else:
         if type(cl[0]) == enum.controlloop:
