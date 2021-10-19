@@ -145,8 +145,6 @@ class system(abstract_system):
             for j in range(i + 1, self.ns):
                 W = self.bdd.apply('|', W, self.bdd.apply('&', a[i], a[j]))
 
-
-
         W = ~W
         # if R:  # Make W function of the blocks
         #     W = self.bdd.exist(self.xvars, self.bdd.apply('&', self.Q, W))
@@ -210,10 +208,7 @@ class system(abstract_system):
 
         Z_r = self.bdd.let(rename, Z)
         TC = self.bdd.exist(self.cvars, self.tr)
-        # TC = self.bdd.apply('&', self.tr, self.bdd.forall(tvar, self.bdd.apply('->', self.tr, Z_r)))
-        # Ux = self.bdd.exist(tvar, TC)
         Ux = self.bdd.apply('&', TC, self.bdd.forall(self.cvars, self.bdd.apply('->', self.tr, Z_r)))
-        # Ux = self.bdd.apply('&', TC, ~self.bdd.exist(tvar, ~self.bdd.apply('->', self.tr, Z_r)))
         if StatesOnlyZ:
             Ux = self.bdd.apply('&', Ux, Z)
 
