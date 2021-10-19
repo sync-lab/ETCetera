@@ -99,10 +99,6 @@ def call_dReach(dreach_path,file_path,file_name ="file.drh",dreal_precision = 0.
         logging.info("dReach time-out or other unexpected result.")
 
     #Process data: unsat = 1, delta-sat = 0 (unsat proofs the inequality)
-    subprocess.run(["pkill","-f","dReal"])
-    subprocess.run(["pkill","-f","dReal"])
-    subprocess.run(["pkill","-f","dReal"])
-    subprocess.run(["pkill","-f","dReal"])
     if outputdReach == 'time-out':
         result['sat'] = True
         result['time-out']= True
