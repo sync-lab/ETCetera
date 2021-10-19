@@ -1758,11 +1758,7 @@ class TrafficModelLinearPETC(Abstraction):
                     c = c[1:] + c[:1]
                 else:
                     self.cycles.add(tuple(cycle))
-                    if np.abs(lbd) >= max(np.abs(l) for l,_,_ in eigenvects):
-                        self.stable_cycles.add(cycle)
-                        return True
-                    else:
-                        return True
+                    return True
 
         return False
 
