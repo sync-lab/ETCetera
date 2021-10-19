@@ -313,6 +313,23 @@ class system(abstract_system):
     
     """ Private Helper Methods """
 
+    def __safety_operator_trap(self, Z:dict):
+        F = dict()
+        for (x, v) in Z.items():
+            if x == 'trap':
+                continue
+            else:
+                for (uk, uv) in self.actions.items():
+                    p = self.transitions[x][uk]
+                    if len(p) == 0:
+                        continue
+                    elif not set(Z.keys()).issuperset(p):
+                        continue
+                    else:
+                        F.update({x: v})
+
+        return F
+
     def __safety_operator(self, W: dict, Z: dict):
         """
         :param W:
