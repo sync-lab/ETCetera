@@ -274,7 +274,11 @@ class TrafficModelLinearPETC(Abstraction):
                  reduced_actions=False, early_trigger_only=False,
                  max_delay_steps=0, depth=1,
                  etc_only=False, end_level=0.01, solver='sdr',
-                 stop_around_origin=False, stop_if_omega_bisimilar=False):
+                 stop_around_origin=False, stop_if_omega_bisimilar=False,
+                 stop_if_mace_equivalent=False,
+                 smart_mace=False,
+                 strategy=None,
+                 strategy_transition=None):
 
         super().__init__()
 
@@ -298,12 +302,27 @@ class TrafficModelLinearPETC(Abstraction):
         self.stop_if_omega_bisimilar = stop_if_omega_bisimilar
         self.kmaxextra = kmaxextra
         self.P = trigger.P
+        self.stop_if_omega_bisimilar = stop_if_omega_bisimilar
+        self.stop_if_mace_equivalent = stop_if_mace_equivalent
+        self.smart_mace = smart_mace
+        self.strat = None
+
+        self.l_complete = True  # Standard refinement
 
         # Depending on the solver, symbolic matrix manipulation is used.
         self.symbolic = symbolic
         # TODO: Currently not working so throw error
         if symbolic:
             raise NotImplementedError
+
+        # When a sampling strategy is given
+        self.strat = strategy
+        if strategy:
+            minlstrat = min(len(x) for x in self.strat)
+            assert minlstrat == max(len(x) for x in self.strat)
+            self.strat_l = minlstrat
+            self.strat_transition = {((x,),k):{(z,) for z in y}
+                                     for (x,k),y in strategy_transition.items()}
 
         # Sanity check: algorithm only works for LTI state feedback
         if depth > 1 and (consider_noise or self.controller.is_dynamic or \
@@ -374,9 +393,19 @@ class TrafficModelLinearPETC(Abstraction):
         # ({x in R^n: x'Px <= end_level})
         self._regions = set()
 
-        # If omega-bisimulation is checked, memoize the behavioral cycles
-        if stop_if_omega_bisimilar:
+        # If MACE equivalence is checked, memoize the behavioral cycles
+        if stop_if_omega_bisimilar or stop_if_mace_equivalent:
             self.cycles = set()
+            self.non_cycles = set()
+            if stop_if_mace_equivalent:
+                if smart_mace:
+                    self.l_complete = False
+                self.limavg = min(self.K)  # Worst case, kmin^omega
+
+        self._mac_regions = None  # This will store regions associated with
+        # the current MAC, in case MACE equivalence is checked
+        self._mac_candidates = None  # This is a subset of MAC regions to be
+        # refined
 
         # self.generate_regions()
         #
@@ -557,73 +586,49 @@ class TrafficModelLinearPETC(Abstraction):
         # Split the state-space by computing potential Pre's of the
         # current regions. We say potential because we have to verify if
         # these regions can actually occur.
+        if not self.smart_mace:
+            self._mac_candidates = None
 
-        new_regions = self._generate_backward_candidates()
+        # Main refinement algorithm
+        if self.strat and self.depth == 1:
+            new_regions = self.regions
+        else:
+            new_regions = self._refinement_step(self._mac_candidates,
+                                                self.l_complete)
+
+        logging.debug(f'REGIONS: {self.regions}')
+        print('regions====', self._regions)
 
         # First bisimulation stopping criterion: no new candidates are
         # generated (note: it probably never happens)
         if len(new_regions) == 0:
-            print('Do I ever enter here?')
-            logging.info('Bisimulation: all sequences computed!')
-            return False
-
-        logging.info(f'Number of regions to be verified: '
-                     f'{len(new_regions)}. Was: {len(self._regions)}.')
-
-        # Now verify if the new region candidates can actually exist
-        # by performing reachability analysis. The following function
-        # filters the regions that pass the reachability test.
-        # This function also updates
-        new_regions, extended_set, marginal_set, initial_set = \
-            self._verify_candidates(new_regions)
-
-        # Update self sets with results from the verification
-        self._all_regions.update(new_regions)
-        self._extended.update(extended_set)
-        self._marginal.update(marginal_set)
-        self._initial.update(initial_set)
-
-        # Update regions for next iteration
-        if self.stop_around_origin:
-            # If stop_around_origin, self._initial must always be included
-            # in the working region set.
-            self._regions = new_regions.union(self._initial)
-        else:
-            # Replace regions by the new_regions generated in this
-            # iteration
-            self._regions = new_regions
-
-        print('regions====', self._regions)
-
-        # Second bisimulation stopping criterion: if all new regions were
-        # already in self._initial, it means that no new states were found,
-        # and therefore the bisimulation algorithm has converged.
-        # Note: it also seems that this condition is never met.
-        if len(new_regions - self._initial) == 0:
             logging.info('Bisimulation: all sequences computed!')
             return False
 
         if not self.stop_around_origin:
             # If current system is deterministic, stop: system admits
             # a bisimulation, no deepening is needed!
-            for s in self._regions:
-                # Compute Post(s) following the domino rule.
-                post = [sp for sp in self._regions if sp[:-1] == s[1:]]
-                if len(post) > 1:
-                    break  # At least one state has > 1 successor.
-            else:  # Enter here if for all s, |Post(s)| = 1 (determinism)
-                # Caps because it is very exciting. I.e., it does not
-                # happen very often.
+            G = self.automaton.G
+            if all(G.get_out_degrees(G.get_vertices())==1):
                 print('SYSTEM ADMITS A BISIMULATION!!!!')
                 return False
 
-            # A final stopping criterion, allows stopping if an omega-
-            # bisimulation is found. This is work in progress.
+            # Alternative stopping criteria for cycle equivalence
             if self.stop_if_omega_bisimilar and \
                     self._is_omega_bisimilar():
                 print('System is non-deterministic but omega-'
                       'bisimilar. Stopping.')
                 return False
+
+            if self.stop_if_mace_equivalent and \
+                    self._is_mace_equivalent():
+                print('System is MACE-equivalent. Stopping.')
+                break
+
+            if self.stop_if_robust_mace_equivalent and \
+                    self._is_robust_mace_equivalent():
+                print('System is RobMACE-equivalent. Stopping.')
+                break
 
         return True
 
