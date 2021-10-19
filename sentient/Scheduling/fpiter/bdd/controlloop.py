@@ -153,6 +153,30 @@ class controlloop:
         self._is_part = False
         self._clear_cache()
 
+    def state2bin(self, x):
+        n = self.nfa.states[x]
+        x1 = format(n, '0' + str(len(self.xvars)) + 'b')
+        ret = dict()
+        for (j, k) in zip(x1, self.xvars):
+            if j == '1':
+                ret.update({k: True})
+            else:
+                ret.update({k: False})
+
+        return ret
+
+    def input2bin(self, u):
+        n = self.nfa.actions[u]
+        u1 = format(n, '0' + str(len(self.uvars)) + 'b')
+        ret = dict()
+        for (j, k) in zip(u1, self.uvars):
+            if j == '1':
+                ret.update({k: True})
+            else:
+                ret.update({k: False})
+
+        return ret
+
     def __copy__(self):
         return self.__deepcopy__()
 
