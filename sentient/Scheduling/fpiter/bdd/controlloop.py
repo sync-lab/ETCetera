@@ -18,8 +18,8 @@ from ..enum import controlloop as cltemp
 class controlloop:
 
     def __init__(self, abstraction: TrafficModelLinearPETC, name: str = None, maxLate: int = None,
-                 maxLateStates: int = None, ratio: int = 1):
-        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio)
+                 maxLateStates: int = None, ratio: int = 1, label_split_T=True):
+        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
 
         self._h = abstraction.trigger.h
 
