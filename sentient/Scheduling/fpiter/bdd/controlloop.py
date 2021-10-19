@@ -187,7 +187,7 @@ class controlloop:
         obj.__dict__.update(self.__dict__)
 
         obj.name = f'c_{self.name}'
-        obj._h = self._h
+        obj.h = self.h
         obj.H = self.H.copy()
 
         # Make new BDD manager and copy the BDDs
