@@ -1048,6 +1048,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
     # TODO: find some way to speed it up (e.g. using symengine)
     def compute_mu(self):
+        print("Computing symbolic expression for the approximation of the isochronous manifolds..")
         r = self.Init_cond_domain[1][1]  # -0.00000000000000000001*self.Init_cond_domain[1][1]
         C = np.zeros(self.p, )
         C[0] = 1
