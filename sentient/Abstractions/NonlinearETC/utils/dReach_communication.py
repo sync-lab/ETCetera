@@ -1,3 +1,5 @@
+import sys
+
 import sympy
 import numpy as np
 import collections
@@ -64,7 +66,6 @@ def write_drh_file(init_symbolic, goal_symbolic, time_max, symbol_list, dynamics
     return 
         
 def call_dReach(dreach_path,file_path,file_name ="file.drh",dreal_precision = 0.01, time_out = None):
-# def call_dReach(file_path, file_name="file.drh", dreal_precision=0.01, time_out=None):
     # Check file suffix
     if not file_name.endswith('.drh'):
         file_name = file_name + '.drh'
@@ -72,26 +73,24 @@ def call_dReach(dreach_path,file_path,file_name ="file.drh",dreal_precision = 0.
     result ={}
     logging.info("Calling dReach")
     try:
-        # f = file_path.replace(r' ', r'\ ')
-        # f = f'\'{f + "/" + file_name}\'' #f'\'{os.path.join(f, file_name)}\''
-        # print(os.path.relpath(f, root_path))
-        # sys.exit()
+
         word = dreach_path + ' -k 0' + ' -l 0 ' + os.path.relpath(file_path) + '/' + \
                file_name + ' --precision ' + str(dreal_precision) + \
                ' --polytope'
-        # print(f'TimeOut: {time_out}')
-        # print(f'word: {word}')
+
         if (time_out == None):
             outputdReach = subprocess.check_output([word],shell=True).decode("utf-8")
         else:
             outputdReach = subprocess.check_output([word],shell=True, timeout=time_out).decode("utf-8")
-            # outputdReach = subprocess.Popen([word], shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-            # Poll process for new output until finished
-            # while True:
-            #     nextline = outputdReach.stdout.readline()
-            #     if nextline == '' and outputdReach.poll() is not None:
-            #         break
-            #     print(nextline)
+
+    except KeyboardInterrupt:
+        # Make sure the processes are killed when keyboardinterrupt
+        subprocess.run(["pkill", "-f", "dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+
+        sys.exit()
 
     except Exception:
         # logging.info(outputdReach.communicate())
