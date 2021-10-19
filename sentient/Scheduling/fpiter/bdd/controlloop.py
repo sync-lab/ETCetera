@@ -27,6 +27,7 @@ class controlloop:
         self.name = name or f'cl{shortuuid.uuid()[:3]}'
 
         self._is_part = False
+        self._label_split = label_split_T
 
         # BDD manager
         self.bdd = _bdd.BDD()
