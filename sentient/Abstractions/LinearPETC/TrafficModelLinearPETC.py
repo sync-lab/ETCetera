@@ -16,7 +16,7 @@ from sentient.Abstractions.Abstraction import Abstraction
 
 from sentient.Systems import linearetc as etc
 from sentient.Abstractions.LinearPETC.utils.optim import QuadraticForm, sdr_problem, QuadraticProblem
-from sentient.util.etcgraph_python_specific import TrafficAutomaton
+from sentient.util.etcgraph import TrafficAutomaton
 # from sentient.Systems.Automata.timed_automaton import TimedAutomaton
 # from sentient.Systems.Automata.priced_timed_automaton import PricedTimedAutomaton
 from sentient.Systems.Automata import Automaton
@@ -623,11 +623,6 @@ class TrafficModelLinearPETC(Abstraction):
             if self.stop_if_mace_equivalent and \
                     self._is_mace_equivalent():
                 print('System is MACE-equivalent. Stopping.')
-                return False
-
-            if self.stop_if_robust_mace_equivalent and \
-                    self._is_robust_mace_equivalent():
-                print('System is RobMACE-equivalent. Stopping.')
                 return False
 
         return True
