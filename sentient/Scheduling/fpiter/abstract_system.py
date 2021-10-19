@@ -13,6 +13,7 @@ class abstract_system(metaclass=ABCMeta):
     def __init__(self, cl):
         self.control_loops = cl
         self.ns = len(cl)
+        self.h = cl[0].h
 
 
     """ Partitioning and Refinement Methods """
@@ -56,6 +57,22 @@ class abstract_system(metaclass=ABCMeta):
             success |= self.control_loops[n].refine()
 
         return success
+
+    def restore_all(self):
+        for cl in self.control_loops:
+            cl.restore()
+
+        return True
+
+    def restore(self, idx: list):
+        if any([x >= self.ns for x in idx]):
+            print("One or more specified indices out of range.")
+            return False
+
+        for n in idx:
+            self.control_loops[n].restore()
+
+        return True
 
     """ Abstract Methods """
     @abstractmethod
@@ -109,11 +126,13 @@ class abstract_system(metaclass=ABCMeta):
             return None, None
 
         logging.info("Generating scheduler.")
-        C = self.create_controller(Z, StatesOnlyZ=True)
+        C, Q = self.create_controller(Z, StatesOnlyZ=False)
         print('Scheduler found!')
-        return C
+        self.scheduler = C
+        self.state2block = None
+        return C, Q
 
-    def gen_safety_scheduler_part(self, convert_blocks=True):
+    def gen_safety_scheduler_part(self, convert_blocks=False):
         """
             Tries to synthesize a scheduler somewhat more efficiently by reducing the size of all subsystem,
             and synthesizing on the composition of those. If it fails, it will refine each subsystem and
@@ -156,10 +175,13 @@ class abstract_system(metaclass=ABCMeta):
 
             logging.info('Safety game solved!')
             logging.info('Generating scheduler.')
-            C = self.create_controller(Z, StatesOnlyZ=True, convert_blocks=convert_blocks)
+            C, Q = self.create_controller(Z, StatesOnlyZ=False, convert_blocks=convert_blocks)
             print('Scheduler found!')
-            return C
+            self.scheduler = C
+            self.state2block = Q
+            return C, Q
 
         print('Refinement no longer possible.')
         print('No scheduler found.')
+
         return None, None
