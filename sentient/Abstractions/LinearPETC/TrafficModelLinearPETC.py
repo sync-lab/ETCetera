@@ -591,7 +591,7 @@ class TrafficModelLinearPETC(Abstraction):
 
         # Main refinement algorithm
         if self.strat and self.depth == 1:
-            new_regions = self.regions
+            new_regions = self._regions
         else:
             new_regions = self._refinement_step(self._mac_candidates,
                                                 self.l_complete)
@@ -1662,33 +1662,119 @@ class TrafficModelLinearPETC(Abstraction):
                     return False
         return True
 
+    def _is_mace_equivalent(self):
+        # Get all MACs
+        value, cycle, regs, _ = self.automaton.minimum_average_cycle()
+
+        self._mac_regions = set(regs)
+        minL = min(len(r) for r in regs)
+        self._mac_candidates = set(r for r in regs if len(r)==minL)
+        logging.debug(f'{regs}, {self._mac_candidates}')
+        self.limavg = value
+        logging.info(f'Verifying {cycle}, whose value is {value}')
+        if self._verify_cycle(cycle)[0]:
+            logging.info(f'{cycle} is a valid cycle!')
+            return True
+        else:
+            self.non_cycles.add(cycle)
+
+        logging.info('MACE equivalence not verified yet')
+        return False
+
     def _verify_cycle(self, cycle):
+        """Verify whether a given cycle is a behavior of the PETC.
+
+
+        Parameters
+        ----------
+        cycle : TYPE
+            DESCRIPTION.
+
+        Raises
+        ------
+        ETCAbstractionError
+            DESCRIPTION.
+
+        Returns
+        -------
+        bool
+            Whether this cycle exists in the PETC.
+        bool
+            Whether the cycle exists and is directionally stable.
+
+        """
         # First check if cycle was already there
         for c in self.cycles:
             if self.two_cycles_are_equal(c, cycle):
-                return True
+                if cycle in self.stable_cycles:
+                    return True, True
+                else:
+                    return True, False
+
+        # Then check if cycle was falsified
+        for c in self.non_cycles:
+            if self.two_cycles_are_equal(c, cycle):
+                return False, False
 
         # Now perform the check using eigenvectors
         l = len(cycle)
-        m = self._M_prod(cycle, l)
-        for (lbd, mult, vecs) in m.eigenvects():
-            if lbd.is_real:
-                for vec in vecs:  # To check: when is there more than 1?
-                    c = cycle[:]
-                    for i in range(l):
-                        # print(i)
-                        if not self.is_related(vec, c):
-                            break
-                        # re-cycle
-                        vec = self.M[c[0]] @ vec
-                        c = c[1:] + c[:1]
+        if self.strat:
+            ks = tuple((self.strat[r] for r in cycle))
+            m = self._M_prod(ks, l)
+        else:
+            m = self._M_prod(cycle, l)
+
+        if self.n == 2:
+            eigenvects = m.eigenvects()
+        else:  # SymPy eigenvects is prohibitevly slow for n>2
+            mm = np.array(m).astype('float64')
+            eigvals, v = la.eig(mm)
+            eigenvects = []
+            for i, lbd in enumerate(eigvals):
+                lbd = sympy.nsimplify(lbd, tolerance=0.001, rational=True)
+                vec = [sympy.nsimplify(sympy.Matrix(v[:,i]), tolerance=0.001,
+                                       rational=True)]
+                eigenvects.append((lbd, 1, vec))  # Numerically there are no
+                # repeated eigenvalues --> mult=1
+        for (lbd, mult, vecs) in eigenvects:
+            if mult > 1:
+                # Geo > 1 - Use Jordan
+                # Geo = 1 - constrain Q to the subspace, any solution works
+                # Alternative: find x in S : MMMMx not in S
+                #   (this might have been easier to implement in general...)
+                raise NotImplementedError('Code not implemented for the '
+                                          'case with repeated eigenvalues.')
+            for vec in vecs:  # when mult == 1, there is only one.
+                if lbd.is_real:
+                    V = vec
+                else:
+                    if self.n == 2:  # Then it is the whole R^2, cannot happen
+                        return False, False
+                    real, imag = vec.as_real_imag()
+                    # v - v.conj(),  i*v + i*v.conj() = 2*imag(v)
+                    V = sympy.Matrix([real.T, imag.T]).T
+
+                c = cycle[:]
+
+                for i in range(l):
+                    if not self.is_related(V, c):
+                        break
+                    # re-cycle
+                    if self.strat:
+                        k = self.strat[c[0]]
                     else:
-                        self.cycles.add(tuple(cycle))
-                        return True
-            else:
-                # TODO: what to do for R^n, n >= 3?
-                return False
-        return False
+                        k = c[0]
+                    V = self.M[k] @ V
+                    c = c[1:] + c[:1]
+                else:
+                    self.cycles.add(tuple(cycle))
+                    if np.abs(lbd) >= max(np.abs(l) for l,_,_ in eigenvects):
+                        self.stable_cycles.add(cycle)
+                        return True, True
+                    else:
+                        return True, False
+
+        return False, False
 
     @staticmethod
     def two_cycles_are_equal(c1, c2):
