@@ -51,7 +51,7 @@ if __name__ == "__main__":
         re_string = '\.(json|pickle)$'
         temp = re.findall(re_string, args.output_file)
         if len(temp) > 1 or len(temp) == 0 and not args.output_type:
-            print('??Weird file??')
+            print('Please specify a correct output file type.')
 
         out_type = temp[0]
 
