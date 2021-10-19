@@ -19,22 +19,22 @@ from sentient import pyuppaal
 
 class nta:
 
-    def __init__(self, net: network, closed_loops: List[controlloop], synchronization=None):
+    def __init__(self, net: network, control_loops: List[controlloop], synchronization=None):
 
         # TODO: Check compatibility w.r.t. synchronization signals
         self.net = net
-        self.closed_loops = closed_loops
-        self.ns = len(closed_loops)
+        self.control_loops = control_loops
+        self.ns = len(control_loops)
         self.synchronization = synchronization or ["up", "down", "timeout", "ack", "nack"]
         # self.max_early_triggers = max_early_triggers
         # Calculate common scaling factor to make UPPAAL happy
         import math
         scale = 1
-        l = [a.scale for a in self.closed_loops]
+        l = [a.scale for a in self.control_loops]
         for i in l:
             scale = scale * i // math.gcd(scale, i)
         self.common_scale = scale
-        for s in self.closed_loops:
+        for s in self.control_loops:
             s.scale = scale
         logging.info(f'Set common scale to: {self.common_scale}')
 
@@ -50,7 +50,7 @@ class nta:
     def _generate_system(self):
         system_ass = ''
         systems = []
-        for cl in self.closed_loops:
+        for cl in self.control_loops:
             system_ass += f'{cl.name}{cl.index} = {cl.name}();\n'
             systems.append(f'{cl.name}{cl.index}')
 
@@ -59,7 +59,7 @@ class nta:
         return system_ass + f"system {', '.join(systems)};"
 
     def _generate_template(self):
-        templates = [cl.template for cl in self.closed_loops]
+        templates = [cl.template for cl in self.control_loops]
         templates += [self.net.template]
         return pyuppaal.NTA(templates=templates,
                             declaration=self._generate_declarations(),
@@ -98,7 +98,7 @@ class nta:
     def generate_strategy(self, parse_strategy=True, delete_files=True):
 
         # Throw warning if more than 2 control loops
-        if len(self.closed_loops) > 2:
+        if len(self.control_loops) > 2:
             import warnings
             logging.warning('Using more than two control loops might take a lot of time and/or memory(!).  ')
             warnings.warn('Using more than two control loops might take a lot of time and/or memory(!).  ')
@@ -149,7 +149,7 @@ class nta:
             # an ack! signal is sent, i.e. when triggering must occur
             # Groups: (Region, CL1), (Region, CL2), ... , (clock conditions), (CL to trigger)
             REGEX_STRING = r'\nState: \( .*\).*'
-            for cl in self.closed_loops:
+            for cl in self.control_loops:
                 REGEX_STRING += rf'{cl.name}{cl.index}+\.from_region=([0-9]+).*'
 
             REGEX_STRING += r'\n.*[\n]*When you are in \((.*)\).*[\n]+([A-z0-9]+)\.Trans.*, from_region := to_region.*}\n'
@@ -188,8 +188,9 @@ class nta:
     def _populate_limit_dict_from_condition_tuple(self, condition_tuple, limit_dict):
 
         # cl_regions = tuple(int(condition_tuple[i]) for i in range(0, len(self.closed_loops)))
-        cl_regions = tuple(x.loc_dict_inv[int(condition_tuple[i])] for (i,x) in enumerate(self.closed_loops))
-        cl_names = [f'{cl.name}{cl.index}' for cl in self.closed_loops]
+        cl_regions = tuple(int(x.loc_dict_inv[int(condition_tuple[i])]) for (i,x) in enumerate(self.control_loops))
+
+        cl_names = [f'{cl.name}{cl.index}' for cl in self.control_loops]
         if cl_regions not in limit_dict:
             limit_dict[str(cl_regions)] = []
 
@@ -263,7 +264,7 @@ class nta:
                     continue
 
                 # 3. Handle cases from the individual clock limits
-                for cl, name, reg in zip(self.closed_loops, cl_names, cl_regions):
+                for cl, name, reg in zip(self.control_loops, cl_names, cl_regions):
                     if name in condition:
                         # condition = condition.replace(name, '')
                         lims = self._extract_limits(condition, cl.invariants[f'R{reg}'][1] - cl.max_early, cl.invariants[f'R{reg}'][1] + cl.max_delay_steps)
