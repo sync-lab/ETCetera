@@ -98,7 +98,7 @@ It can generate traffic models for linear PETC systems, and for nonlinear
 ETC systems. The command line interface is used as follows:
 
 ```shell
-$ python etc2pta.py <systemtype> <inputfile> [options]
+$ python etc2traffic.py <systemtype> <inputfile> [options]
 ```
 
 Systemtype is either `linear' or 'nonlinear', from which the corresponding abstraction 
@@ -111,13 +111,13 @@ The following shows an example input file for linear PETC systems:
 
 For example, running the example `linear_ifac2020.txt` and outputting is done as:
 ```shell
-$ python etc2pta.py linear examples/linear_ifac2020.txt --output_file=ex.json
+$ python etc2traffic.py linear examples/linear_ifac2020.txt --output_file=ex.json
 ```
 Or, for nonlinear ETC system, you can run one of the following examples:
 ```shell
-$ python etc2pta.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
-$ python etc2pta.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
-$ python etc2pta.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+$ python etc2traffic.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
+$ python etc2traffic.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
+$ python etc2traffic.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
 ```
 
 
