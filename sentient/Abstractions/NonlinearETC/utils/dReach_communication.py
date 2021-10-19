@@ -84,7 +84,7 @@ def call_dReach(dreach_path,file_path,file_name ="file.drh",dreal_precision = 0.
         if (time_out == None):
             outputdReach = subprocess.check_output([word],shell=True).decode("utf-8")
         else:
-            outputdReach = subprocess.check_output([word],shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+            outputdReach = subprocess.check_output([word],shell=True, timeout=time_out).decode("utf-8")
             # outputdReach = subprocess.Popen([word], shell=True, stderr=subprocess.STDOUT).decode("utf-8")
             # Poll process for new output until finished
             # while True:
