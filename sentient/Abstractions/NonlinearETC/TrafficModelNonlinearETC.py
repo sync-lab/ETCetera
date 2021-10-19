@@ -277,6 +277,13 @@ class TrafficModelNonlinearETC(Abstraction):
         # return {str(r.index): r.transitions for r in self.Regions}
         return {(str(r.index), (r.timing_lower_bound, r.timing_upper_bound)): r.transitions for r in self.Regions}
 
+    def region_of_state(self, x:np.array):
+        xdict = {i:j for (i,j) in zip(self.Original_State, x)}
+        for (reg, descr) in self.return_region_descriptors().items():
+            if descr.subs(xdict):
+                return reg
+
+
     """ Implemented Abstract Methods  """
     def _create_automaton(self):
         return None
