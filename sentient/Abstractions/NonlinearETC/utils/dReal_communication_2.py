@@ -150,4 +150,7 @@ def dReal_verify(symbolic_expr, domain, domain_par, symbol_list, dReal_precision
     if result['violation'] != None and result['time-out'] == False:
         result['violation'] = readViolations(result['violation'], symbol_list)
         logging.info("Violation at" + str(result['violation']))
+
+    os.remove(os.path.join(file_path, file_name))
+
     return result
