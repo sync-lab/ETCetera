@@ -239,6 +239,8 @@ class controlloop(TimedGameAutomaton):
                                  frozenset(), frozenset(),
                                  f'R{loc}') for location in abstraction.regions})
         else:
+            if type(initial_location) is not set:
+                initial_location = set({initial_location})
             self.locations.add(f'R0')
             transitions.update({(f'R0', True,
                                  frozenset({f'{self.from_region_decl} = {self.loc_dict[(loc := "_".join([str(i) for i in location]))]}'}),
