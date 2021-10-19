@@ -25,7 +25,7 @@ in config.py. For e.g. 'dreal_path = /home/user/dreal4/bazel-bin/dreal/dreal'.
 
 Create a virtual environment to install the Python dependencies:
 
-    export VENV=~/projects/control_systems_abstractions/env
+    export VENV=~/projects/control_system_abstractions/env
     python3 -m venv $VENV
 
 Build the tool using the following command:
