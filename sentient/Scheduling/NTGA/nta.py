@@ -363,3 +363,159 @@ class nta:
 
             return (lower_lim, upper_lim)
 
+    def simulate(self, Ts: float = 0.01, Tmax: float = 1, x0=None, use_scheduler=True):
+
+        if any([type(cl) == abstr.TrafficModelNonlinearETC for cl in self.control_loops]):
+            raise NotImplementedError
+
+        # Check correct/enough initial conditions
+        if x0 is None:
+            x0 = [np.random.uniform(low=-4, high=4, size=(cl.abstraction.plant.nx,)) for cl in self.control_loops]
+        else:
+            if len(x0) != len(self.control_loops):
+                print('Supply initial conditions for each control loop.')
+                return
+
+            for x0i, cl in zip(x0, self.control_loops):
+                if len(x0i) != cl.abstraction.plant.nx:
+                    print(
+                        f'Initial condition dimension ({len(x0i)}) does not correspond to the expected ({cl.abstraction.plant.nx}).')
+                    return
+
+            x0 = [np.array(x) for x in x0]
+
+        # 3D Matrix storing the evolution of the continuous states over time.
+        x = [[np.array(x0i)] for x0i in x0]
+        xhat = [[np.array(x0i)] for x0i in x0]
+        u_hist = [[] for i in range(0, self.ns)]  # continuous inputs
+
+
+        # Evolution of the traffic model regions over time
+        regions = [[cl.abstraction.region_of_state(x0i)] for (x0i, cl) in zip(x0, self.control_loops)]
+
+        s = [[str(cl.loc_dict['_'.join([str(i) for i in loc[0]])])] for (loc, cl) in zip(regions, self.control_loops)]
+        ss = tuple(q[-1] for q in s)
+        print(ss)
+        clocks = [[0] for i in range(0, self.ns)]
+
+        for i in range(0, self.ns):
+            print(f'Controlloop {i} starts in region {regions[i][0]}')
+
+        TriggerTimes = [[0] for i in range(0, self.ns)]
+        CollisionTimes = {}
+
+        N = int(Tmax / Ts)  # Number of samples
+
+        import scipy
+        I = [scipy.integrate.quad_vec(lambda s: scipy.linalg.expm(cl.abstraction.plant.A * s), 0, Ts)[0] for cl in
+             self.control_loops]
+
+
+        for t in range(0, N):
+            # Step 1: Update the continuous states
+            utemp = [cl.abstraction.controller.K @ xn[-1] for (cl, xn) in zip(self.control_loops, xhat)]
+            xn = [scipy.linalg.expm(cl.abstraction.plant.A * Ts) @ xi[-1] + integral @ cl.abstraction.plant.B @ ui
+                  for (cl, xi, ui, integral) in zip(self.control_loops, x, utemp, I)]
+
+            for i in range(0, self.ns):
+                x[i].append(xn[i])
+                xhat[i].append(xhat[i][-1])
+                u_hist[i].append(utemp[i])
+                clocks[i].append(clocks[i][-1] + Ts)
+
+
+            ## Step 2: Check triggering conditions
+            # If a scheduler is defined use that
+            if self.scheduler is not None and use_scheduler:
+                to_trigger = -1
+                ss = tuple(q[-1] for q in s)
+                if ss not in self.scheduler:
+                    to_trigger = random.randint(0, self.ns-1)
+                    print(f'State {ss} not in scheduler => Choose to trigger {to_trigger+1}')
+                else:
+                    cc = np.array([[c[-1]] for c in clocks])
+                    print(f'Current Clock values: {cc}')
+                    for (Aeq, beq, Aleq, bleq, trig) in self.scheduler[ss]:
+                        if Aeq != [] and any([i != 0 for i in (Aeq @ cc - beq)]):
+                            continue
+                        if Aleq != [] and any([i > 0 for i in Aleq @ cc - bleq]):
+                            continue
+
+                        to_trigger = trig
+                        print(f'Loop {trig+1} should trigger')
+                        break
+
+                for i in range(0, self.ns):
+                    if to_trigger == i:
+                        reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
+                        si = str(cl.loc_dict['_'.join([str(i) for i in reg])])
+                        clocks[i][-1] = 0
+                        s[i].append(si)
+                        xhat[i][-1] = xn[i]
+                        regions[i].append(reg)
+                        TriggerTimes[i].append(t * Ts)
+
+                    else:
+                        # reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
+                        regions[i].append(regions[i][-1])
+                        s[i].append(s[i][-1])
+
+            else:
+                triggers = set()
+                for i in range(0, self.ns):
+
+                    triggered = False
+                    if type(self.control_loops[i].abstraction) == abstr.TrafficModelLinearPETC:
+                        xx = np.block([x[i][-1], xhat[i][-1]])
+                        triggered = xx.T @ self.control_loops[i].abstraction.trigger.Qbar @ xx.T > 0 or \
+                                    (t * Ts - TriggerTimes[i][-1]) >= self.control_loops[i].tau_max
+                    else:
+                        xe = x[i][-1] - xhat[i][-1]
+                        xdict = {i:j for (i,j) in zip([x, xe], self.control_loops[i].abstraction.original_state)}
+                        print(xdict)
+                        sys.exit()
+
+                    if triggered:
+                        xhat[i][-1] = xn[i]
+                        TriggerTimes[i].append(t * Ts)
+                        triggers.add(i)
+
+                    reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
+                    regions[i].append(reg)
+
+
+                if len(triggers) > 1:
+                    CollisionTimes[t * Ts] = triggers
+
+        import matplotlib.pyplot as plt
+
+        dur = np.arange(0, Ts * N, Ts)
+        for i in range(0, self.ns):
+            plt.plot(dur, x[i][0:len(dur)], '--')
+            plt.gca().set_prop_cycle(None)
+            plt.plot(dur, xhat[i][0:len(dur)])
+            plt.title(f'Controlloop {i + 1}: $x(t)$ and $x_e(t)$.')
+            plt.show()
+
+        for i in range(0, self.ns):
+            plt.plot(dur, u_hist[i][0:len(dur)])
+            plt.title(f'Controlloop {i + 1}: $u(t)$.')
+            plt.show()
+
+        for i in range(0, self.ns):
+            plt.plot(TriggerTimes[i], i * np.ones(len(TriggerTimes[i])), 'x')
+
+        for t, ii in CollisionTimes.items():
+            for i in ii:
+                plt.plot(t, i, 'dk')
+
+        plt.title('Trigger times')
+        plt.yticks(range(0, self.ns), [f'Controlloop {i}' for i in range(1, self.ns + 1)])
+        plt.show()
+
+        for i in range(0, self.ns):
+            plt.plot(dur, regions[i][0:len(dur)])
+
+        plt.title('Traffic Model Regions')
+        plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)], loc='upper left')
+        plt.show()
