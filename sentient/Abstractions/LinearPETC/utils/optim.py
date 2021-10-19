@@ -23,6 +23,8 @@ _SSC_MAX_ATTEMPTS = 20#10  # Number of times to try the SDP problem in inaccurat
 
 
 
+class AbstractionOptimError(Exception):
+    pass
 
 
 '''Z3 <--> sympy'''
@@ -216,7 +218,7 @@ class QuadraticForm:
             if 'innacurate' in prob.status:
                 logging.warning('Problem status is %s', prob.status)
             else:
-                raise ETCUtilError(
+                raise AbstractionOptimError(
                     'This shouldn''t be happening. Problem status is %s',
                     prob.status)
 
@@ -443,7 +445,7 @@ class QuadraticProblem():
             elif 'unbounded' in self.problem.status:
                 warnings.warn(f'SDR gave {self.problem.status}!')
             elif 'infeasible' not in self.problem.status:
-                raise ETCUtilError(
+                raise AbstractionOptimError(
                     'Some unknown exception happened! The semi-definite'
                     ' relaxation problem should be either feasible or'
                     ' infeasible.  If you are here that means it was neither.'
@@ -479,7 +481,7 @@ class QuadraticProblem():
                 counter += 1
 
             if result_value == 0:
-                error = ETCUtilError('Z3 failed to provide an answer!')
+                error = AbstractionOptimError('Z3 failed to provide an answer!')
                 error.problem = self.problem
                 raise error
 
