@@ -103,10 +103,10 @@ class TrafficModelNonlinearETC(Abstraction):
     #              state_space_limits=None, grid_points_per_dim=None, heartbeat=0.1,
     #              precision_timing_bounds=1e-3, precision_transitions=1e-3,
     #              timeout_timing_bounds=200, timeout_transitions=200, order_approx=2):
-    def __init__(self, dynamics, homogeneity, trigger,
-                 state, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
+    def __init__(self, dynamics, trigger,
+                 state, homogeneity=2, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
                  homogenization_flag=False,  # Following are solver options
-                 precision_deltas=1e-4, timeout_deltas=1000, partition_method='grid',
+                 precision_deltas=1e-7, timeout_deltas=1000, partition_method='grid',
                  manifolds_times=None, nr_cones_small_angles=None, nr_cones_big_angle=5,
                  state_space_limits=None, grid_points_per_dim=None, heartbeat=0.1,
                  precision_timing_bounds=1e-3, precision_transitions=1e-3,
@@ -138,10 +138,22 @@ class TrafficModelNonlinearETC(Abstraction):
                 '''
         super().__init__()
         """Constructor"""
-        # self.path = path
-        # self.dreal_path = dreal_path
-        # self.dreach_path = dreach_path
-        # self.flowstar_path = flowstar_path
+        dynamics = sympy.Matrix(dynamics)
+        self.Homogenization_Flag = (sympy.symbols('w1') in dynamics.free_symbols) or homogenization_flag
+        if len(dynamics) != len(state):
+            dynamics = list(dynamics)
+            dynamics += [-1*expr for expr in dynamics]
+
+        dynamics = sympy.Matrix(dynamics)
+
+        if not util.test_homogeneity(dynamics, state):
+            print(f'Dynamics {dynamics} are not yet homogeneous.')
+            print(f'Make Homogeneous with degree {homogeneity} (Default: 2)')
+
+            # Make homogeneous (default: 2)
+            dynamics, state, trigger = util.make_homogeneous_etc(dynamics, state, homogeneity or 2, trigger=trigger)
+            self.Homogenization_Flag = True
+
         self.Homogeneity_degree = homogeneity
         self.Homogenization_Flag = homogenization_flag
         self.Dynamics = dynamics
@@ -166,7 +178,7 @@ class TrafficModelNonlinearETC(Abstraction):
         self.Original_Dynamics = original_dynamics
         if init_cond_symbols is None:
             init_cond_symbols = [sympy.Symbol(str(i).replace('x', 'a')) for i in original_state if 'x' in str(i)]
-            if homogenization_flag:
+            if self.Homogenization_Flag:
                 init_cond_symbols.append(sympy.Symbol('aw'))
 
             init_cond_symbols = tuple(init_cond_symbols)
