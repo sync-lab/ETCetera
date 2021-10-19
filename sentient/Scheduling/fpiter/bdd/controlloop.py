@@ -62,8 +62,9 @@ class controlloop:
 
         # Create BDD for whether x lies in block b
         self._Q_x = self.bdd.true
-        for (x, b) in zip(self.xvars, self.bvars):
-            self._Q_x = self.bdd.apply('&', self._Q_x, self.bdd.apply('<=>', self.bdd.add_expr(x), self.bdd.add_expr(b)))
+        # for (x, b) in zip(self.xvars, self.bvars):
+        #     self._Q_x = self.bdd.apply('&', self._Q_x, self.bdd.apply('<=>', self.bdd.add_expr(x), self.bdd.add_expr(b)))
+
 
         # Create BDD XT for whether state x has output 'T1' or 'T'
         self._XT_x = self.bdd.false
