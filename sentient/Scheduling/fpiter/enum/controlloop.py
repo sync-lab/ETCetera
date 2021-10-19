@@ -22,8 +22,10 @@ class controlloop:
         #     print("Currently cannot use refined locations")
         #     raise NotImplementedError
 
-        self._h = abstraction.trigger.h
-
+        self.h = abstraction.trigger.h
+        self.kmax = abstraction.kmax
+        self._label_split = True
+        self.abstraction = abstraction # Store (reference) for later use
         # Convert the abstraction traffic model into different form
         states = dict()
 
