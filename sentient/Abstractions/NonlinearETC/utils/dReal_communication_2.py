@@ -81,10 +81,8 @@ def call_dReal(dreal_path, file_path, file_name="file.smt2", dreal_precision=0.0
         # dReal
         temp = [dreal_path, '--polytope', '--model', '--precision', str(dreal_precision),
                 os.path.join(file_path, file_name)]
-        # logging.info(temp)
         if t_max == None:
             outputdReal = subprocess.check_output(temp).decode("utf-8")
-            # print(outputdReal)
         else:
             outputdReal = subprocess.check_output(temp, timeout=t_max).decode("utf-8")
 
