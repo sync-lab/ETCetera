@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-
-
+import sys
 import sympy
 import numpy as np
 import collections
@@ -88,7 +87,16 @@ def call_dReal(dreal_path, file_path, file_name="file.smt2", dreal_precision=0.0
             # print(outputdReal)
         else:
             outputdReal = subprocess.check_output(temp, timeout=t_max).decode("utf-8")
-            # print(outputdReal)
+
+    except KeyboardInterrupt:
+        # Make sure the processes are killed when keyboardinterrupt
+        subprocess.run(["pkill", "-f", "dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+
+        sys.exit()
+
     except Exception:
         outputdReal = 'time-out'
         result['time-out'] = True
