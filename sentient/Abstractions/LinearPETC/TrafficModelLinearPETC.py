@@ -1672,7 +1672,7 @@ class TrafficModelLinearPETC(Abstraction):
         logging.debug(f'{regs}, {self._mac_candidates}')
         self.limavg = value
         logging.info(f'Verifying {cycle}, whose value is {value}')
-        if self._verify_cycle(cycle)[0]:
+        if self._verify_cycle(cycle):
             logging.info(f'{cycle} is a valid cycle!')
             return True
         else:
@@ -1687,34 +1687,24 @@ class TrafficModelLinearPETC(Abstraction):
 
         Parameters
         ----------
-        cycle : TYPE
-            DESCRIPTION.
-
-        Raises
-        ------
-        ETCAbstractionError
-            DESCRIPTION.
+        cycle : tuple
+            Behavioral cycle to be verified
 
         Returns
         -------
         bool
             Whether this cycle exists in the PETC.
-        bool
-            Whether the cycle exists and is directionally stable.
 
         """
         # First check if cycle was already there
         for c in self.cycles:
             if self.two_cycles_are_equal(c, cycle):
-                if cycle in self.stable_cycles:
-                    return True, True
-                else:
-                    return True, False
+                return True
 
         # Then check if cycle was falsified
         for c in self.non_cycles:
             if self.two_cycles_are_equal(c, cycle):
-                return False, False
+                return False
 
         # Now perform the check using eigenvectors
         l = len(cycle)
@@ -1724,7 +1714,7 @@ class TrafficModelLinearPETC(Abstraction):
         else:
             m = self._M_prod(cycle, l)
 
-        if self.n == 2:
+        if self.n == 2 and self.symbolic:
             eigenvects = m.eigenvects()
         else:  # SymPy eigenvects is prohibitevly slow for n>2
             mm = np.array(m).astype('float64')
@@ -1749,7 +1739,7 @@ class TrafficModelLinearPETC(Abstraction):
                     V = vec
                 else:
                     if self.n == 2:  # Then it is the whole R^2, cannot happen
-                        return False, False
+                        return False
                     real, imag = vec.as_real_imag()
                     # v - v.conj(),  i*v + i*v.conj() = 2*imag(v)
                     V = sympy.Matrix([real.T, imag.T]).T
@@ -1770,11 +1760,11 @@ class TrafficModelLinearPETC(Abstraction):
                     self.cycles.add(tuple(cycle))
                     if np.abs(lbd) >= max(np.abs(l) for l,_,_ in eigenvects):
                         self.stable_cycles.add(cycle)
-                        return True, True
+                        return True
                     else:
-                        return True, False
+                        return True
 
-        return False, False
+        return False
 
     @staticmethod
     def two_cycles_are_equal(c1, c2):
