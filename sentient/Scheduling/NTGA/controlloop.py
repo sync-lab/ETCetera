@@ -43,6 +43,7 @@ class controlloop(TimedGameAutomaton):
         self.down = down
         self.timeout = timeout
         self.max_early_triggers = max_early_triggers
+        self.abstraction = abstraction
 
         if delta is None:
             if type(abstraction) == TrafficModelLinearPETC:
