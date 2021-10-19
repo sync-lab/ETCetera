@@ -12,7 +12,7 @@ from .controlloop import controlloop
 
 class system(abstract_system):
 
-    def __init__(self, cl: List[controlloop]):
+    def __init__(self, cl: List[controlloop], trap_state=False):
 
         # First check if all correct controlloop types
         if not all([type(i) == controlloop for i in cl]):
@@ -36,6 +36,8 @@ class system(abstract_system):
         self.uvars = []
         self.bvars = []
         self.cvars = []
+
+        self._trap_state = trap_state or any([not c._label_split for c in cl])
 
     """ Implementing Abstract Methods"""
 
@@ -66,6 +68,39 @@ class system(abstract_system):
             XT = self.bdd.apply('|', XT, o.bdd.copy(o.XT, self.bdd))
             Q = self.bdd.apply('&', Q, o.bdd.copy(o.Q, self.bdd))
 
+        # Modify transitions to incorporate trap state
+        if self._trap_state:
+            self.bdd.declare('tx')
+            self.bdd.declare('ty')
+            xvars += ['tx']
+            yvars += ['ty']
+
+            tx = self.bdd.add_expr('tx')
+            ty = self.bdd.add_expr('ty')
+
+            self._trapy = ty
+            self._trapx = tx
+            self._trapx_var = 'tx'
+            self._trapy_var = 'ty'
+
+            # Add one more bit, which will represent the trap state
+            tr = self.bdd.apply('&', ~ty, tr)
+
+            # Create BDD for when two or more inputs are 't'
+            two_t_bdd = self.bdd.false
+            a = []
+            for b in self.control_loops:
+                a.append(self.bdd.add_expr(b.enc(b.uvars, 1)))
+
+            for i in range(0, self.ns):
+                for j in range(i + 1, self.ns):
+                    two_t_bdd = self.bdd.apply('|', two_t_bdd, self.bdd.apply('&', a[i], a[j]))
+
+            tr = self.bdd.apply('&', tr, ~two_t_bdd)
+
+            # Add transitions to trap state
+            tr = self.bdd.apply('|', tr, self.bdd.apply('&', two_t_bdd, ty))
+
         self.tr = tr
         self.Q = Q
         self.XT = XT
@@ -86,6 +121,9 @@ class system(abstract_system):
         if len(self.bdd.vars) == 0:
             print("Compose the system before generating the safe set.")
             return None
+
+        if self._trap_state:
+            return ~self._trapx
 
         a = []
         for b in self.control_loops:
