@@ -229,7 +229,7 @@ class controlloop:
         :param x: Number to be encoded
         :return: String
         """
-        enc = list(controlloop.__enc_bin(x, len(xvars)))
+        enc = list(controlloop._enc_bin(x, len(xvars)))
 
         r = ''
         id = 0
@@ -243,7 +243,7 @@ class controlloop:
         return r[3:]
 
     @staticmethod
-    def __enc_bin(x, n):
+    def _enc_bin(x, n):
         """
         Encodes x as a binary using at least n binary values
         :param x: Input number
