@@ -65,7 +65,7 @@ def make_homogeneous(exprs: Union[List[sympy.And], sympy.Matrix], vars: List[sym
 
 
 def make_homogeneous_etc(exprs: Union[List[sympy.And], sympy.Matrix], vars: List[sympy.Symbol],
-                     des_hom_degree: int):
+                     des_hom_degree: int, trigger: sympy.And = None):
     """
     Make an ETC system homogeneous with desired degree
     @param exprs: List of sympy expressions representing the ETC dynamics. Same length as vars.
@@ -94,6 +94,10 @@ def make_homogeneous_etc(exprs: Union[List[sympy.And], sympy.Matrix], vars: List
 
     if type(exprs) == sympy.Matrix:
         res = sympy.Matrix(res)
+
+    if trigger is not None:
+        trigger = sympy.simplify(w1 ** (2) * trigger.subs(dic))
+        return res, newvars, trigger
 
     return res, newvars
 
