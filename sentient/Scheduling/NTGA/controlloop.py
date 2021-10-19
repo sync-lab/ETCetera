@@ -34,7 +34,7 @@ class controlloop(TimedGameAutomaton):
                  max_early=None, max_early_triggers=0, delta=None,
                  sync='up', nack='nack', ack='ack', timeout='timeout', down='down', clock='c'):
 
-        self.name = name or 'controlloop'# + shortuuid.uuid()[:6]
+        self.name = name or 'controlloop' + shortuuid.uuid()[:6]
 
         # communicating actions
         self.sync = sync
