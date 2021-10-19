@@ -2,14 +2,14 @@
 Command Line Interface
 ***********************
 
-:mod:`etc2pta.py`
-=================
-The command line interface `etc2pta.py` can be used for generating traffic models for
+:mod:`etc2traffic.py`
+=======================
+The command line interface `etc2traffic.py` can be used for generating traffic models for
 both linear PETC and nonlinear ETC systems. The command line interface usage is as follows:
 
 .. code-block:: console
 
-   $ python etc2pta.py system_type input_file [options]
+   $ python etc2traffic.py system_type input_file [options]
 
 positional arguments:
 
