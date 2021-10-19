@@ -8,6 +8,8 @@ SPHINXPROJ    = SENTIENT
 SOURCEDIR     = source
 BUILDDIR      = build
 
+CLEANFILES = "Documentation.html"
+
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -18,3 +20,4 @@ help:
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	$(file > Documentation.html, <head><meta http-equiv='refresh' content='0; URL=./build/html/index.html'></head>)
