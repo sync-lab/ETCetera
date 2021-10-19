@@ -168,12 +168,12 @@ class nta:
 
             import json
             with open(os.path.join(strat_path, strat_name + '.json'), 'w') as file:
-                json.dump(limit_dict, file)
+                json.dump({str(k): v for (k,v) in limit_dict.items()}, file)
 
             print(f"Saved parsed strategy to: {os.path.join(strat_path, strat_name + '.json')}")
-
-            # if delete_files:
-            #     os.remove(os.path.join(strat_path, strat_name))
+            self.scheduler = limit_dict
+            if delete_files:
+                os.remove(os.path.join(strat_path, strat_name))
 
 
     def _get_control_loops(self, lines):
@@ -195,7 +195,7 @@ class nta:
 
         cl_names = [f'{cl.name}{cl.index}' for cl in self.control_loops]
         if cl_regions not in limit_dict:
-            limit_dict[str(cl_regions)] = []
+            limit_dict[cl_regions] = []
 
         to_trigger = cl_names.index(condition_tuple[-1])
 
@@ -204,6 +204,11 @@ class nta:
 
         # there could be multiple combinations for the same region
         invariants = invariant_string.replace('(', '').replace(')', '').split('||')
+
+        A_eq = []
+        b_eq = []
+        A_leq = []
+        b_leq = []
 
         # each invariant deals with precisely one upper and lower limit per CL
         for invariant in invariants:
@@ -216,10 +221,6 @@ class nta:
             # A_eq @ c == b_eq
             # A_leq @ c <= b_leq
             # Entry becomes: [(cl1l, cl1h), .., A_eq, b_eq, A_leq, b_leq, to_trigger]
-            A_eq = []
-            b_eq = []
-            A_leq = []
-            b_leq = []
 
             for condition in clock_conditions:
                 # 1. Handle case when difference between clocks
@@ -270,35 +271,62 @@ class nta:
                 for cl, name, reg in zip(self.control_loops, cl_names, cl_regions):
                     if name in condition:
                         # condition = condition.replace(name, '')
-                        lims = self._extract_limits(condition, cl.invariants[f'R{reg}'][1] - cl.max_early, cl.invariants[f'R{reg}'][1] + cl.max_delay_steps)
-                        if lims is None or lims[0] is None or lims[1] is None:
-                            print(f'None with condition: {condition}')
-                        elif lims[0] == lims[1]:
-                            # Add to eq
-                            a_eq_new = [0 for i in range(0, self.ns)]
-                            idx = cl_names.index(name)
-                            a_eq_new[idx] = 1
-                            A_eq.append(a_eq_new)# = np.append(A_eq, a_eq_new)
-                            b_eq.append([lims[0]/self.common_scale])# = np.append(b_eq, np.array([lims[0]]))
-                        else:
-                            a_leq_new1 = [0 for i in range(0, self.ns)]
-                            a_leq_new2 = [0 for i in range(0, self.ns)]
-                            idx = cl_names.index(name)
-                            a_leq_new1[idx] = -1
-                            a_leq_new2[idx] = 1
-                            A_leq.append(a_leq_new1)# = np.append(A_leq, a_leq_new1)
-                            A_leq.append(a_leq_new2)# = np.append(A_leq, a_leq_new2)
-                            b_leq.append([-lims[0]/self.common_scale])# = np.append(b_leq, np.array([-lims[0]]))
-                            b_leq.append([lims[1]/self.common_scale])# = np.append(b_leq, np.array([lims[1]]))
+                        # Check for lower limit
+                        regex_string_lower_limit = '([0-9]+)([<>]=?|==).*'
+                        match_obj = re.match(regex_string_lower_limit, condition)
+                        if match_obj:
+                            val = int(match_obj.group(1)) / self.common_scale
+                            oper = match_obj.group(2)
+                            if oper == "==":
+                                a_eq_new = [0 for i in range(0, self.ns)]
+                                idx = cl_names.index(name)
+                                a_eq_new[idx] = 1
+                                A_eq.append(a_eq_new)# = np.append(A_eq, a_eq_new)
+                                b_eq.append([val])# = np.append(b_eq, np.array([lims[0]]))
+                            else:
+                                if oper == "<=":
+                                    lower_lim = val
+                                elif oper == "<":
+                                    lower_lim = val - 0.00001
+
+                                a_leq_new = [0 for i in range(0, self.ns)]
+                                idx = cl_names.index(name)
+                                a_leq_new[idx] = -1
+                                A_leq.append(a_leq_new)  # = np.append(A_leq, a_leq_new1)
+                                b_leq.append([-lower_lim])  # = np.append(b_leq, np.array([-lims[0]]))
+
+                        # Check for upper limit:
+                        regex_string_upper_limit = '.*([<>]=?|==)([0-9]+)'
+                        match_obj = re.match(regex_string_upper_limit, condition)
+                        if match_obj:
+                            oper = match_obj.group(1)
+                            val = int(match_obj.group(2)) / self.common_scale
+                            if oper == "==":
+                                a_eq_new = [0 for i in range(0, self.ns)]
+                                idx = cl_names.index(name)
+                                a_eq_new[idx] = 1
+                                A_eq.append(a_eq_new)  # = np.append(A_eq, a_eq_new)
+                                b_eq.append([val])  # = np.append(b_eq, np.array([lims[0]]))
+                            else:
+                                if oper == "<=":
+                                    upper_lim = val
+                                elif oper == "<":
+                                    upper_lim = val - 0.00001
+
+                                a_leq_new = [0 for i in range(0, self.ns)]
+                                idx = cl_names.index(name)
+                                a_leq_new[idx] = 1
+                                A_leq.append(a_leq_new)  # = np.append(A_leq, a_leq_new1)
+                                b_leq.append([upper_lim])  # = np.append(b_leq, np.array([-lims[0]]))
 
             expr = tuple((A_eq, b_eq, A_leq, b_leq, to_trigger))
-            limit_dict[str(cl_regions)].append(expr)
+            limit_dict[cl_regions].append(expr)
 
     def _extract_limits(self, condition, cl_low, cl_high):
 
         # NOTE: UPPAAL doesn't have operators of the kind "> or >=", but only "< or <="
 
-        lower_lim = cl_low
+        lower_lim = max(0,cl_low)
         upper_lim = cl_high
 
         # First define the regex strings
@@ -309,21 +337,21 @@ class nta:
         match_obj = re.match(regex_string_upper_limit, condition)
         if match_obj:
             oper = match_obj.group(1)
-            val = int(match_obj.group(2))
+            val = int(match_obj.group(2))/self.common_scale
 
             if oper == "==":
                 return (val, val)
             elif oper == "<=":
                 upper_lim = val
             elif oper == "<":
-                upper_lim = val - 1
+                upper_lim = val - 0.001
 
             return (lower_lim, upper_lim)
 
         # Check for lower limit
         match_obj = re.match(regex_string_lower_limit, condition)
         if match_obj:
-            val = int(match_obj.group(1))
+            val = int(match_obj.group(1))/self.common_scale
             oper = match_obj.group(2)
 
             if oper == "==":
@@ -331,7 +359,7 @@ class nta:
             elif oper == "<=":
                 lower_lim = val
             elif oper == "<":
-                lower_lim = val + 1
+                lower_lim = val + 0.001
 
             return (lower_lim, upper_lim)
 
