@@ -155,23 +155,18 @@ class system(abstract_system):
                 if len(p) > 0 and set(Z.keys()).issuperset(p):
                     U_c[x].add(u)
 
-        # c_actions = self.actions
-        # c_transitions = {x: dict() for x in c_states}
-        # for (xc, xv) in c_states.items():
-        #     for (uk, uv) in c_actions.items():
-        #         p = self.transitions[xc][uk]
-        #         if len(p) > 0 and set(Z.keys()).issuperset(p):
-        #             c_transitions[xc].update({uk: p})
-        if convert_blocks and any([s._is_part for s in self.control_loops]):
-            # curr_State = ('T', 'T')
-            # st_temp = self._c_dict([x.values() for x in self.states[curr_State]])
-            U_c_n = {x: uuu for (b, uuu) in U_c.items() for x in itertools.product(*[xx.keys() for xx in self.states[b]])}
+        if not any([s._is_part for s in self.control_loops]):
+            return U_c, None
+        elif convert_blocks and any([s._is_part for s in self.control_loops]):
+            U_c_n = {}
+            for (b, uuu) in U_c.items():
+                if b != 'trap':
+                    U_c_n.update({x:uuu for x in itertools.product(*[xx.keys() for xx in self.states[b]])})
             return U_c_n, None
         else:
             # Additionally supply look-up for the blocks
-            invB = {x:b for (b,xx) in self.states for x in xx}
-            return U_c, invB
-        # return nfa(c_states, c_actions, c_transitions, self.outputs, self.output_map)
+            invBs = [{x:b for (b,xx) in cl.states.items() for x in xx} for cl in self.control_loops]
+            return U_c, invBs
 
     """ Private Helper Methods """
 
