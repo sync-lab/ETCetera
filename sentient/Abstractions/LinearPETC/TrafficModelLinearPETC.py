@@ -623,14 +623,61 @@ class TrafficModelLinearPETC(Abstraction):
             if self.stop_if_mace_equivalent and \
                     self._is_mace_equivalent():
                 print('System is MACE-equivalent. Stopping.')
-                break
+                return False
 
             if self.stop_if_robust_mace_equivalent and \
                     self._is_robust_mace_equivalent():
                 print('System is RobMACE-equivalent. Stopping.')
-                break
+                return False
 
         return True
+
+    def _refinement_step(self, candidates, l_complete):
+        if not self.stop_around_origin:
+            new_regions, verified_regions = \
+                self._generate_domino_candidates(
+                    subset=candidates,
+                    backward=l_complete)
+            logging.debug(f'NEW: {new_regions}')
+            logging.debug(f'VERIFIED: {verified_regions}')
+            logging.debug(f'{len(new_regions)} ({len(verified_regions)})')
+            self._verified_regions = verified_regions
+        else:
+            new_regions = self._generate_backward_candidates(
+                subset=candidates,
+                backward=l_complete)
+
+        logging.info(f'Number of regions to be verified: '
+                      f'{len(new_regions)}. Was: {len(self._regions)}.')
+
+        # Now verify if the new region candidates can actually exist
+        # by performing reachability analysis. The following function
+        # filters the regions that pass the reachability test.
+        # This function also updates
+        new_regions, extended_set, marginal_set, initial_set = \
+            self._verify_candidates(new_regions)
+
+        # Update self sets with results from the verification
+        self._all_regions.update(new_regions)
+        self._extended.update(extended_set)
+        self._marginal.update(marginal_set)
+        self._initial.update(initial_set)
+
+        # Update regions for next iteration
+        if self.stop_around_origin:
+            # If stop_around_origin, self._initial must always be included
+            # in the working region set.
+            self._regions = new_regions.union(self._initial)
+        else:
+            # Replace regions by the new_regions generated in this
+            # iteration
+            self._regions = new_regions
+            if self.strat:
+                self.automaton = TrafficAutomaton(self._regions, self.strat)
+            else:
+                self.automaton = TrafficAutomaton(self._regions)
+
+        return new_regions
 
     def return_region_descriptors(self):
         """
@@ -1003,7 +1050,62 @@ class TrafficModelLinearPETC(Abstraction):
             MQM = {x: mqm / la.norm(mqm) for x, mqm in MQM.items()}
         self._MQM = MQM
 
-    def _generate_backward_candidates(self):
+    def _generate_domino_candidates(self, subset=None, backward=True):
+        # Update max and min string lengths existing in self.regions.
+        try:
+            self._minL = min(len(x) for x in self._regions)
+            self._maxL = max(len(x) for x in self._regions)
+        except ValueError:
+            self._minL, self._maxL = 0, 0
+            return set((k,) for k in self.K), set()
+
+        out_set = set()
+        verified_set = set()
+
+        G = self.automaton
+        if subset is None:
+            for e in G.G.edges():
+                s = G.regions[int(e.source())]
+                d = G.regions[int(e.target())]
+                r = s + d[len(s)-1:]
+                out_set.add(r)
+                if e.source().out_degree() == 1:
+                    verified_set.add(r)
+        else:
+            logging.debug(f'Subset received in domino: {subset}')
+            logging.debug(f'Backward refinement? {backward}')
+            logging.debug(f'Current graph: {G.G}')
+            for i, v in enumerate(G.G.vertices()):
+                region = G.regions[i]
+                #logging.debug(f'Region: {region}')
+                if region in subset:
+                    if backward:
+                        d = region
+                        for vs in v.in_neighbors():
+                            s = G.regions[int(vs)]
+                            r = s + d[len(s)-1:]
+                            out_set.add(r)
+                        if v.in_degree() == 1:
+                            verified_set.add(r)
+                    else:
+                        s = region
+                        out_s = set()
+                        for vs in v.out_neighbors():
+                            d = G.regions[int(vs)]
+                            r = s + d[len(s)-1:]
+                            r = s + (d[len(s)-1],)  # Could it work?
+                            logging.debug(f'{s}-->{d}: {r}')
+                            out_s.add(r)
+                            out_set.add(r)
+                        if len(out_s) == 1:
+                            verified_set.update(out_s)
+                else:
+                    out_set.add(region)
+                    verified_set.add(region)
+
+        return out_set, verified_set
+
+    def _generate_backward_candidates(self, subset=None, backward=True):
         """Generate candidates for new regions.
 
         For every current region s that is not initial, generate
@@ -1017,6 +1119,12 @@ class TrafficModelLinearPETC(Abstraction):
         for some k. Checking such emptiness is the most expensive part of the
         algorithm, done later in _verify_candidates. Some candidates are
         excluded in this function using some cheaper check.
+
+        Parameters
+        ----------
+        subset : set
+            Subset of self.regions to generate refined candidates. Default:
+            None, which means that all regions are used.
 
         Returns
         -------
@@ -1036,10 +1144,19 @@ class TrafficModelLinearPETC(Abstraction):
         # Generate all candidates
         # TODO: this is not very smart; can use the Pres instead.
         # (For now, leave it as is, it's not a bottleneck of the code runtime)
-        out_set = set()
+        if subset is None:
+            out_set = set()
+            regions = self._regions - self._initial
+        else:
+            out_set = self._regions - subset
+            regions = subset.intersection(self._regions - self._initial)
+
         possible_initial = set()  # Deprecated for now
-        for (i, k) in itertools.product(self._regions - self._initial, self.K):
-            ki = (k,) + i
+        for (i,k) in itertools.product(regions, self.K):
+            if backward:
+                ki = (k,) + i
+            else:
+                ki = i + (k,)
 
             # _substring_exists verifies if all substrings of ki exist in
             # self.regions (respecting minimum and maximum string lengths)
@@ -1059,6 +1176,14 @@ class TrafficModelLinearPETC(Abstraction):
                     if ki[:len(s)] == s:
                         possible_initial.add(ki)
                         break
+                # If not using l-complete refinement, add smaller substrings
+                # that have not been checked yet
+                if not self.l_complete:
+                    # We know that ki[:-1] exists. We need the tail substrings
+                    for m in range(1,len(ki)):
+                        subki = ki[m:]
+                        if subki not in self._all_regions:
+                            out_set.add(subki)
                 out_set.add(ki)
         return out_set
 
