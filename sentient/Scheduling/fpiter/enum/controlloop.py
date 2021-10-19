@@ -459,7 +459,6 @@ class controlloop:
         while Z != Zold:
             Zold = Z.copy()
             Z = self._bisim_operator(other, Z)
-            print(Z)
 
         return Z, (Z != set())
 
@@ -482,7 +481,6 @@ class controlloop:
             else:
                 res.add((xa, xb))
 
-        print(nres)
         return res
 
     def refine_completely(self):
@@ -504,7 +502,7 @@ class controlloop:
 
             num_its += 1
 
-        print(self.states)
+
         # Completely refined blocks
         self._states_part = part
         # Create output map
