@@ -505,6 +505,9 @@ class controlloop:
 
         # Completely refined blocks
         self._states_part = part
+
+        self._clear_cache()
+
         # Create output map
         output_map = dict()
         for (k, v) in self._states_part.items():
@@ -523,6 +526,7 @@ class controlloop:
                     c = invB[y]
                     transitions[b][u].add(c)
         self._transitions_part = transitions
+        self._output_map_part = output_map
         # return controlloop(states, self.actions, transitions, outputs=self.outputs, output_map=output_map), True
 
     def _create_aux_system(self, maxLate, ratio):
