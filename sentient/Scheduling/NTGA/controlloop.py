@@ -93,7 +93,9 @@ class controlloop(TimedGameAutomaton):
         #     raise NotImplementedError
 
         h = abstraction.trigger.h
-
+        self.h = h
+        self.kmax = abstraction.trigger.kmax
+        self.tau_max = h*self.kmax
 
         locations = {'R' + '_'.join([str(i) for i in loc]) for loc in abstraction.regions}
         # locations = {f'R{loc[0]}' for loc in abstraction.regions}
@@ -257,6 +259,7 @@ class controlloop(TimedGameAutomaton):
         # print(locations)
         urgent = set()
 
+        self.tau_max = abstraction.heartbeat
 
         # If regions.index is [a,b]: represent regions by single number (only for assignments)
         # self.loc_dict = {r[1:]: i for (r,i) in zip(locations, range(0, len(locations)))}
