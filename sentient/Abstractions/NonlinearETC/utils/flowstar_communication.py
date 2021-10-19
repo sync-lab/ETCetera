@@ -99,10 +99,7 @@ def call_flowstar(flowstar_path,file_path,file_name ="file.model", time_out = No
         output_flowstar = 'time-out'
         result['time-out']= True
         logging.info("flowstar time-out or other unexpected result.")
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
+
     if output_flowstar == 'time-out':
         result['sat'] = True
     if ('SAFE' in output_flowstar):
