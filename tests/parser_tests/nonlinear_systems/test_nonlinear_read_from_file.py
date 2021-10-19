@@ -3,20 +3,19 @@ import unittest
 import unittest.mock as mock
 from unittest.mock import patch
 from unittest import TestCase
-from control_system_abstractions.parser.parser_nonlinear_systems import parse_from_file
-import sympy as sp
+from sentient.util.parsing.parser_nonlinear_systems import parse_from_file
 
 
 class TestParserFileRead(TestCase):
 
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
     def assert_stdout(self, file, expected_output, mock_stdout):
-        from control_system_abstractions.parser.parser_nonlinear_systems import parse_from_file
+        from sentient.util.parsing.parser_nonlinear_systems import parse_from_file
         parse_from_file(file)
         self.assertEqual(mock_stdout.getvalue(), expected_output)
 
     def test_parse_from_file(self):
-        from control_system_abstractions.parser.parser_nonlinear_systems import parse_from_file
+        from sentient.util.parsing.parser_nonlinear_systems import parse_from_file
         with self.assertRaises(SystemExit) as context:
             parse_from_file('/Users/gmaddodi/Downloads/control_systems_abstractions/tests/parser_tests/nonlinear_systems_utils/incorrect_hyperbox_states_key.txt')
         self.assertEqual(context.exception.code, None)
