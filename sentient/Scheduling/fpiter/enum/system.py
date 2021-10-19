@@ -20,6 +20,8 @@ class system(abstract_system):
         self.transitions = {}
         self.outputs = {}
         self.output_map = {}
+        self._trap_state = trap_state or any([not c._label_split for c in cl])
+        self.scheduler = None
 
     def post(self, x: dict, u: dict = None):
         """
@@ -53,12 +55,16 @@ class system(abstract_system):
         self.transitions = {x: {u: set() for u in self.actions} for x in self.states}
         for xxx in self.states:
             for uuu in self.actions:
-                s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
-                ls = set(itertools.product(*s))
-                self.transitions[xxx][uuu].update(ls)
+                if self._trap_state and uuu.count('t') >= 2:
+                    self.transitions[xxx][uuu].update({'trap'})
+                else:
+                    s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
+                    ls = set(itertools.product(*s))
+                    self.transitions[xxx][uuu].update(ls)
 
-        # print(self.states)
-        # print(self.transitions)
+        if self._trap_state:
+            self.transitions['trap'] = {u: set() for u in self.actions}
+            self.states.update({'trap': -1})
 
     def safe_set(self) -> Optional[dict]:
         """
@@ -81,10 +87,11 @@ class system(abstract_system):
                     numX += (i[1] == 'X')
             return (numX == 0 and numT <= 1)
 
-        # W = {k: v for (k, v) in self.states.items()
-        #      if self.output_map[k].count('T') + self.output_map[k].count('T1') <= 1}
-        W = {k: v for (k, v) in self.states.items() if isSafe(self.output_map[k])}
-        return W
+        if self._trap_state:
+            return {k: v for (k, v) in self.states.items() if k != 'trap'}
+        else:
+            W = {k: v for (k, v) in self.states.items() if isSafe(self.output_map[k])}
+            return W
 
     def safety_game(self, W=None):
         """
@@ -92,22 +99,38 @@ class system(abstract_system):
         :param W: The safe set. If it is not specified, it is first created.
         :return: Solution to the Safety Game
         """
-        if W is None:
-            W = self.safe_set()
+        if self._trap_state:
+            F_old = dict()
+            F_new = self.states
+            it = 1
+            while F_old != F_new:
+                logging.info(f'Safety Game Iteration: {it}')
+                F_old = F_new
+                F_new = self.__safety_operator_trap(F_old)
+                it += 1
 
-        F_old = dict()
-        F_new = self.states
-        it = 1
-        while F_old != F_new:
-            logging.info(f'Safety Game Iteration: {it}')
-            F_old = F_new
-            F_new = self.__safety_operator(W, F_old)
-            it += 1
+            if F_old == {}:
+                return None
 
-        if F_old == {}:
-            return None
+            return F_old
 
-        return F_old
+        else:
+            if W is None:
+                W = self.safe_set()
+
+            F_old = dict()
+            F_new = self.states
+            it = 1
+            while F_old != F_new:
+                logging.info(f'Safety Game Iteration: {it}')
+                F_old = F_new
+                F_new = self.__safety_operator(W, F_old)
+                it += 1
+
+            if F_old == {}:
+                return None
+
+            return F_old
 
     # TODO: Add possibility to return full scheduler transition system
     def create_controller(self, Z: dict, StatesOnlyZ=True, convert_blocks=True):
