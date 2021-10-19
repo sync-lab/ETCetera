@@ -237,8 +237,25 @@ class system(abstract_system):
         return Xr
 
     def generate_safety_scheduler(self):
+        Ux = None
+
         if self.ns > 5 or (any([hasattr(x, '_is_late') for x in self.control_loops]) and self.ns > 3):
-        # if self.ns < 5:
-            return self.gen_safety_scheduler_part()
+            Ux, Q = self.gen_safety_scheduler_part()
         else:
-            return self.gen_safety_scheduler_basic()
+            Ux, Q = self.gen_safety_scheduler_basic()
+
+        # Save Ux to a DDDMP file
+        fpathsched = os.path.join(save_path, 'scheduler.dddmp')
+        self.bdd.dump(fpathsched, roots=[Ux])
+        print(f"Saved Scheduler BDD to {fpathsched}")
+
+        fpathsys = os.path.join(save_path, 'transitions.dddmp')
+        self.bdd.dump(fpathsys, roots=[self.tr])
+        print(f"Saved composed system transitions BDD to {fpathsys}")
+
+        if Q is not None:
+            fpathsys = os.path.join(save_path, 'state2block.dddmp')
+            self.bdd.dump(fpathsys, roots=[Q])
+            print(f"Saved state-block BDD to {fpathsys}")
+
+        return Ux, Q
