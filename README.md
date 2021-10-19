@@ -132,7 +132,7 @@ For a more in depth documentation, see ``docs/``
 The command line interface `etc2pta.py` can be used for generating traffic models for 
 both linear PETC and nonlinear ETC systems. The command line interface usage is as follows:
 ```shell
-$ python etc2pta.py <systemtype> <inputfile> [options]
+$ python etc2traffic.py <systemtype> <inputfile> [options]
 ```
 
 The argument `systemtype` is either `linear` or `nonlinear` and `inputfile` is the 
