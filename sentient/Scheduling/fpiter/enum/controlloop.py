@@ -199,7 +199,7 @@ class controlloop:
         return self._outputs
 
     def _clear_cache(self):
-        rem_attr = {'states', 'transitions', 'output_map'}
+        rem_attr = {'states', 'transitions', 'output_map', 'outputs'}
         for i in rem_attr:
             if i in self.__dict__:
                 del self.__dict__[i]
