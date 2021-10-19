@@ -21,7 +21,10 @@ class controlloop:
                  maxLateStates: int = None, ratio: int = 1, label_split_T=True):
         temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
 
-        self._h = abstraction.trigger.h
+        self.h = abstraction.trigger.h
+        self.abstraction = abstraction
+        self.nfa = temp
+        self.kmax = abstraction.kmax
 
         # Used to differentiate variables later on
         self.name = name or f'cl{shortuuid.uuid()[:3]}'
