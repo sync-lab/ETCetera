@@ -333,6 +333,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
             Computes transitions for all Regions.
         """
+        print("Computing transitions...")
         dreal_precision = remainder_reach
         tau = sympy.symbols('tau')
         pbar1 = tqdm.tqdm(total=len(self.Regions), position=-1)
