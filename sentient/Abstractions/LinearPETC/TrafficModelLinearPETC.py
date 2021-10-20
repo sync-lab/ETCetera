@@ -1248,13 +1248,8 @@ class TrafficModelLinearPETC(Abstraction):
         """
         out_set = set()
 
-        try:  # Paralelization does not work in iPython
-            __IPYTHON__
-        except NameError:
-            results = Parallel(n_jobs=NUM_CORES)(
-                delayed(self._verify_sequence)(r) for r in regions)
-        else:
-            results = [self._verify_sequence(r) for r in regions]
+        results = Parallel(n_jobs=NUM_CORES)(
+            delayed(self._verify_sequence)(r) for r in tqdm(regions))
 
         extended_set = set()
         marginal_set = set()
