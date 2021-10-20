@@ -57,21 +57,15 @@ class system(abstract_system):
         self.transitions = {x: {u: set() for u in self.actions} for x in self.states}
         for xxx in self.states:
             for uuu in self.actions:
-<<<<<<< HEAD
                 try:
-                    s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
-                    ls = set(itertools.product(*s))
-                    self.transitions[xxx][uuu].update(ls)
+                    if self._trap_state and uuu.count('t') >= 2:
+                        self.transitions[xxx][uuu].update({'trap'})
+                    else:
+                        s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
+                        ls = set(itertools.product(*s))
+                        self.transitions[xxx][uuu].update(ls)
                 except KeyError:
                     continue
-=======
-                if self._trap_state and uuu.count('t') >= 2:
-                    self.transitions[xxx][uuu].update({'trap'})
-                else:
-                    s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
-                    ls = set(itertools.product(*s))
-                    self.transitions[xxx][uuu].update(ls)
->>>>>>> quantitative
 
         if self._trap_state:
             self.transitions['trap'] = {u: set() for u in self.actions}
@@ -192,23 +186,23 @@ class system(abstract_system):
                     return
 
             x0 = [np.array(x) for x in x0]
-        
+
         # Clip Ts such that it becomes a multiple of h
         t = int(Ts/self.h)
         Ts = t*self.h
-        
-        
+
+
         # 3D Matrix storing the evolution of the continuous states over time.
         x = [[np.array(x0i)] for x0i in x0]
         xhat = [[np.array(x0i)] for x0i in x0]
         u_hist = [[] for i in range(0, self.ns)]   # continuous inputs
-        
+
         # Evolution of the traffic model regions over time
         regions = [[cl.abstraction.region_of_state(x0i)] for (x0i, cl) in zip(x0, self.control_loops)]
 
         for i in range(0, self.ns):
             print(f'Controlloop {i} starts in region {regions[i][0]}')
-        
+
         # 3D Matrix storing the evolution of the transitions sytem states over time.
         if self.state2block is None:
             s = [[f"T{'_'.join([str(l) for l in i[0]])}"] for i in regions]
@@ -317,9 +311,9 @@ class system(abstract_system):
         plt.title('Traffic Model Regions')
         plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)])
         plt.show()
-        
-    
-    
+
+
+
     """ Private Helper Methods """
 
     def __safety_operator_trap(self, Z:dict):
