@@ -18,15 +18,19 @@ from ..enum import controlloop as cltemp
 class controlloop:
 
     def __init__(self, abstraction: TrafficModelLinearPETC, name: str = None, maxLate: int = None,
-                 maxLateStates: int = None, ratio: int = 1):
-        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio)
+                 maxLateStates: int = None, ratio: int = 1, label_split_T=True):
+        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
 
-        self._h = abstraction.trigger.h
+        self.h = abstraction.trigger.h
+        self.abstraction = abstraction
+        self.nfa = temp
+        self.kmax = abstraction.kmax
 
         # Used to differentiate variables later on
         self.name = name or f'cl{shortuuid.uuid()[:3]}'
 
         self._is_part = False
+        self._label_split = label_split_T
 
         # BDD manager
         self.bdd = _bdd.BDD()
@@ -62,8 +66,9 @@ class controlloop:
 
         # Create BDD for whether x lies in block b
         self._Q_x = self.bdd.true
-        for (x, b) in zip(self.xvars, self.bvars):
-            self._Q_x = self.bdd.apply('&', self._Q_x, self.bdd.apply('<=>', self.bdd.add_expr(x), self.bdd.add_expr(b)))
+        # for (x, b) in zip(self.xvars, self.bvars):
+        #     self._Q_x = self.bdd.apply('&', self._Q_x, self.bdd.apply('<=>', self.bdd.add_expr(x), self.bdd.add_expr(b)))
+
 
         # Create BDD XT for whether state x has output 'T1' or 'T'
         self._XT_x = self.bdd.false
@@ -148,6 +153,30 @@ class controlloop:
         self._is_part = False
         self._clear_cache()
 
+    def state2bin(self, x):
+        n = self.nfa.states[x]
+        x1 = format(n, '0' + str(len(self.xvars)) + 'b')
+        ret = dict()
+        for (j, k) in zip(x1, self.xvars):
+            if j == '1':
+                ret.update({k: True})
+            else:
+                ret.update({k: False})
+
+        return ret
+
+    def input2bin(self, u):
+        n = self.nfa.actions[u]
+        u1 = format(n, '0' + str(len(self.uvars)) + 'b')
+        ret = dict()
+        for (j, k) in zip(u1, self.uvars):
+            if j == '1':
+                ret.update({k: True})
+            else:
+                ret.update({k: False})
+
+        return ret
+
     def __copy__(self):
         return self.__deepcopy__()
 
@@ -158,7 +187,7 @@ class controlloop:
         obj.__dict__.update(self.__dict__)
 
         obj.name = f'c_{self.name}'
-        obj._h = self._h
+        obj.h = self.h
         obj.H = self.H.copy()
 
         # Make new BDD manager and copy the BDDs
@@ -200,7 +229,7 @@ class controlloop:
         :param x: Number to be encoded
         :return: String
         """
-        enc = list(controlloop.__enc_bin(x, len(xvars)))
+        enc = list(controlloop._enc_bin(x, len(xvars)))
 
         r = ''
         id = 0
@@ -214,7 +243,7 @@ class controlloop:
         return r[3:]
 
     @staticmethod
-    def __enc_bin(x, n):
+    def _enc_bin(x, n):
         """
         Encodes x as a binary using at least n binary values
         :param x: Input number
@@ -425,7 +454,7 @@ class controlloop:
         if i >= 2**len(bvars):
             return None
         else:
-            c = self.__enc_bin(i, len(bvars))
+            c = self._enc_bin(i, len(bvars))
             val = dict()
             for (j, k) in zip(c, bvars):
                 if j == '1':

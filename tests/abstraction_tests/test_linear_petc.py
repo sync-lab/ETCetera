@@ -44,7 +44,7 @@ class TestLinearPETC(unittest.TestCase):
             with open(sys1_backup, 'wb') as f:
                 pickle.dump(traffic, f)
 
-        self.assertSetEqual(regs, traffic.regions)
+        self.assertSetEqual(regs, set(traffic.regions))
         self.assertDictEqual(trs, traffic.transitions)
 
         # self.assertSetEqual(regs, traffic.regions)
@@ -74,7 +74,7 @@ class TestLinearPETC(unittest.TestCase):
             with open(sys2_backup, 'wb') as f:
                 pickle.dump(traffic, f)
 
-        self.assertSetEqual(regs, traffic.regions)
+        self.assertSetEqual(regs, set(traffic.regions))
         self.assertDictEqual(trs, traffic.transitions)
 
 
@@ -90,7 +90,7 @@ class TestLinearPETC(unittest.TestCase):
             with open(sys2ref_backup, 'wb') as f:
                 pickle.dump(traffic, f)
 
-        self.assertSetEqual(regs, traffic.regions)
+        self.assertSetEqual(regs, set(traffic.regions))
         self.assertDictEqual(trs, traffic.transitions)
 
     # def test2ref2(self):

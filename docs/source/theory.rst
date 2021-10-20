@@ -104,6 +104,7 @@ This section summarizes the approach(es) in (....) and is implemented by :class:
     \tau(x) := \inf \{ t > 0 \mid \phi(\xi(t; x), \epsilon(t)) \geq 0 \},
 
 where :math:`\phi(\cdot)` is the triggering condition. The system corresponding to a general nonlinear ETC system is :math:`S = (X, X_0, U, \longrightarrow, Y, H)`, where
+
  - :math:`X \subseteq \mathbb{R}^n`,
  - :math:`X_0 \subseteq X`,
  - :math:`U = \emptyset`

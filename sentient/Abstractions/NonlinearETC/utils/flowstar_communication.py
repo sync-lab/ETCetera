@@ -3,6 +3,7 @@ import collections
 import os, os.path
 import subprocess
 import logging
+import sys
 
 sym_dict = collections.OrderedDict({"Add":"+","Mul":"*","Pow":"^",
            "StrictGreaterThan":">","GreaterThan":">=",
@@ -84,14 +85,21 @@ def call_flowstar(flowstar_path,file_path,file_name ="file.model", time_out = No
             output_flowstar = subprocess.check_output([word],shell=True).decode("utf-8")
         else:
             output_flowstar = subprocess.check_output([word],shell=True,timeout=time_out).decode("utf-8")
+
+    except KeyboardInterrupt:
+        # Make sure the processes are killed when keyboardinterrupt
+        subprocess.run(["pkill", "-f", "flowstar"])
+        subprocess.run(["pkill","-f","flowstar"])
+        subprocess.run(["pkill","-f","flowstar"])
+        subprocess.run(["pkill","-f","flowstar"])
+
+        sys.exit()
+
     except Exception:
         output_flowstar = 'time-out'
         result['time-out']= True
         logging.info("flowstar time-out or other unexpected result.")
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
-    subprocess.run(["pkill","-f","flowstar"])
+
     if output_flowstar == 'time-out':
         result['sat'] = True
     if ('SAFE' in output_flowstar):

@@ -34,7 +34,7 @@ class controlloop(TimedGameAutomaton):
                  max_early=None, max_early_triggers=0, delta=None,
                  sync='up', nack='nack', ack='ack', timeout='timeout', down='down', clock='c'):
 
-        self.name = name or 'controlloop'# + shortuuid.uuid()[:6]
+        self.name = name or 'controlloop' + shortuuid.uuid()[:6]
 
         # communicating actions
         self.sync = sync
@@ -43,6 +43,7 @@ class controlloop(TimedGameAutomaton):
         self.down = down
         self.timeout = timeout
         self.max_early_triggers = max_early_triggers
+        self.abstraction = abstraction
 
         if delta is None:
             if type(abstraction) == TrafficModelLinearPETC:
@@ -92,7 +93,9 @@ class controlloop(TimedGameAutomaton):
         #     raise NotImplementedError
 
         h = abstraction.trigger.h
-
+        self.h = h
+        self.kmax = abstraction.trigger.kmax
+        self.tau_max = h*self.kmax
 
         locations = {'R' + '_'.join([str(i) for i in loc]) for loc in abstraction.regions}
         # locations = {f'R{loc[0]}' for loc in abstraction.regions}
@@ -236,6 +239,8 @@ class controlloop(TimedGameAutomaton):
                                  frozenset(), frozenset(),
                                  f'R{loc}') for location in abstraction.regions})
         else:
+            if type(initial_location) is not set:
+                initial_location = set({initial_location})
             self.locations.add(f'R0')
             transitions.update({(f'R0', True,
                                  frozenset({f'{self.from_region_decl} = {self.loc_dict[(loc := "_".join([str(i) for i in location]))]}'}),
@@ -256,6 +261,7 @@ class controlloop(TimedGameAutomaton):
         # print(locations)
         urgent = set()
 
+        self.tau_max = abstraction.heartbeat
 
         # If regions.index is [a,b]: represent regions by single number (only for assignments)
         # self.loc_dict = {r[1:]: i for (r,i) in zip(locations, range(0, len(locations)))}

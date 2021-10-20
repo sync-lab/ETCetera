@@ -96,14 +96,17 @@ class Abstraction(metaclass=ABCMeta):
         with open(os.path.join(save_path, file_name), 'wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
-    def _self_to_dict(self):
-        return self.__dict__
-
     def _export_json(self, file_name:str):
         if not file_name.endswith('.json'):
             file_name += '.json'
         with open(os.path.join(save_path, file_name), 'w') as f:
             json.dump(self.__repr__(), f)
+
+    def _export_txt(self, file_name:str):
+        if not file_name.endswith('.txt'):
+            file_name += '.json'
+        with open(os.path.join(save_path, file_name), 'w') as f:
+            f.write(str(self.__repr__()))
 
     @classmethod
     def from_bytestream_file(cls, file_name) -> 'Abstraction':

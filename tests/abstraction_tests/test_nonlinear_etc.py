@@ -93,7 +93,7 @@ class TestNonlinearETC(unittest.TestCase):
             with self.subTest(f'Region: {reg["index"]}'):
                     self.assertTrue(any([
                         x.index == reg['index'] and \
-                        x.transitions == reg['transitions'] and \
+                        set(x.transitions) == set(reg['transitions']) and \
                         abs(reg['timing_lower_bound'] - x.timing_lower_bound) <= 0.01 and \
                         abs(reg['timing_upper_bound'] - x.timing_upper_bound) <= 0.01 and \
                         reg['center'] == x.center and \
@@ -119,7 +119,7 @@ class TestNonlinearETC(unittest.TestCase):
             with self.subTest(f'Region: {reg["index"]}'):
                     self.assertTrue(any([
                         x.index == reg['index'] and \
-                        x.transitions == reg['transitions'] and \
+                        set(x.transitions) == set(reg['transitions']) and \
                         abs(reg['timing_lower_bound'] - x.timing_lower_bound) <= 0.01 and \
                         abs(reg['timing_upper_bound'] - x.timing_upper_bound) <= 0.01 and \
                         reg['center'] == x.center and \

@@ -247,9 +247,10 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
     logging.info(f"Dynamics: {dict_key_to_attrs['Dynamics']}")
     logging.info(f"State Vector: {state_vector}")
 
-    traffic = abstr.TrafficModelNonlinearETC(dict_key_to_attrs['Dynamics'], dict_key_to_attrs['Deg. of Homogeneity'],
-                                             dict_key_to_attrs['Triggering Condition'], state_vector, init_cond_symbols,
-                                             disturbance_symbols, dict_key_to_attrs['Hyperbox Disturbances'],
+
+    traffic = abstr.TrafficModelNonlinearETC(dict_key_to_attrs['Dynamics'], dict_key_to_attrs['Triggering Condition'], state_vector,
+                                             homogeneity=dict_key_to_attrs['Deg. of Homogeneity'], init_cond_symbols=init_cond_symbols,
+                                             dist_param=disturbance_symbols, dist_param_domain=dict_key_to_attrs['Hyperbox Disturbances'],
                                              homogenization_flag=is_homogenized, **dict_key_to_attrs['Solver Options'])
 
     # traffic.export(fname, 'pickle')

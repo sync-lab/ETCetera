@@ -12,7 +12,7 @@ class controlloop:
     #     if
 
     def __init__(self, abstraction: TrafficModelLinearPETC, maxLate: int = None,
-                 maxLateStates: int = None, ratio: int = 1):
+                 maxLateStates: int = None, ratio: int = 1, label_split_T=True):
 
         if not isinstance(abstraction, TrafficModelLinearPETC):
             print("Can currently only construct from 'TrafficModelLinearPETC' objects.")
@@ -22,18 +22,24 @@ class controlloop:
         #     print("Currently cannot use refined locations")
         #     raise NotImplementedError
 
-        self._h = abstraction.trigger.h
-
+        self.h = abstraction.trigger.h
+        self.kmax = abstraction.kmax
+        self._label_split = True
+        self.abstraction = abstraction # Store (reference) for later use
         # Convert the abstraction traffic model into different form
         states = dict()
 
         output_map = dict()
-        if (1,) in abstraction.regions:
-            outputs = {'T1': 0, 'T': 1}
-            ny = 2
+        if not label_split_T:
+            outputs = {}
+            ny = 0
         else:
-            outputs = {'T': 0}
-            ny = 1
+            if (1,) in abstraction.regions:
+                outputs = {'T1': 0, 'T': 1}
+                ny = 2
+            else:
+                outputs = {'T': 0}
+                ny = 1
 
         self.actions = {'w': 0, 't': 1}
         transitions = dict()
@@ -73,10 +79,14 @@ class controlloop:
                 continue
             # x = 'T' + str(i)
             x = f'T{loc_i}'
-            if i == 1:
-                add_state(x, 'T1')
+            if not label_split_T:
+                add_state(x, str(i))
             else:
-                add_state(x, 'T')
+                if i == 1:
+                    if label_split_T:
+                        add_state(x, 'T1')
+                else:
+                    add_state(x, 'T')
 
             for t in targets:
                 loc_t = '_'.join([str(l) for l in t])
@@ -84,10 +94,13 @@ class controlloop:
                 t = t[0]
                 #y = 'T' + str(t)
                 y = f'T{loc_t}'
-                if t == 1:
-                    add_state(y, 'T1')
+                if not label_split_T:
+                    add_state(x, str(i))
                 else:
-                    add_state(y, 'T')
+                    if t == 1:
+                        add_state(y, 'T1')
+                    else:
+                        add_state(y, 'T')
 
                 if u == 1:
                     # transitions.add(('T{q}'.format(q=i), 't', 'T{q}'.format(q=t)))
@@ -97,7 +110,7 @@ class controlloop:
                     # W = 'W{p},{q}'.format(p=i, q=1)
                     # out = 'W{i}'.format(i=i - 1)
                     W = f'W{loc_i},{1}'
-                    out = f'W{i-1}'
+                    out = f'{i-1}'
 
                     add_state(W, out)
 
@@ -111,7 +124,7 @@ class controlloop:
                         # W = 'W{p},{q}'.format(p=i, q=j)
                         # out = 'W{p}'.format(p=i - j)
                         W = f'W{loc_i},{j}'#.format(p=i, q=j)
-                        out = f'W{i-j}'#.format(p=i - j)
+                        out = f'{i-j}'#.format(p=i - j)
                         add_state(W, out)
                         try:
                             if i <= j:
@@ -199,7 +212,7 @@ class controlloop:
         return self._outputs
 
     def _clear_cache(self):
-        rem_attr = {'states', 'transitions', 'output_map'}
+        rem_attr = {'states', 'transitions', 'output_map', 'outputs'}
         for i in rem_attr:
             if i in self.__dict__:
                 del self.__dict__[i]
@@ -446,7 +459,6 @@ class controlloop:
         while Z != Zold:
             Zold = Z.copy()
             Z = self._bisim_operator(other, Z)
-            print(Z)
 
         return Z, (Z != set())
 
@@ -469,7 +481,6 @@ class controlloop:
             else:
                 res.add((xa, xb))
 
-        print(nres)
         return res
 
     def refine_completely(self):
@@ -491,9 +502,12 @@ class controlloop:
 
             num_its += 1
 
-        print(self.states)
+
         # Completely refined blocks
         self._states_part = part
+
+        self._clear_cache()
+
         # Create output map
         output_map = dict()
         for (k, v) in self._states_part.items():
@@ -512,6 +526,7 @@ class controlloop:
                     c = invB[y]
                     transitions[b][u].add(c)
         self._transitions_part = transitions
+        self._output_map_part = output_map
         # return controlloop(states, self.actions, transitions, outputs=self.outputs, output_map=output_map), True
 
     def _create_aux_system(self, maxLate, ratio):

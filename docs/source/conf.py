@@ -39,6 +39,7 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None), 'numpy': (
 templates_path = ['_templates']
 
 
+numfig = True
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -87,7 +88,7 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'classic'
+html_theme = 'sphinx_rtd_theme'
 # import sphinx_pdj_theme
 # html_theme = 'sphinx_pdj_theme'
 # html_theme_path = [sphinx_pdj_theme.get_html_theme_path()]

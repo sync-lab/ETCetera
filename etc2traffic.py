@@ -51,7 +51,7 @@ if __name__ == "__main__":
         re_string = '\.(json|pickle)$'
         temp = re.findall(re_string, args.output_file)
         if len(temp) > 1 or len(temp) == 0 and not args.output_type:
-            print('??Weird file??')
+            print('Please specify a correct output file type.')
 
         out_type = temp[0]
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
                 construct_linearPETC_traffic_from_file
             traffic = construct_linearPETC_traffic_from_file(input_file)
 
-        if system_type in ['nonlinear', 'nonlinear']:
+        if system_type in ['nonlinear', 'non-linear']:
             from sentient.util.construct_from_file_nonlinearETC import \
                 construct_nonlinearETC_traffic_from_file
             traffic = construct_nonlinearETC_traffic_from_file(input_file)

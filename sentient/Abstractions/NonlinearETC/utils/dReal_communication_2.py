@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-
-
+import sys
 import sympy
 import numpy as np
 import collections
@@ -82,13 +81,20 @@ def call_dReal(dreal_path, file_path, file_name="file.smt2", dreal_precision=0.0
         # dReal
         temp = [dreal_path, '--polytope', '--model', '--precision', str(dreal_precision),
                 os.path.join(file_path, file_name)]
-        # logging.info(temp)
         if t_max == None:
             outputdReal = subprocess.check_output(temp).decode("utf-8")
-            # print(outputdReal)
         else:
             outputdReal = subprocess.check_output(temp, timeout=t_max).decode("utf-8")
-            # print(outputdReal)
+
+    except KeyboardInterrupt:
+        # Make sure the processes are killed when keyboardinterrupt
+        subprocess.run(["pkill", "-f", "dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+        subprocess.run(["pkill","-f","dReal"])
+
+        sys.exit()
+
     except Exception:
         outputdReal = 'time-out'
         result['time-out'] = True
@@ -150,4 +156,7 @@ def dReal_verify(symbolic_expr, domain, domain_par, symbol_list, dReal_precision
     if result['violation'] != None and result['time-out'] == False:
         result['violation'] = readViolations(result['violation'], symbol_list)
         logging.info("Violation at" + str(result['violation']))
+
+    os.remove(os.path.join(file_path, file_name))
+
     return result
