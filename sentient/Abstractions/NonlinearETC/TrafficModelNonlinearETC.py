@@ -621,8 +621,7 @@ class TrafficModelNonlinearETC(Abstraction):
         and the number of grid points per dimension ."""
 
         if ((grid_points_per_dim == None) | (state_space_limits == None)):
-            logging.error("Error. You should specify limits of the state-space and parameters (p1,p2,...) so that it is\
-             partitioned into p1 x p2 x ... hyper-rectangles.")
+            logging.error("Error. You should specify limits of the state-space and parameters (p1,p2,...) so that it is partitioned into p1 x p2 x ... hyper-rectangles.")
             return -1
         else:
             if self.Homogenization_Flag:
@@ -945,8 +944,7 @@ class TrafficModelNonlinearETC(Abstraction):
         region_index = [0, 0]
         # for conic_domain in all_cones:
         logging.info("Constructing Regions")
-        print("\nConstructing regions as intersections of isochronous manifolds and cones,\
-        and computing overapproximations of these regions by ball segments.")
+        print("\nConstructing regions as intersections of isochronous manifolds and cones, and computing overapproximations of these regions by ball segments.")
         logging.info(manifolds_times)
         pbar1 = tqdm.tqdm(total=len(all_cones), leave=False, position=-1)
 
@@ -1040,7 +1038,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
     # TODO: find some way to speed it up (e.g. using symengine)
     def compute_mu(self):
-        print("Computing symbolic expression for the approximation of isochronous manifolds..")
+        print("Computing symbolic expression for the approximation of isochronous manifolds (this might take some time)...")
         r = self.Init_cond_domain[1][1]  # -0.00000000000000000001*self.Init_cond_domain[1][1]
         C = np.zeros(self.p, )
         C[0] = 1
