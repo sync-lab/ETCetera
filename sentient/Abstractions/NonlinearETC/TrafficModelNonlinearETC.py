@@ -18,7 +18,7 @@ import sentient.Abstractions.NonlinearETC.utils.flowstar_communication as flowst
 import sentient.Abstractions.NonlinearETC.utils.cones_lib as cones_lib
 import sentient.Abstractions.NonlinearETC.utils.lp_lib as lp_lib
 from sentient.Abstractions.NonlinearETC.utils.regions_lib import *
-import sentient.util.homogeneous as util
+import sentient.util as util
 
 from config import smt_path, dreach_path, dreal_path, flowstar_path
 
@@ -417,10 +417,11 @@ class TrafficModelNonlinearETC(Abstraction):
             iteration += 1
 
         if res_flag_final > 0:
-            logging.info('Isochronous manifolds approximated succesfully (the deltas are: {})!'.format(self.LP_data.solutions[-1][:-1]))
+            logging.info('Valid bound found!')
+            logging.info('The deltas are:{}'.format(self.LP_data.solutions[-1][:-1]))
             return 1
         else:
-            logging.info("Failed approximating isochronous manifolds.")
+            logging.info("No solution has been found. Try different LP or dReal settings")
             return -1
 
 
@@ -948,7 +949,6 @@ class TrafficModelNonlinearETC(Abstraction):
         print("\nConstructing regions as intersections of isochronous manifolds and cones, and computing overapproximations of these regions by ball segments.")
         logging.info(manifolds_times)
         pbar1 = tqdm.tqdm(total=len(all_cones), leave=False, position=-1)
-
         for idx in range(0, len(all_cones)):
             pbar1.update(1)
             conic_domain = all_cones[idx]
@@ -1026,7 +1026,7 @@ class TrafficModelNonlinearETC(Abstraction):
                                            conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
                                            contains_origin_flag, self.Homogenization_Flag)
                     self.Regions.append(copy.deepcopy(temp))
-                    pbar1.write('\nRegion {}, timing lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
+                    pbar1.write('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
                                                                                                  temp.timing_lower_bound,
                                                                                                  temp.inner_radius,
                                                                                                  temp.outer_radius))
