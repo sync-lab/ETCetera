@@ -1248,13 +1248,8 @@ class TrafficModelLinearPETC(Abstraction):
         """
         out_set = set()
 
-        try:  # Paralelization does not work in iPython
-            __IPYTHON__
-        except NameError:
-            results = Parallel(n_jobs=NUM_CORES)(
-                delayed(self._verify_sequence)(r) for r in regions)
-        else:
-            results = [self._verify_sequence(r) for r in regions]
+        results = Parallel(n_jobs=NUM_CORES)(
+            delayed(self._verify_sequence)(r) for r in tqdm(regions))
 
         extended_set = set()
         marginal_set = set()
@@ -1431,8 +1426,9 @@ class TrafficModelLinearPETC(Abstraction):
         # (complete_cost[((i,k),j)])
         complete_cost = {}  # for costs depending on reached set j.
 
-        nIK = len(R) * len(M)
-        for i, k in tqdm(itertools.product(R, M), total=nIK):
+        to_check = set()
+
+        for i, k in itertools.product(R, M):
             k_tuple = (k,)
             if type(i) is not tuple:
                 i = (i,)
@@ -1458,8 +1454,7 @@ class TrafficModelLinearPETC(Abstraction):
                 if type(j) is not tuple:
                     j = (j,)
                 if not self.cost_computation:
-                    if self._reaches(i, j, k_tuple):
-                        transition[(i, k)].add(j)
+                    to_check.add((i,j,k_tuple))
                 else:  # TODO: review this whole cost thing
                     try:
                         logging.debug('Checing transition for %d --%d-> %d',
@@ -1492,6 +1487,21 @@ class TrafficModelLinearPETC(Abstraction):
                         else:
                             raise e
                     transition[(i, k)].add(j)
+
+        # For the normal case, parallelize the transition computations
+        if not self.cost_computation:
+            results = Parallel(n_jobs=NUM_CORES)(
+                delayed(self._reaches)(i, j, k) for i, j, k in tqdm(to_check))
+            # results = [self._reaches(i, j, k)
+            #            for i, j, k in tqdm(to_check)]
+
+            for ((i, j, k_tuple), exists) in zip(to_check, results):
+                if exists:
+                    k = k_tuple[0]
+                    try:
+                        transition[(i, k)].add(j)
+                    except KeyError:
+                        transition[(i, k)] = {j}
 
         self._transition = transition
         self.complete_cost = complete_cost
