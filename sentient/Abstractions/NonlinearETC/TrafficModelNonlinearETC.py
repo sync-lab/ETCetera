@@ -392,8 +392,8 @@ class TrafficModelNonlinearETC(Abstraction):
                 break
             self.Deltas = self.LP_data.solutions[-1][:-1]  # these are the solutions found by the LP
             self.Gamma = self.LP_data.solutions[-1][-1]
-            #logging.info("Delta's: {}".format(self.Deltas))
-            #logging.info("Infinity norm: {}".format(self.Gamma))
+            logging.info("Delta's: {}".format(self.Deltas))
+            logging.info("Infinity norm: {}".format(self.Gamma))
             # Construct the UBF given the set of obtained delta's
             self.construct_UBF()
             # Verify the condition using dReal
@@ -758,14 +758,14 @@ class TrafficModelNonlinearETC(Abstraction):
             else:
                 break
 
-        #if (indicator == 'i'):
-        #    logging.info('Radius {} inner approximates manifold of time {} inside cone {}'.format(radius_check,
-        #                                                                                   manifold_time,
-        #                                                                                   conic_domain))
-        #else:
-        #    logging.info('Radius {} outer approximates manifold of time {} inside cone {}'.format(radius_check,
-        #                                                                                   manifold_time,
-        #                                                                                   conic_domain))
+        if (indicator == 'i'):
+            logging.info('Radius {} inner approximates manifold of time {} inside cone {}'.format(radius_check,
+                                                                                           manifold_time,
+                                                                                           conic_domain))
+        else:
+            logging.info('Radius {} outer approximates manifold of time {} inside cone {}'.format(radius_check,
+                                                                                           manifold_time,
+                                                                                           conic_domain))
         return radius_check
 
     def create_regions_grid(self, state_space_limits, grid_points_per_dim, manifolds_times, heartbeat):
