@@ -32,6 +32,11 @@ class controlloop:
         self._is_part = False
         self._label_split = label_split_T
 
+        self._from_enum(temp)
+
+    def _from_enum(self, clenum: cltemp):
+        temp = clenum
+
         # BDD manager
         self.bdd = _bdd.BDD()
         self.bdd.configure(reordering=True)
@@ -87,9 +92,9 @@ class controlloop:
         # Check if system is late
         if hasattr(temp, '_is_late'):
             self._is_late = True
-            self.maxLate = maxLate
-            self.maxLateStates = maxLateStates or max([i for (i,) in abstraction.regions])
-            self.ratio = ratio
+            self.maxLate = temp.maxLate
+            self.maxLateStates = temp.maxLateStates
+            self.ratio = temp.ratio
 
             # New Variables for aux. system
             nx_aux = math.ceil(math.log2(len(temp._states_aux)))
