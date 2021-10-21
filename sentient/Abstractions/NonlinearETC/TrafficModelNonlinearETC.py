@@ -304,7 +304,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
         logging.info("Approximating Isochronous Manifolds...")
         self._find_deltas(self.precision_deltas, self.timeout_deltas, 'revised simplex', Cu, Du)
-
+        logging.info("Creating Regions...")
         if (len(self.Parameters) > 0):
             logging.warning("WARNING: For perturbed systems, the only supported partitioning method is gridding.")
             self.partition_method = 'grid'
@@ -776,6 +776,7 @@ class TrafficModelNonlinearETC(Abstraction):
         Creates the objects Region_NonHomogeneous, using
         the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
         """
+        print("Constructing Regions by griding the state space, and estimating their timing lower bounds based on an isochronous manifold (the bounds will later be refined by reachability analysis)...")
         self.create_grid(state_space_limits, grid_points_per_dim)
         manifold_time = manifolds_times[-1]
         if (self.Homogenization_Flag):
@@ -816,6 +817,7 @@ class TrafficModelNonlinearETC(Abstraction):
                 temp = Region_Grid(self.State[:dimension], region_index, centroid, polytope_vertices_in_rn,
                                    halfspaces_A, halfspaces_b, lower_bound, False)
             logging.info('Region {} timing lower bound = {}'.format(region_index, lower_bound))
+            #print(('Region {} timing lower bound = {}'.format(region_index, lower_bound)))
             self.Regions.append(temp)
 
     def timing_lower_bounds_grid_manifold(self, polytope_vertices, manifold_time):
