@@ -3,6 +3,8 @@ import itertools
 from functools import cached_property
 
 from sentient.Abstractions import TrafficModelLinearPETC
+from sentient.Systems.Automata.Reduction.altsim \
+    import minimize_alternating_simulation_equivalence
 
 
 class controlloop:
@@ -548,3 +550,37 @@ class controlloop:
             else:
                 self._transitions_aux[s]['w'].add(s)
                 self._transitions_aux[s]['t'].add(s)
+
+    def reduce_altsim(self, x0=None):
+        S = self.transitions
+        H = self.output_map
+        H = {x:x[0] for x,y in H.items()}
+        X0 = {x for x in H if x[0] == 'T'}
+        if x0 is not None:
+            X0 = X0 & x0
+
+        # Remove actions with no post
+        dels = set()
+        for x, tran in S.items():
+            for u, post in tran.items():
+                if len(post) == 0:
+                    dels.add((x,u))
+        for x,u in dels:
+            del S[x][u]
+
+        # Minimize system
+        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)
+
+        # Rename states
+        names = {q:next(x for x in q) for q in Sr}
+        Sr = {names[q]:{u: {names[qp] for qp in post}
+                        for u, post in tran.items()}
+              for q,tran in Sr.items()}
+        HQ = {names[q]:y for q, y in HQ.items()}
+
+        # Push data back to control loop
+        self.states = {x:i for i,x in enumerate(Sr)}
+        self.transitions = Sr
+        self.output_map = HQ
+        self.outputs = {y for y in HQ.values()}
+        self.outputs = {y:i for i,y in enumerate(self.outputs)}
