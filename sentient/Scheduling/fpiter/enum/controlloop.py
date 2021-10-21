@@ -4,7 +4,7 @@ from functools import cached_property
 
 from sentient.Abstractions import TrafficModelLinearPETC
 from sentient.Systems.Automata.Reduction.altsim \
-    import minimize_alternating_simulation_equivalence
+    import minimize_alternating_simulation_equivalence, stats
 
 
 class controlloop:
@@ -16,7 +16,7 @@ class controlloop:
     def __init__(self, abstraction: TrafficModelLinearPETC, maxLate: int = None,
                  maxLateStates: int = None, ratio: int = 1, label_split_T=True):
 
-        if not isinstance(abstraction, TrafficModelLinearPETC):
+        if 'TrafficModelLinearPETC' not in str(type(abstraction)):
             print("Can currently only construct from 'TrafficModelLinearPETC' objects.")
             raise NotImplementedError
 
@@ -579,8 +579,12 @@ class controlloop:
         HQ = {names[q]:y for q, y in HQ.items()}
 
         # Push data back to control loop
-        self.states = {x:i for i,x in enumerate(Sr)}
-        self.transitions = Sr
-        self.output_map = HQ
-        self.outputs = {y for y in HQ.values()}
-        self.outputs = {y:i for i,y in enumerate(self.outputs)}
+        self._states = {x:i for i,x in enumerate(Sr)}
+        self._transitions = Sr
+        self._output_map = HQ
+        self._outputs = {y for y in HQ.values()}
+        self._outputs = {y:i for i,y in enumerate(self.outputs)}
+        self._clear_cache()
+
+    def stats(self, x0=set()):
+        return stats(self.transitions, x0)
