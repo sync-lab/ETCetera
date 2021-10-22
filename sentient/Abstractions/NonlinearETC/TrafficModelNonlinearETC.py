@@ -28,6 +28,7 @@ import sentient.Abstractions.NonlinearETC.utils.flowstar_communication as flowst
 import sentient.Abstractions.NonlinearETC.utils.cones_lib as cones_lib
 import sentient.Abstractions.NonlinearETC.utils.lp_lib as lp_lib
 from sentient.Abstractions.NonlinearETC.utils.regions_lib import *
+import sentient.util as util
 
 from config import smt_path, dreach_path, dreal_path, flowstar_path
 
