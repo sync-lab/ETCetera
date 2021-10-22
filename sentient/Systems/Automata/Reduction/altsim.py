@@ -9,14 +9,20 @@ Created on Fri Oct  8 10:20:35 2021
 from itertools import product, combinations, permutations
 from collections import defaultdict
 from copy import copy,deepcopy
+import logging
 
 ''' alur style '''
 
 
 def minimize_alternating_simulation_equivalence(S, H, X0):
+    logging.info('Computing maximal alternating simulation relation')
     R = maximal_alternating_simulation_relation(S, H)
+    logging.info('Obtaining the quotient system')
     SQ, HQ, simulated, RQ, S0, X0Q = make_quotient(S, H, R, X0)
+    logging.info('Removing irrational controller actions')
     Sr = remove_controller_actions(SQ, RQ)
+    logging.info('Removing irrational environment actions and unreachable'
+                 ' states')
     X0r = remove_initial_states(Sr, RQ, X0Q)
     Sr = delete_transitions(Sr, simulated, X0r)
     HQ = {q:y for q,y in HQ.items() if q in Sr}
