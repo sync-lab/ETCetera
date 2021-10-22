@@ -27,7 +27,7 @@ disturbace_limits = [[-0.1, 0.1]]
 
 import sentient.Abstractions as abstr
 
-traffic = abstr.TrafficModelNonlinearETC(dynamics, hom_degree, trigger, state_vector, homogenization_flag=True,
+traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector, hom_degree, homogenization_flag=True,
                                          state_space_limits=state_space_limits, dist_param=(d1,),
                                          dist_param_domain=disturbace_limits, order_approx=2, heartbeat=0.022,
                                          grid_points_per_dim=[3,4], partition_method='grid')
