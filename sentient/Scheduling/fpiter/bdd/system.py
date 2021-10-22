@@ -308,7 +308,7 @@ class system(abstract_system):
         v = [[[]] for i in range(0, self.ns)]  # inputs (w/t/lw)
 
         TriggerTimes = [[0] for i in range(0, self.ns)]
-        CollisionTimes = []
+        CollisionTimes = {}
 
         N = int(Tmax / Ts)  # Number of samples
 
