@@ -1,13 +1,3 @@
-"""Know issues: each variable name cannot be a part of another variable name: variables x and x0 will cause
-problems, as x0 contains x. x1 and x0 is a proper naming"""
-
-"""
-    Abstractions Tool V2:
-    -Creates Traffic Abstractions of Nonlinear Systems with model uncertainties and disturbances.
-    -In the case of Homogeneous systems, it partitions the state-space into regions delimited by isochronous manifolds
-        and cones (the number of which is specified by the user).
-    -In the case of Nonhomogeneous systems, it partitions the state space into hypercubes of equal dimensions.
-"""
 
 import numpy as np
 import scipy
@@ -113,9 +103,6 @@ class TrafficModelNonlinearETC(Abstraction):
                  precision_timing_bounds=1e-3, precision_transitions=1e-3,
                  timeout_timing_bounds=200, timeout_transitions=200, order_approx=2):
         '''
-
-
-                Solver Options:
                     precision_deltas: float>0, dreal precision for manifold approximation algorithm
                     timeout_deltas: float>0, timeout for manifold approximation algorithm
                     partition_method: str
@@ -136,7 +123,7 @@ class TrafficModelNonlinearETC(Abstraction):
                     precision_transitions: float >0, dreal precision or flowstar remainder for reach analysis for transitions
                     timeout_timing_bounds: float >0, timeout for reach analysis for timing bounds
                     timeout_transitions: float >0, timeout for reach analysis for transitions
-                '''
+        '''
         super().__init__()
         """Constructor"""
         dynamics = sympy.Matrix(dynamics)
@@ -315,8 +302,9 @@ class TrafficModelNonlinearETC(Abstraction):
         Du.append((0, None))  # no bound on the last delta
         Du = tuple(Du)
 
+        logging.info("Approximating Isochronous Manifolds...")
         self._find_deltas(self.precision_deltas, self.timeout_deltas, 'revised simplex', Cu, Du)
-
+        logging.info("Creating Regions...")
         if (len(self.Parameters) > 0):
             logging.warning("WARNING: For perturbed systems, the only supported partitioning method is gridding.")
             self.partition_method = 'grid'
@@ -345,6 +333,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
             Computes transitions for all Regions.
         """
+        print("Computing transitions...")
         dreal_precision = remainder_reach
         tau = sympy.symbols('tau')
         pbar1 = tqdm.tqdm(total=len(self.Regions), position=-1)
@@ -398,7 +387,7 @@ class TrafficModelNonlinearETC(Abstraction):
         res_flag_final = 0
         iteration = 1
         while res['sat'] == False:  # iterate until the solution is found
-            logging.info("\n Starting iteration {}".format(iteration))
+            logging.info("\nIteration {}".format(iteration))
             res_flag = self.LP_data.LP_solve(lp_method)  # first solve the LP
             if res_flag == -1:
                 break
@@ -634,7 +623,7 @@ class TrafficModelNonlinearETC(Abstraction):
         and the number of grid points per dimension ."""
 
         if ((grid_points_per_dim == None) | (state_space_limits == None)):
-            logging.error("Error. You should specify number of hypercubes and limits of the state-space.")
+            logging.error("Error. You should specify limits of the state-space and parameters (p1,p2,...) so that it is partitioned into p1 x p2 x ... hyper-rectangles.")
             return -1
         else:
             if self.Homogenization_Flag:
@@ -787,6 +776,7 @@ class TrafficModelNonlinearETC(Abstraction):
         Creates the objects Region_NonHomogeneous, using
         the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
         """
+        print("Constructing Regions by griding the state space, and estimating their timing lower bounds based on an isochronous manifold (the bounds will later be refined by reachability analysis)...")
         self.create_grid(state_space_limits, grid_points_per_dim)
         manifold_time = manifolds_times[-1]
         if (self.Homogenization_Flag):
@@ -827,6 +817,7 @@ class TrafficModelNonlinearETC(Abstraction):
                 temp = Region_Grid(self.State[:dimension], region_index, centroid, polytope_vertices_in_rn,
                                    halfspaces_A, halfspaces_b, lower_bound, False)
             logging.info('Region {} timing lower bound = {}'.format(region_index, lower_bound))
+            #print(('Region {} timing lower bound = {}'.format(region_index, lower_bound)))
             self.Regions.append(temp)
 
     def timing_lower_bounds_grid_manifold(self, polytope_vertices, manifold_time):
@@ -957,6 +948,7 @@ class TrafficModelNonlinearETC(Abstraction):
         region_index = [0, 0]
         # for conic_domain in all_cones:
         logging.info("Constructing Regions")
+        print("\nConstructing regions as intersections of isochronous manifolds and cones, and computing overapproximations of these regions by ball segments.")
         logging.info(manifolds_times)
         pbar1 = tqdm.tqdm(total=len(all_cones), leave=False, position=-1)
         for idx in range(0, len(all_cones)):
@@ -1049,7 +1041,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
     # TODO: find some way to speed it up (e.g. using symengine)
     def compute_mu(self):
-        print("Computing symbolic expression for the approximation of the isochronous manifolds..")
+        print("Computing symbolic expression for the approximation of isochronous manifolds (this might take some time)...")
         r = self.Init_cond_domain[1][1]  # -0.00000000000000000001*self.Init_cond_domain[1][1]
         C = np.zeros(self.p, )
         C[0] = 1
@@ -1132,7 +1124,8 @@ class TrafficModelNonlinearETC(Abstraction):
                     break
             lower_bound = lower_bound / 1.1
             if (lower_bound > region.timing_lower_bound):
-                logging.info('Reach. Analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+                logging.info('Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+                print('Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
                 region.timing_lower_bound = lower_bound
 
         pbar.close()
@@ -1181,13 +1174,15 @@ class TrafficModelNonlinearETC(Abstraction):
                                                    flowstar_path, smt_path, "upper_bounds.model",
                                                    time_out, precision)
                 if (not res['sat']):  # found upper bound
-                    logging.info('Region {}: Upper Bound found: {}!'.format(region.index, upper_bound))
+                    print('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
+                    logging.info('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
                     # found_bound_for_a_region = True
                     break  # terminate
                 if (res['time-out']):
                     logging.info('dReach or flowstar time out or other unexpected result. Exiting...')
                     logging.info('flowstar cannot verify this time, due to computational complexity or inexistence of timing upper bound.')
                     logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                    print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
                     upper_bound = heartbeat
                     break
 
@@ -1196,6 +1191,7 @@ class TrafficModelNonlinearETC(Abstraction):
                 if (upper_bound >= heartbeat):  # if estimate is bigger than ad-hoc heartbeat
                     upper_bound = heartbeat  # enforce heartbeat as upper bound and terminate
                     logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, upper_bound))
+                    print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
                     break
             region.insert_timing_upper_bound(upper_bound)
         pbar.close()
