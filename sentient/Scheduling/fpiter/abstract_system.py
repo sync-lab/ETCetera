@@ -121,6 +121,7 @@ class abstract_system(metaclass=ABCMeta):
 
         logging.info("Solving safety game.")
         Z = self.safety_game(W)
+        self._safeset = Z
         if Z is None:
             print("No solution to safety game found.")
             return None, None
