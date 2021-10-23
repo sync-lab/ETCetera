@@ -175,14 +175,13 @@ class system(abstract_system):
             Z_old = Z_new
             Z_r = self.bdd.let(rename, Z_old)
             Z_new = self.__safety_operator(W, Z_r)
+            # All initial states are safe?
+            X0inZ = self.bdd.forall(self.xvars,
+                                    self.bdd.apply('->', self.X0, Z_new))
+            if X0inZ == self.bdd.false:
+                return None
             it += 1
 
-
-        # All initial states are safe?
-        X0inZ = self.bdd.forall(self.xvars,
-                                self.bdd.apply('->', self.X0, Z_new))
-        if X0inZ == self.bdd.false:
-            return None
         # if Z_new == self.bdd.false:
         #     return None
 
