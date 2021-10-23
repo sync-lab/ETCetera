@@ -18,8 +18,11 @@ from ..enum import controlloop as cltemp
 class controlloop:
 
     def __init__(self, abstraction: TrafficModelLinearPETC, name: str = None, maxLate: int = None,
-                 maxLateStates: int = None, ratio: int = 1, label_split_T=True):
-        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
+                 maxLateStates: int = None, ratio: int = 1, label_split_T=True,
+                 init_steps: int = None):
+        temp = cltemp(abstraction, maxLate=maxLate, maxLateStates=maxLateStates,
+                      ratio=ratio, label_split_T=label_split_T,
+                      init_steps=init_steps)
 
         self.h = abstraction.trigger.h
         self.abstraction = abstraction
@@ -83,6 +86,13 @@ class controlloop:
             if y in {'T1', 'T'}:
                 x_enc = self.enc(self.bvars, temp._states[x])
                 self._XT_x = self.bdd.apply('|', self._XT_x, self.bdd.add_expr(x_enc))
+
+        # Create BDD INIT for whether state x is an initial state
+        self._INIT_x = self.bdd.false
+        for x in temp._initial:
+            x_enc = self.enc(self.xvars, temp._states[x])
+            self._INIT_x = self.bdd.apply('|', self._INIT_x,
+                                          self.bdd.add_expr(x_enc))
 
         #
         self._tr_b = self.bdd.false
@@ -149,6 +159,14 @@ class controlloop:
             return self._XT_x
         else:
             return self._XT_b
+
+    @property
+    def X0(self):
+        if not self._is_part:
+            return self._INIT_x
+        else:
+            # Not implemented for partition
+            return self.bdd.false
 
     def _clear_cache(self):
         if 'tr' in self.__dict__:

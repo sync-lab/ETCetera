@@ -2,11 +2,16 @@ from . import enum
 from . import bdd
 
 
-def controlloop(abstraction, maxLate: int = None, maxLateStates: int = None, ratio: int = 1, use_bdd=True, label_split_T=True):
+def controlloop(abstraction, maxLate: int = None, maxLateStates: int = None, ratio: int = 1, use_bdd=True, label_split_T=True,
+                init_steps: int = None):
     if use_bdd:
-        return bdd.controlloop(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
+        return bdd.controlloop(abstraction, maxLate=maxLate,
+                               maxLateStates=maxLateStates, ratio=ratio,
+                               label_split_T=label_split_T, init_steps=init_steps)
     else:
-        return enum.controlloop(abstraction, maxLate=maxLate, maxLateStates=maxLateStates, ratio=ratio, label_split_T=label_split_T)
+        return enum.controlloop(abstraction, maxLate=maxLate,
+                                maxLateStates=maxLateStates, ratio=ratio,
+                                label_split_T=label_split_T, init_steps=init_steps)
 
 
 def system(cl: list, trap_state=False):

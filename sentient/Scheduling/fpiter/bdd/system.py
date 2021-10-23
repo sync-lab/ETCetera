@@ -64,6 +64,7 @@ class system(abstract_system):
         tr = self.bdd.true
         XT = self.bdd.false
         Q = self.bdd.true
+        X0 = self.bdd.true
         for o in self.control_loops:
             xvars += o.xvars
             uvars += o.uvars
@@ -74,6 +75,7 @@ class system(abstract_system):
             tr = self.bdd.apply('&', tr, o.bdd.copy(o.tr, self.bdd))
             XT = self.bdd.apply('|', XT, o.bdd.copy(o.XT, self.bdd))
             Q = self.bdd.apply('&', Q, o.bdd.copy(o.Q, self.bdd))
+            X0 = self.bdd.apply('&', X0, o.bdd.copy(o.X0, self.bdd))
 
         # Modify transitions to incorporate trap state
         if self._trap_state:
@@ -111,6 +113,7 @@ class system(abstract_system):
         self.tr = tr
         self.Q = Q
         self.XT = XT
+        self.X0 = X0
         self.xvars = xvars
         self.yvars = yvars
         self.uvars = uvars
@@ -174,8 +177,14 @@ class system(abstract_system):
             Z_new = self.__safety_operator(W, Z_r)
             it += 1
 
-        if Z_new == self.bdd.false:
+
+        # All initial states are safe?
+        X0inZ = self.bdd.forall(self.xvars,
+                                self.bdd.apply('->', self.X0, Z_new))
+        if X0inZ == self.bdd.false:
             return None
+        # if Z_new == self.bdd.false:
+        #     return None
 
         return Z_new
 
