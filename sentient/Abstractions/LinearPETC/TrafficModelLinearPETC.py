@@ -380,7 +380,7 @@ class TrafficModelLinearPETC(Abstraction):
         self._initial = set()
         # self._all_regions stores all regions ever visited during the
         # algorithm execution. Essentially used for memoization
-        self._all_regions = set((k,) for k in self.K)
+        self._all_regions = set()
         # self._marginal stores regions that also satisfy the constraint
         # V(x) == 1. These regions are associated with sampling sequences
         # that ensure a reduction of the Lyapunov function by a factor of
@@ -392,6 +392,17 @@ class TrafficModelLinearPETC(Abstraction):
         # or the set related to epsilon if self._stop_around_the_origin
         # ({x in R^n: x'Px <= end_level})
         self._regions = set()
+
+        # When an external sampling strategy is given, initialize regions
+        # from it
+        if self.strat:
+            self._regions = {x+z for (x,k),y in self.strat_transition.items()
+                             for z in y}
+            self.automaton = TrafficAutomaton(self._regions, self.strat)
+
+        # With some types of abstraction, memoizing regions proven to not
+        # exist can allow us to shortcircuit some Z3 checks
+        self._non_regions = set()
 
         # If MACE equivalence is checked, memoize the behavioral cycles
         if stop_if_omega_bisimilar or stop_if_mace_equivalent:
@@ -596,8 +607,8 @@ class TrafficModelLinearPETC(Abstraction):
             new_regions = self._refinement_step(self._mac_candidates,
                                                 self.l_complete)
 
-        logging.debug(f'REGIONS: {self.regions}')
-        print('regions====', self._regions)
+        logging.debug(f'REGIONS: {self._regions}')
+        #print('regions====', self._regions)
 
         # First bisimulation stopping criterion: no new candidates are
         # generated (note: it probably never happens)
@@ -1247,13 +1258,30 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
         out_set = set()
-
-        results = Parallel(n_jobs=NUM_CORES)(
-            delayed(self._verify_sequence)(r) for r in tqdm(regions))
-
         extended_set = set()
         marginal_set = set()
         initial_set = set()
+
+        if not self.l_complete:
+            minL = min(len(x) for x in regions)
+            maxL = max(len(x) for x in regions)
+
+            if minL < maxL:
+                for l in range(minL, maxL+1):
+                    rl = set(x for x in regions if len(x) == l)
+                    if len(rl) > 0:
+                        o, e, m, i = self._verify_candidates(rl)
+                        out_set.update(o)
+                        extended_set.update(e)
+                        marginal_set.update(m)
+                        initial_set.update(i)
+                out = namedtuple("candidate_sets",
+                                 ["out", "extended", "marginal", "initial"])
+                return out(out_set, extended_set, marginal_set, initial_set)
+
+        # results = Parallel(n_jobs=NUM_CORES)(
+        #     delayed(self._verify_sequence)(r) for r in tqdm(regions))
+        results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):
             exists, inside, marginal = result
@@ -1263,10 +1291,15 @@ class TrafficModelLinearPETC(Abstraction):
                     out_set.add(r)
                     if marginal:
                         marginal_set.add(r)
+            else:
+                self._non_regions.add(r)
+
 
         for r in self._regions:
-            if all((k,) + r not in out_set for k in self.K):
+            if all((k,) + r not in out_set for k in self.K) and \
+                    all((k,) + r in regions for k in self.K):
                 initial_set.add(r)
+
 
         out = namedtuple("candidate_sets", ["out", "extended", "marginal",
                                             "initial"])
@@ -1317,6 +1350,13 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
 
+        # Most basic shortcut: s is already a region (it was not refined)
+        if s in self._all_regions:
+            exists = True
+            inside = s in self._regions
+            marginal = s in self._marginal
+            return exists, inside, marginal
+
         # This verification is a short-circuit to prevent the more expensive
         # constraint satisfaction problem described in the docstring. It
         # verifies (1) if there is only one possible successor to the current
@@ -1340,38 +1380,40 @@ class TrafficModelLinearPETC(Abstraction):
 
         # This creates a list of QuadraticForm constraints associated with
         # the sequence s.
-        con = self._add_constraints_for_region_i(s, set())
+        if self.strat:
+            con = self._add_constraints_for_region_strat(s, set())
+        else:
+            con = self._add_constraints_for_region_i(s, set())
+
+        # If we're using symbolic (exact) solving, add x'x > 0 to prevent
+        # x = zeros as a solution.
+        if self.symbolic:
+            con.add(QuadraticForm(-sympy.Identity(self.n), strict=True))
 
         # Create the (basic) quadratic problem.
-
         prob = QuadraticProblem(con, solver=self.solver)
 
         # If it has a solution, try the more specific problems
+        logging.debug(f'Verifying {s}...')
         if prob.solve():
+            logging.debug(f'... {s} exists')
             exists = True
             # Now check if initial state can belong inside {x: V(x) <= 1}
             if self.stop_around_origin:
                 # V(x) <= 1
-                new_cons = set((QuadraticForm(self.P, c=-1),))
-                # Build matrices: Mns = M(k_(m-1))@...@M(k_2)@M(k_1)
-                Mns = self._M_prod(s, len(s) - 1)
-                # Ms = M(k_m)@M(k_(m-1))@...@M(k_2)@M(k_1)
-                Ms = self.M[s[-1]] @ Mns
-                # Last point of the trajectory should be in target set
-                new_cons.add(QuadraticForm(Ms.T @ self.P @ Ms, c=-self.end_level))
-                # The one before the last should not!
-                new_cons.add(QuadraticForm(-Mns.T @ self.P @ Mns, c=self.end_level,
-                                           strict=True))
+                new_cons = self._add_reach_ball_constraints(s, set())
                 prob.add_constraints(new_cons)
                 if prob.solve():  # Solved again? Try the marginal condition
                     inside = True
                     # Now check if there exists x: V(x) = 1
-                    new_cons = set((QuadraticForm(-self.P, c=1),))  # V(x) >= 1
+                    new_cons = set((QuadraticForm(-self.P, c=1),)) # V(x) >= 1
                     prob.add_constraints(new_cons)
                     if prob.solve():
                         marginal = True
             else:  # If not self.stop_around_the_origin, set the others True
                 inside, marginal = True, True
+        else:
+            logging.debug(f'... {s} does not exist')
 
         out = namedtuple("result", ["exists", "inside", "marginal"])
         return out(exists, inside, marginal)
