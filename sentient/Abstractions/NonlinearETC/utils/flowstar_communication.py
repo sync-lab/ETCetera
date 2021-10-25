@@ -114,7 +114,7 @@ def call_flowstar(flowstar_path,file_path,file_name ="file.model", time_out = No
     return result    
 
 def flowstar_verify(init_box, goal_symbolic, time_max, symbol_list, dynamics, parameter_list, parameter_box,\
-                  flowstar_path,file_path,file_name ="file.model", time_out = None, remainder = 1e-1,):
+                  flowstar_path,file_path,file_name ="file.model", time_out = None, remainder = 1e-1):
     # Check file suffix
     if not file_name.endswith('.model'):
         file_name = file_name + '.model'
@@ -122,6 +122,11 @@ def flowstar_verify(init_box, goal_symbolic, time_max, symbol_list, dynamics, pa
     write_model_file(init_box, goal_symbolic, time_max, symbol_list, dynamics, parameter_list, parameter_box, remainder, file_path,file_name)
     
     result = call_flowstar(flowstar_path,file_path,file_name, time_out)
+
+    for fname in os.listdir(file_path):
+        if fname.startswith(os.path.splitext(file_name)):
+            os.remove(os.path.join(file_path, fname))
+
     return result
     
     

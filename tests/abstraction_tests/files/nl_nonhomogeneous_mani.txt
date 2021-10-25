@@ -1,7 +1,7 @@
 Hyperbox States: [-2 2], [-2 2]
 Grid Points Per Dimension: [3 3]
-Dynamics : -x1*w1**2, x1**2*x2 + x2**3 + u1
-Controller: -x2*w1**2 - x1**2*x2 - x2**3
-Triggering Condition : e1**2 + e2**2 - 0.01**2*w1**2
+Dynamics : -x1, x1**2*x2 + x2**3 + u1
+Controller: -x2 - x1**2*x2 - x2**3
+Triggering Condition : e1**2 + e2**2 - 0.01**2
 
-Solver Options : partition_method=manifold, manifolds_times=[0.0028, 0.0065], heartbeat=0.021, order_approx=4, precision_deltas=0.001
+Solver Options : partition_method=manifold, manifolds_times=[0.002 0.0028 0.0038 0.005 0.0065 0.0075], heartbeat=0.021, order_approx=4
