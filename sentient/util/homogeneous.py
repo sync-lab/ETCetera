@@ -2,7 +2,7 @@ import sympy
 from typing import List, Union
 import logging
 
-def test_homogeneity(exprs: Union[List[sympy.And], sympy.Matrix], vars: List[sympy.Symbol]):
+def test_homogeneity(exprs: Union[List[sympy.And], sympy.Matrix], vars: List[sympy.Symbol], trigger=None):
     """
     Tests whether dynamics are homogeneous. If so, return also the homogeneity degree.
     @param exprs: List of sympy expressions representing the ETC dynamics. Same length as vars.
@@ -21,10 +21,16 @@ def test_homogeneity(exprs: Union[List[sympy.And], sympy.Matrix], vars: List[sym
     if type(exprs) == list:
         exprs = sympy.Matrix(exprs)
 
+    if type(exprs) == sympy.Add:
+        a2 = l ** (alpha + 1) * exprs
+    else:
+        a2 = sympy.Matrix([l ** (alpha + 1) * x for x in exprs])
+
     a1 = exprs.subs(dic)
-    a2 = sympy.Matrix([l**(alpha+1)*x for x in exprs])
+    # a2 = sympy.Matrix([l**(alpha+1)*x for x in exprs])
 
     res = sympy.solve(a1 - a2, alpha)
+
     if res != []:
         res = sympy.simplify(res[0][0])
         logging.info(f'Alpha solution: {res}')

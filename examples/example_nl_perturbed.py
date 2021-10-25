@@ -13,11 +13,6 @@ x1dot = -x1
 x2dot = x1**2*x2 + x2**3 + u1 + d1
 dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 
-# Make the system homogeneous (with degree 2)
-hom_degree = 2
-dynamics, state_vector = utils.make_homogeneous_etc(dynamics, state_vector, hom_degree)
-dynamics = sympy.Matrix(dynamics)
-
 # Triggering condition & other etc.
 trigger = e1 ** 2 + e2 ** 2 - (x1 ** 2 + x2 ** 2) * (0.0127 * 0.3) ** 2
 
@@ -27,10 +22,10 @@ disturbace_limits = [[-0.1, 0.1]]
 
 import sentient.Abstractions as abstr
 
-traffic = abstr.TrafficModelNonlinearETC(dynamics, hom_degree, trigger, state_vector, homogenization_flag=True,
+traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector,
                                          state_space_limits=state_space_limits, dist_param=(d1,),
                                          dist_param_domain=disturbace_limits, order_approx=2, heartbeat=0.022,
-                                         grid_points_per_dim=[3,4], partition_method='grid')
+                                         grid_points_per_dim=[7,8], partition_method='grid', precision_deltas=1e-6)
 regions, transitions = traffic.create_abstraction()
 # Result: {}
 
