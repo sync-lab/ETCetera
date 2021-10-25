@@ -1,8 +1,0 @@
-Hyperbox States : [-2 2], [-2 2]
-Grid Points Per Dimension: [7 8]
-Hyperbox Disturbances : [-0.1 0.1]
-Dynamics : -x1*w1**2, x1**2*x2 + x2**3 + u1 + d1*w1**3, 0
-Controller : -x2*w1**2 - x1**2*x2 - x2**3
-Triggering Condition : e1**2 + e2**2 - 0.01**2*w1**2
-Deg. of Homogeneity: 2
-Solver Options : partition_method=grid, heart_beat=0.022, precision_deltas=0.01, timeout_transitions=300, timeout_deltas=1000, timeout_timing_bounds=300

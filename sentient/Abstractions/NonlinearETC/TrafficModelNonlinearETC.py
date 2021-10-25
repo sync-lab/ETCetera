@@ -21,6 +21,7 @@ import sentient.Abstractions.NonlinearETC.utils.flowstar_communication as flowst
 import sentient.Abstractions.NonlinearETC.utils.cones_lib as cones_lib
 import sentient.Abstractions.NonlinearETC.utils.lp_lib as lp_lib
 from sentient.Abstractions.NonlinearETC.utils.regions_lib import *
+from sentient.exceptions import *
 import sentient.util as util
 
 from config import smt_path, dreach_path, dreal_path, flowstar_path
@@ -101,7 +102,7 @@ class TrafficModelNonlinearETC(Abstraction):
                  state, homogeneity=2, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
                  homogenization_flag=False,  # Following are solver options
                  precision_deltas=1e-7, timeout_deltas=1000, partition_method='grid',
-                 manifolds_times=None, nr_cones_small_angles=None, nr_cones_big_angle=6,
+                 manifolds_times=None, angles_discretization=None,
                  state_space_limits=None, grid_points_per_dim=None, heartbeat=0.1,
                  precision_timing_bounds=1e-3, precision_transitions=1e-3,
                  timeout_timing_bounds=200, timeout_transitions=200, order_approx=4, parallel=False):
@@ -136,7 +137,7 @@ class TrafficModelNonlinearETC(Abstraction):
             dynamics += [-1 * expr for expr in dynamics]
 
         dynamics = sympy.Matrix(dynamics)
-        hom_deg = util.test_homogeneity(dynamics, state+dist_param)
+        hom_deg = util.test_homogeneity(dynamics, state)
 
         if hom_deg is None:
             print(f'Dynamics {dynamics} are not yet homogeneous.')
@@ -223,8 +224,21 @@ class TrafficModelNonlinearETC(Abstraction):
         self.precision_deltas = precision_deltas;
         self.timeout_deltas = timeout_deltas
         self.partition_method = partition_method;
-        self.nr_cones_small_angles = nr_cones_small_angles or [4] * (len(original_dynamics) // 2 - 2)
-        self.nr_cones_big_angle = nr_cones_big_angle;
+        if angles_discretization is not None:
+            if type(angles_discretization) != list:
+                angles_discretization = [angles_discretization]
+            if len(angles_discretization) != len(original_state)//2 - 1:
+                print(f'Not enough angle discretizations given. Expected: {len(original_state)//2 - 1}, Found: {len(angles_discretization)}')
+                raise IncorrectNumberOfItemsInListException('angles_discretization', len(original_state)//2 - 1, len(angles_discretization))
+
+            self.nr_cones_small_angles = angles_discretization[1:]
+            self.nr_cones_big_angle = angles_discretization[0]
+        else: # Set default
+            self.nr_cones_small_angles = [4] * (len(original_dynamics) // 2 - 2); self.nr_cones_big_angle = 6
+
+
+        # self.nr_cones_small_angles = nr_cones_small_angles or [4] * (len(original_dynamics) // 2 - 2)
+        # self.nr_cones_big_angle = nr_cones_big_angle;
         self.state_space_limits = state_space_limits or [[-1, 1]] * (len(original_dynamics) // 2)
         self.grid_points_per_dim = grid_points_per_dim or [5] * (len(original_dynamics) // 2);
         self.heartbeat = heartbeat
@@ -248,6 +262,9 @@ class TrafficModelNonlinearETC(Abstraction):
         logging.info(f'State space limits: {self.state_space_limits}')
         logging.info(f'Precision deltas: {self.precision_deltas}')
         logging.info(f'Grid points per dim: {self.grid_points_per_dim}')
+        logging.info(f'big_angles: {self.nr_cones_big_angle}')
+        logging.info(f'small angles: {self.nr_cones_small_angles}')
+
 
     def __repr__(self):
         temp = dict()

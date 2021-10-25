@@ -14,7 +14,7 @@ x2dot = x1**2*x2 + x2**3 + u1 + d1
 dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 
 # Triggering condition & other etc.
-trigger = e1 ** 2 + e2 ** 2 - (x1 ** 2 + x2 ** 2) * (0.0127 * 0.3) ** 2
+trigger = e1 ** 2 + e2 ** 2 - 0.0162**2
 
 # State space limits
 state_space_limits = [[-2.5, 2.5], [-2.5, 2.5]]

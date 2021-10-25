@@ -20,8 +20,7 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
                          'Hyperbox States': None, 'Grid Points Per Dimension': None, 'Hyperbox Disturbances': None,
                          'Solver Options': {'precision_deltas': 1e-7, 'timeout_deltas': 1000,
                                             'partition_method': 'grid',
-                                            'manifolds_times': None, 'nr_cones_small_angles': [],
-                                            'nr_cones_big_angle': 6,
+                                            'manifolds_times': None, 'angles_discretization': None,
                                             'state_space_limits': None, 'grid_points_per_dim': None, 'heartbeat': 0.1,
                                             'precision_timing_bounds': 1e-3, 'precision_transitions': 1e-3,
                                             'timeout_timing_bounds': 200, 'timeout_transitions': 200,
@@ -136,13 +135,16 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
 
     if dict_key_to_attrs['Solver Options']['partition_method'] == 'manifold':
         # Number of values for 'nr_cones_small_angles' should be equal to num of 'x' variables
-        if not dict_key_to_attrs['Solver Options']['nr_cones_small_angles']:
-            # If not user specified, create list of len of 'x'
-            dict_key_to_attrs['Solver Options']['nr_cones_small_angles'] = [4] * (len(dict_symbol_to_attr['x']) - 2)
-        elif (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']):
-            raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
-                                    len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
-
+        # if not dict_key_to_attrs['Solver Options']['nr_cones_small_angles']:
+        #     # If not user specified, create list of len of 'x'
+        #     dict_key_to_attrs['Solver Options']['nr_cones_small_angles'] = [4] * (len(dict_symbol_to_attr['x']) - 2)
+        # elif (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']):
+        #     raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
+        #                             len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
+        # if dict_key_to_attrs['Solver Options']['angles_discretization'] is not None and \
+        #         (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['angles_discretization']):
+        #     raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
+        #                                 len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
         if not dict_key_to_attrs['Solver Options']['manifolds_times']:
             raise IncompleteInputFileException(['manifolds_times'])
         elif len(dict_key_to_attrs['Solver Options']['manifolds_times']) == 1:
@@ -175,12 +177,12 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
         xwvars = list(dict_symbol_to_attr['x'])
         xwvars += list(dict_symbol_to_attr['w'])
         xwvars += list(dict_symbol_to_attr['e'])
-        xwvars += list(dict_symbol_to_attr['d'])
+        # xwvars += list(dict_symbol_to_attr['d'])
         xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
         logging.info(f'XW vars: {xwvars}')
         # alpha = test_homogeneity(dict_key_to_attrs['Dynamics'], xwvars)
         alpha = test_homogeneity(dynamics_new, xwvars)
-        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and int(x) != alpha:
+        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and alpha is not None and int(x) != alpha:
             logging.warning(f'Warning: Specified Deg. of Homogeneity {int(x)} does not match the calculated one: {alpha}' \
             'Using the specified one.')
         if dict_key_to_attrs['Deg. of Homogeneity'] is None:
@@ -202,7 +204,7 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
         xwvars = list(dict_symbol_to_attr['x'])
         xwvars += list(dict_symbol_to_attr['w'])
         xwvars += list(dict_symbol_to_attr['e'])
-        xwvars += list(dict_symbol_to_attr['d'])
+        # xwvars += list(dict_symbol_to_attr['d'])
         xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
         alpha = test_homogeneity(dynamics_new, xwvars)
         if alpha:
