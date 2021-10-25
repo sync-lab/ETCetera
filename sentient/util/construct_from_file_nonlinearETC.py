@@ -175,12 +175,12 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
         xwvars = list(dict_symbol_to_attr['x'])
         xwvars += list(dict_symbol_to_attr['w'])
         xwvars += list(dict_symbol_to_attr['e'])
-        xwvars += list(dict_symbol_to_attr['d'])
+        # xwvars += list(dict_symbol_to_attr['d'])
         xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
         logging.info(f'XW vars: {xwvars}')
         # alpha = test_homogeneity(dict_key_to_attrs['Dynamics'], xwvars)
         alpha = test_homogeneity(dynamics_new, xwvars)
-        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and int(x) != alpha:
+        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and alpha is not None and int(x) != alpha:
             logging.warning(f'Warning: Specified Deg. of Homogeneity {int(x)} does not match the calculated one: {alpha}' \
             'Using the specified one.')
         if dict_key_to_attrs['Deg. of Homogeneity'] is None:
@@ -202,7 +202,7 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
         xwvars = list(dict_symbol_to_attr['x'])
         xwvars += list(dict_symbol_to_attr['w'])
         xwvars += list(dict_symbol_to_attr['e'])
-        xwvars += list(dict_symbol_to_attr['d'])
+        # xwvars += list(dict_symbol_to_attr['d'])
         xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
         alpha = test_homogeneity(dynamics_new, xwvars)
         if alpha:
