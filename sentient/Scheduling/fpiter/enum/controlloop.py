@@ -595,7 +595,9 @@ class controlloop:
             del S[x][u]
 
         # Minimize system
-        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)
+        # Hrel = {('T', 'T'), ('W','W'), ('T','W')}
+        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)#,
+                                                                  #Hrel=Hrel)
 
         # Rename states
         names = {q:next(x for x in q) for q in Sr}

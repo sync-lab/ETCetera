@@ -14,13 +14,17 @@ import logging
 ''' alur style '''
 
 
-def minimize_alternating_simulation_equivalence(S, H, X0):
+def minimize_alternating_simulation_equivalence(S, H, X0, Hrel=None):
     logging.info('Computing maximal alternating simulation relation')
-    R = maximal_alternating_simulation_relation(S, H)
+    R = maximal_alternating_simulation_relation(S, H, Hrel=Hrel)
     logging.info('Obtaining the quotient system')
     SQ, HQ, simulated, RQ, S0, X0Q = make_quotient(S, H, R, X0)
     logging.info('Removing irrational controller actions')
     Sr = remove_controller_actions(SQ, RQ)
+    Sr1 = Sr.copy()
+    Sr = remove_controller_actions(Sr, RQ)
+    if Sr1 != Sr:
+        raise Exception('Fudeu')
     logging.info('Removing irrational environment actions and unreachable'
                  ' states')
     X0r = remove_initial_states(Sr, RQ, X0Q)
@@ -29,9 +33,14 @@ def minimize_alternating_simulation_equivalence(S, H, X0):
     return Sr, HQ, X0r
 
 
-def initial_alternating_sim(H, H2):
-    return set((x1,x2) for x1,y1 in H.items() for x2,y2 in H2.items()
-               if y1 == y2)
+def initial_alternating_sim(H, H2, Hrel=None):
+    #print(Hrel)
+    if Hrel is None:
+        return set((x1,x2) for x1,y1 in H.items() for x2,y2 in H2.items()
+                   if y1 == y2)
+    else:
+        return set((x1,x2) for x1,y1 in H.items() for x2,y2 in H2.items()
+                   if (y1,y2) in Hrel)
 
 
 def is_alternating(xa, xb, R, Sa, Sb):
@@ -52,12 +61,12 @@ def is_alternating(xa, xb, R, Sa, Sb):
     return True
 
 
-def maximal_alternating_simulation_relation(S, H, S2=None, H2=None):
+def maximal_alternating_simulation_relation(S, H, Hrel=None, S2=None, H2=None):
     if S2 is None:
         S2 = S
         H2 = H
 
-    R = initial_alternating_sim(H, H2)
+    R = initial_alternating_sim(H, H2, Hrel=Hrel)
 
     while True:
         Rnew = set()
