@@ -136,7 +136,7 @@ class TrafficModelNonlinearETC(Abstraction):
             dynamics += [-1 * expr for expr in dynamics]
 
         dynamics = sympy.Matrix(dynamics)
-        hom_deg = util.test_homogeneity(dynamics, state+dist_param)
+        hom_deg = util.test_homogeneity(dynamics, state)
 
         if hom_deg is None:
             print(f'Dynamics {dynamics} are not yet homogeneous.')
