@@ -1279,9 +1279,9 @@ class TrafficModelLinearPETC(Abstraction):
                                  ["out", "extended", "marginal", "initial"])
                 return out(out_set, extended_set, marginal_set, initial_set)
 
-        # results = Parallel(n_jobs=NUM_CORES)(
-        #     delayed(self._verify_sequence)(r) for r in tqdm(regions))
-        results = [self._verify_sequence(r) for r in tqdm(regions)]
+        results = Parallel(n_jobs=NUM_CORES)(
+            delayed(self._verify_sequence)(r) for r in tqdm(regions))
+        # results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):
             exists, inside, marginal = result
