@@ -11,9 +11,7 @@ gcc
 g++
 libpq-dev
 python3.8-dev
-python3.8-pip
 python3.8-venv
-python3.8-wheel
 libgmp3-dev
 libmpfr-dev
 libgsl0-dev
