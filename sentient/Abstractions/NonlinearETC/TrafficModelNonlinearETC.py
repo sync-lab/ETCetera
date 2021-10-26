@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy
 import math
@@ -250,8 +249,8 @@ class TrafficModelNonlinearETC(Abstraction):
             print("Warning: parallelization is still being tested, so use at your own risk..")
 
         if not self.Homogenization_Flag and partition_method == 'manifold' and grid_points_per_dim is not None:
-            logging.warning('For homogeneous systems with partition manifold, the parameter grid points per dimension is not used.')
-            print('For homogeneous systems with partition manifold, the parameter grid points per dimension is not used.')
+            logging.warning('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dime is not used.')
+            print('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dim is not used.')
 
         logging.info(f'Original State Vector: {original_state}')
         logging.info(f'Original Dynamics: {original_dynamics}')
