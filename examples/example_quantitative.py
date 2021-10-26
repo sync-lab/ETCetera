@@ -1,7 +1,7 @@
 import numpy as np
-import logging
+# import logging
 
-logging.getLogger().setLevel(logging.INFO)
+# logging.getLogger().setLevel(logging.INFO)
 
 # Define LTI system matrices
 A = np.array([[0, 1], [-2, 3]])
@@ -69,6 +69,7 @@ traffic2 = abstr.TrafficModelLinearPETC(trigger,
                                         strategy=strat,  # <--
                                         strategy_transition=strat_tran)  # <--
 
+regions2, transitions2 = traffic2.create_abstraction()
+
 print(f'Optimized SAIST is {traffic2.limavg}')
-print(f'Smallest average cycles: {traffic.cycles}')
 

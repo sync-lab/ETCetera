@@ -394,13 +394,6 @@ class TrafficModelLinearPETC(Abstraction):
         # ({x in R^n: x'Px <= end_level})
         self._regions = set()
 
-        # When an external sampling strategy is given, initialize regions
-        # from it
-        if self.strat:
-            self._regions = {x+z for (x,k),y in self.strat_transition.items()
-                             for z in y}
-            self.automaton = TrafficAutomaton(self._regions, self.strat)
-
         # With some types of abstraction, memoizing regions proven to not
         # exist can allow us to shortcircuit some Z3 checks
         self._non_regions = set()
@@ -585,9 +578,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(start, self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
 
         self._clear_cache()
 
@@ -609,9 +605,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
         # if self.symbolic:
         #     self._convert_MQP_to_numeric()
 
@@ -626,7 +625,12 @@ class TrafficModelLinearPETC(Abstraction):
             self._mac_candidates = None
 
         # Main refinement algorithm
-        if self.strat and self.depth == 1:
+        if self.strat and self._d == 0:
+            # When an external sampling strategy is given, initialize regions
+            # from it
+            self._regions = {x+z for (x,k),y in self.strat_transition.items()
+                             for z in y}
+            self.automaton = TrafficAutomaton(self._regions, self.strat)
             new_regions = self._regions
         else:
             new_regions = self._refinement_step(self._mac_candidates,
@@ -1644,6 +1648,24 @@ class TrafficModelLinearPETC(Abstraction):
                         con.add(QuadraticForm(MQM.copy()))
         return con
 
+    def _add_constraints_for_region_strat(self, i_tuple, con):
+        # Now consider a strategy strat : tuple -> k
+        # i_tuple is a tuple of tuples t0, t1, ...
+        # x in Q_t0
+        # M[k_0]x in Q_t1
+        # M[k_1]M[k_0] in Q_t2 ...
+
+        it = iter(i_tuple)
+        t0 = next(it)
+
+        con = self._add_constraints_for_region_i(t0, con)
+        k = (self.strat[t0],)
+        for t in it:
+            con = self._add_constraints_for_reaching_j_after_k(t, k, con)
+            k += (self.strat[t],)
+
+        return con
+
     def _M_prod(self, i_tuple, l):
         """
         Computes the product of M(k) for k in i_tuple
@@ -2063,8 +2085,13 @@ class TrafficModelLinearPETC(Abstraction):
         self.complete_transition = complete_transition
 
     def is_related(self, x: np.array, s: tuple):
-        return all(x in Q
-                   for Q in self._add_constraints_for_region_i(s, set()))
+        if self.strat:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_strat(s,
+                                                                       set()))
+        else:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_i(s, set()))
 
     def region_of_state(self, x: np.array):
         """ Determines which region state x belongs
@@ -2082,10 +2109,25 @@ class TrafficModelLinearPETC(Abstraction):
         """
 
         # TODO: use a tree search instead.
-        for k in sorted(self._regions):
-            if self.is_related(x, k):
-                return k
-        raise ETCAbstractionError('State %s belongs to no region', str(x))
+        r = []
+        for d in range(self.final_depth+1):
+            for k in self.K:
+                if self.is_related(x, (k,)):
+                    x = self.M[k] @ x
+                    r.append(k)
+                    if tuple(r) in self._regions:
+                        return tuple(r)
+                    break
+        r = tuple(r)
+        if r not in self.regions:
+            raise ETCAbstractionError('State %s belongs to no region. '
+                                      'Region would be %s', str(x), str(r))
+        return r
+
+        # for k in sorted(self.regions):
+        #     if self.is_related(x, k):
+        #         return k
+        # raise ETCAbstractionError('State %s belongs to no region', str(x))
 
     def level_of_state(self, x: np.array):
         """ Determines the Lyapunov level where state x belongs.
