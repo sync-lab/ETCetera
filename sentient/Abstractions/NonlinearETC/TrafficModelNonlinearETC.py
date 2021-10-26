@@ -139,8 +139,20 @@ class TrafficModelNonlinearETC(Abstraction):
         hom_deg = util.test_homogeneity(dynamics, state)
 
         if hom_deg is None:
+            # Calculate order of system
+            try:
+                sym_x = sympy.symbols('x')
+                poly = [expr.subs({x: sym_x for x in dynamics.free_symbols}) for expr in dynamics]
+                default_hom = max([sympy.degree(expr, gen=sym_x) for expr in poly])
+            except Exception:
+                print("Finding highest order failed... use 2 for homogeneity degree")
+                default_hom = 2
+
+            if homogeneity is None:
+                homogeneity = default_hom
+
             print(f'Dynamics {dynamics} are not yet homogeneous.')
-            print(f'Make Homogeneous with degree {homogeneity} (Default: 2)')
+            print(f'Make Homogeneous with degree {homogeneity} (Default: {default_hom})')
 
             # Make homogeneous (default: 2)
             dynamics, state, trigger = util.make_homogeneous_etc(dynamics, state, homogeneity or 2, trigger=trigger)
