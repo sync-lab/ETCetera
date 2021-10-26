@@ -163,15 +163,21 @@ def parse_nonlinear(line):
                     values = list(filter(None, values))
                     if len(values) > 0:
                         solver_options.update({key: [float(v) for v in values]})
-                elif key == 'nr_cones_small_angles':
-                    values = re.search('\[(.*)]', value).group(1)
+                elif key == 'angles_discretization':
+                    values = re.search('\[([0-9 ]*)]', value).group(1)
                     values = values.strip().split(' ')
                     values = list(filter(None, values))
                     if len(values) > 0:
-                        sc.check_if_numerical_values(values)
-                        solver_options.update({key: [int(i) for i in values]})
-                elif key == 'nr_cones_big_angle':
-                    solver_options.update({key: int(value)})
+                        solver_options.update({key: [int(v) for v in values]})
+                # elif key == 'nr_cones_small_angles':
+                #     values = re.search('\[(.*)]', value).group(1)
+                #     values = values.strip().split(' ')
+                #     values = list(filter(None, values))
+                #     if len(values) > 0:
+                #         sc.check_if_numerical_values(values)
+                #         solver_options.update({key: [int(i) for i in values]})
+                # elif key == 'nr_cones_big_angle':
+                #     solver_options.update({key: int(value)})
                 # elif key == 'state_space_limits':
                 #     hyperbox_states = []
                 #     try:

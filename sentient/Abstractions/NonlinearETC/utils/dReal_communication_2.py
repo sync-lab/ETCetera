@@ -157,6 +157,8 @@ def dReal_verify(symbolic_expr, domain, domain_par, symbol_list, dReal_precision
         result['violation'] = readViolations(result['violation'], symbol_list)
         logging.info("Violation at" + str(result['violation']))
 
-    os.remove(os.path.join(file_path, file_name))
+    for fname in os.listdir(file_path):
+        if fname.startswith(os.path.splitext(file_name)):
+            os.remove(os.path.join(file_path, fname))
 
     return result

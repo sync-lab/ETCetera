@@ -18,14 +18,13 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
     dict_key_to_attrs = {'Dynamics': None, 'Controller': None, 'Deg. of Homogeneity': None,
                          'Triggering Condition': None,
                          'Hyperbox States': None, 'Grid Points Per Dimension': None, 'Hyperbox Disturbances': None,
-                         'Solver Options': {'precision_deltas': 1e-4, 'timeout_deltas': 1000,
+                         'Solver Options': {'precision_deltas': 1e-7, 'timeout_deltas': 1000,
                                             'partition_method': 'grid',
-                                            'manifolds_times': None, 'nr_cones_small_angles': [],
-                                            'nr_cones_big_angle': 5,
+                                            'manifolds_times': None, 'angles_discretization': None,
                                             'state_space_limits': None, 'grid_points_per_dim': None, 'heartbeat': 0.1,
                                             'precision_timing_bounds': 1e-3, 'precision_transitions': 1e-3,
                                             'timeout_timing_bounds': 200, 'timeout_transitions': 200,
-                                            'order_approx': 2}}
+                                            'order_approx': 4}}
 
 
 
@@ -136,13 +135,16 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
 
     if dict_key_to_attrs['Solver Options']['partition_method'] == 'manifold':
         # Number of values for 'nr_cones_small_angles' should be equal to num of 'x' variables
-        if not dict_key_to_attrs['Solver Options']['nr_cones_small_angles']:
-            # If not user specified, create list of len of 'x'
-            dict_key_to_attrs['Solver Options']['nr_cones_small_angles'] = [4] * (len(dict_symbol_to_attr['x']) - 2)
-        elif (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']):
-            raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
-                                    len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
-
+        # if not dict_key_to_attrs['Solver Options']['nr_cones_small_angles']:
+        #     # If not user specified, create list of len of 'x'
+        #     dict_key_to_attrs['Solver Options']['nr_cones_small_angles'] = [4] * (len(dict_symbol_to_attr['x']) - 2)
+        # elif (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']):
+        #     raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
+        #                             len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
+        # if dict_key_to_attrs['Solver Options']['angles_discretization'] is not None and \
+        #         (len(dict_symbol_to_attr['x']) - 2) != len(dict_key_to_attrs['Solver Options']['angles_discretization']):
+        #     raise IncorrectNumberOfItemsInListException('x', len(dict_symbol_to_attr['x']) - 2,
+        #                                 len(dict_key_to_attrs['Solver Options']['nr_cones_small_angles']))
         if not dict_key_to_attrs['Solver Options']['manifolds_times']:
             raise IncompleteInputFileException(['manifolds_times'])
         elif len(dict_key_to_attrs['Solver Options']['manifolds_times']) == 1:
@@ -175,11 +177,12 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
         xwvars = list(dict_symbol_to_attr['x'])
         xwvars += list(dict_symbol_to_attr['w'])
         xwvars += list(dict_symbol_to_attr['e'])
+        # xwvars += list(dict_symbol_to_attr['d'])
         xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
         logging.info(f'XW vars: {xwvars}')
         # alpha = test_homogeneity(dict_key_to_attrs['Dynamics'], xwvars)
         alpha = test_homogeneity(dynamics_new, xwvars)
-        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and int(x) != alpha:
+        if (x := dict_key_to_attrs['Deg. of Homogeneity']) is not None and alpha is not None and int(x) != alpha:
             logging.warning(f'Warning: Specified Deg. of Homogeneity {int(x)} does not match the calculated one: {alpha}' \
             'Using the specified one.')
         if dict_key_to_attrs['Deg. of Homogeneity'] is None:
@@ -190,29 +193,33 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
             dynamics_new.insert(len(dict_symbol_to_attr['x']), 0)
             dynamics_new += [0]
 
+    ## Now performs hom. checks in TrafficModelNonlinearETC constructor
     else:
-        # First check whether the system is then homogeneous already. If no homogenize itself with desired hom. degree
-        # (Deg. of Homogeneity)
-        # xwvars = dict_symbol_to_attr['x'].copy()
-        # xwvars.update(dict_symbol_to_attr['w'])
-        # xwvars.update(dict_symbol_to_attr['e'])
-        # xwvars = {sympy.Symbol(i) if type(i) is str else i for i in xwvars}
-
-        xwvars = list(dict_symbol_to_attr['x'])
-        xwvars += list(dict_symbol_to_attr['w'])
-        xwvars += list(dict_symbol_to_attr['e'])
-        xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
-        alpha = test_homogeneity(dynamics_new, xwvars)
-        if alpha:
-            is_homogenized = False
-
-        else:
-            is_homogenized = True
-            des_deg = dict_key_to_attrs['Deg. of Homogeneity'] or 2
-            dynamics_new, b = make_homogeneous_etc(dynamics_new, list(xwvars), des_deg)
-            dict_symbol_to_attr['w'].add('w1')
-            dict_symbol_to_attr['e'].add('ew')
-            dict_key_to_attrs['Deg. of Homogeneity'] = des_deg
+        is_homogenized = False
+    # else:
+    #     # First check whether the system is then homogeneous already. If no homogenize itself with desired hom. degree
+    #     # (Deg. of Homogeneity)
+    #     # xwvars = dict_symbol_to_attr['x'].copy()
+    #     # xwvars.update(dict_symbol_to_attr['w'])
+    #     # xwvars.update(dict_symbol_to_attr['e'])
+    #     # xwvars = {sympy.Symbol(i) if type(i) is str else i for i in xwvars}
+    #
+    #     xwvars = list(dict_symbol_to_attr['x'])
+    #     xwvars += list(dict_symbol_to_attr['w'])
+    #     xwvars += list(dict_symbol_to_attr['e'])
+    #     # xwvars += list(dict_symbol_to_attr['d'])
+    #     xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
+    #     alpha = test_homogeneity(dynamics_new, xwvars)
+    #     if alpha:
+    #         is_homogenized = False
+    #
+    #     else:
+    #         is_homogenized = True
+    #         des_deg = dict_key_to_attrs['Deg. of Homogeneity'] or 2
+    #         dynamics_new, b, dict_key_to_attrs['Triggering Condition'] = make_homogeneous_etc(dynamics_new, list(xwvars), des_deg, trigger=dict_key_to_attrs['Triggering Condition'])
+    #         dict_symbol_to_attr['w'].add('w1')
+    #         dict_symbol_to_attr['e'].add('ew')
+    #         dict_key_to_attrs['Deg. of Homogeneity'] = des_deg
 
     dict_key_to_attrs['Dynamics'] = sympy.Matrix(dynamics_new)
 

@@ -119,7 +119,7 @@ def dReach_verify(init_symbolic, goal_symbolic, time_max, symbol_list, dynamics,
     
     result = call_dReach(dreach_path,file_path,file_name,dreal_precision, time_out)
     for fname in os.listdir(file_path):
-        if fname.startswith(file_name[:-4]):
+        if fname.startswith(os.path.splitext(file_name)):
             os.remove(os.path.join(file_path, fname))
 
     return result

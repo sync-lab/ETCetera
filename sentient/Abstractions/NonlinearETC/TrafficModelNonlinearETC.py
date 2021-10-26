@@ -1,17 +1,8 @@
-"""Know issues: each variable name cannot be a part of another variable name: variables x and x0 will cause
-problems, as x0 contains x. x1 and x0 is a proper naming"""
-
-"""
-    Abstractions Tool V2:
-    -Creates Traffic Abstractions of Nonlinear Systems with model uncertainties and disturbances.
-    -In the case of Homogeneous systems, it partitions the state-space into regions delimited by isochronous manifolds
-        and cones (the number of which is specified by the user).
-    -In the case of Nonhomogeneous systems, it partitions the state space into hypercubes of equal dimensions.
-"""
-
 import numpy as np
 import scipy
 import math
+
+import shortuuid
 import sympy as sympy
 # import symengine
 from scipy.linalg import expm
@@ -20,6 +11,7 @@ import copy
 import tqdm
 import logging
 from functools import cached_property
+from joblib import Parallel, delayed
 
 from ..Abstraction import Abstraction
 import sentient.Abstractions.NonlinearETC.utils.dReal_communication_2 as dReal
@@ -28,6 +20,7 @@ import sentient.Abstractions.NonlinearETC.utils.flowstar_communication as flowst
 import sentient.Abstractions.NonlinearETC.utils.cones_lib as cones_lib
 import sentient.Abstractions.NonlinearETC.utils.lp_lib as lp_lib
 from sentient.Abstractions.NonlinearETC.utils.regions_lib import *
+from sentient.exceptions import *
 import sentient.util as util
 
 from config import smt_path, dreach_path, dreal_path, flowstar_path
@@ -108,14 +101,11 @@ class TrafficModelNonlinearETC(Abstraction):
                  state, homogeneity=2, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
                  homogenization_flag=False,  # Following are solver options
                  precision_deltas=1e-7, timeout_deltas=1000, partition_method='grid',
-                 manifolds_times=None, nr_cones_small_angles=None, nr_cones_big_angle=5,
+                 manifolds_times=None, angles_discretization=None,
                  state_space_limits=None, grid_points_per_dim=None, heartbeat=0.1,
                  precision_timing_bounds=1e-3, precision_transitions=1e-3,
-                 timeout_timing_bounds=200, timeout_transitions=200, order_approx=2):
+                 timeout_timing_bounds=200, timeout_transitions=200, order_approx=4, parallel=False):
         '''
-
-
-                Solver Options:
                     precision_deltas: float>0, dreal precision for manifold approximation algorithm
                     timeout_deltas: float>0, timeout for manifold approximation algorithm
                     partition_method: str
@@ -136,27 +126,43 @@ class TrafficModelNonlinearETC(Abstraction):
                     precision_transitions: float >0, dreal precision or flowstar remainder for reach analysis for transitions
                     timeout_timing_bounds: float >0, timeout for reach analysis for timing bounds
                     timeout_transitions: float >0, timeout for reach analysis for transitions
-                '''
+        '''
         super().__init__()
         """Constructor"""
         dynamics = sympy.Matrix(dynamics)
         self.Homogenization_Flag = (sympy.symbols('w1') in dynamics.free_symbols) or homogenization_flag
         if len(dynamics) != len(state):
             dynamics = list(dynamics)
-            dynamics += [-1*expr for expr in dynamics]
+            dynamics += [-1 * expr for expr in dynamics]
 
         dynamics = sympy.Matrix(dynamics)
+        hom_deg = util.test_homogeneity(dynamics, state)
 
-        if not util.test_homogeneity(dynamics, state):
+        if hom_deg is None:
+            # Calculate order of system
+            try:
+                sym_x = sympy.symbols('x')
+                poly = [expr.subs({x: sym_x for x in dynamics.free_symbols}) for expr in dynamics]
+                default_hom = max([sympy.degree(expr, gen=sym_x) for expr in poly])
+            except Exception:
+                print("Finding highest order failed... use 2 for homogeneity degree")
+                default_hom = 2
+
+            if homogeneity is None:
+                homogeneity = default_hom
+
             print(f'Dynamics {dynamics} are not yet homogeneous.')
-            print(f'Make Homogeneous with degree {homogeneity} (Default: 2)')
+            print(f'Make Homogeneous with degree {homogeneity} (Default: {default_hom})')
 
             # Make homogeneous (default: 2)
             dynamics, state, trigger = util.make_homogeneous_etc(dynamics, state, homogeneity or 2, trigger=trigger)
             self.Homogenization_Flag = True
+            self.Homogeneity_degree = homogeneity
+        elif hom_deg != homogeneity and homogeneity is not None:
+            print('Specified degree of homogeneity does not correspond with the calculated one. Use specified.')
 
-        self.Homogeneity_degree = homogeneity
-        self.Homogenization_Flag = homogenization_flag
+        self.Homogeneity_degree = homogeneity or hom_deg
+        # self.Homogenization_Flag = homogenization_flag
         self.Dynamics = dynamics
         self.State = state
         if (self.Homogenization_Flag):  # If the system has been homogenized
@@ -177,6 +183,7 @@ class TrafficModelNonlinearETC(Abstraction):
             original_dynamics = self.Dynamics
         self.Original_State = original_state
         self.Original_Dynamics = original_dynamics
+
         if init_cond_symbols is None:
             init_cond_symbols = [sympy.Symbol(str(i).replace('x', 'a')) for i in original_state if 'x' in str(i)]
             if self.Homogenization_Flag:
@@ -216,19 +223,61 @@ class TrafficModelNonlinearETC(Abstraction):
         logging.info(f'Manifold Times: {self.Manifolds_Times}')
 
         if (len(self.Parameters) > 0) | (order_approx <= 1):
-            logging.warning("WARNING: The order of manifold approximation is always >=2. For perturbed systems it is always =2.")
+            logging.warning(
+                "WARNING: The order of manifold approximation is always >=2. For perturbed systems it is always =2.")
             self.p = 2
         else:
             self.p = order_approx
 
         self.Lie = self.lie_derivatives()
         self.Lie_n = self.Lie[-1]
-        self.precision_deltas=precision_deltas; self.timeout_deltas = timeout_deltas
-        self.partition_method = partition_method; self.nr_cones_small_angles=nr_cones_small_angles or [4]*(len(original_dynamics)//2-2)
-        self.nr_cones_big_angle=nr_cones_big_angle; self.state_space_limits=state_space_limits or [[-1, 1]] * (len(original_dynamics)//2)
-        self.grid_points_per_dim=grid_points_per_dim or [5] * (len(original_dynamics)//2); self.heartbeat=heartbeat
-        self.precision_timing_bounds=precision_timing_bounds; self.precision_transitions=precision_transitions
-        self.timeout_timing_bounds=timeout_timing_bounds; self.timeout_transitions=timeout_transitions
+        self.precision_deltas = precision_deltas;
+        self.timeout_deltas = timeout_deltas
+        self.partition_method = partition_method;
+        if angles_discretization is not None:
+            if type(angles_discretization) != list:
+                angles_discretization = [angles_discretization]
+            if len(angles_discretization) != len(original_state)//2 - 1:
+                print(f'Not enough angle discretizations given. Expected: {len(original_state)//2 - 1}, Found: {len(angles_discretization)}')
+                raise IncorrectNumberOfItemsInListException('angles_discretization', len(original_state)//2 - 1, len(angles_discretization))
+
+            self.nr_cones_small_angles = angles_discretization[1:]
+            self.nr_cones_big_angle = angles_discretization[0]
+        else: # Set default
+            self.nr_cones_small_angles = [4] * (len(original_dynamics) // 2 - 2); self.nr_cones_big_angle = 6
+
+
+        # self.nr_cones_small_angles = nr_cones_small_angles or [4] * (len(original_dynamics) // 2 - 2)
+        # self.nr_cones_big_angle = nr_cones_big_angle;
+        self.state_space_limits = state_space_limits or [[-1, 1]] * (len(original_dynamics) // 2)
+        self.grid_points_per_dim = grid_points_per_dim or [5] * (len(original_dynamics) // 2);
+        self.heartbeat = heartbeat
+        self.precision_timing_bounds = precision_timing_bounds;
+        self.precision_transitions = precision_transitions
+        self.timeout_timing_bounds = timeout_timing_bounds;
+        self.timeout_transitions = timeout_transitions
+        self.parallel = parallel
+        if parallel:
+            print("Warning: parallelization is still being tested, so use at your own risk..")
+
+        if not self.Homogenization_Flag and partition_method == 'manifold' and grid_points_per_dim is not None:
+            logging.warning('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dime is not used.')
+            print('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dim is not used.')
+
+        logging.info(f'Original State Vector: {original_state}')
+        logging.info(f'Original Dynamics: {original_dynamics}')
+        logging.info(f'Dynamics: {self.Dynamics}')
+        logging.info(f'Trigger: {self.Function}')
+        logging.info(f'Deg. Hom.: {self.Homogeneity_degree}')
+        logging.info(f'Hom. Flag.: {self.Homogenization_Flag}')
+        logging.info(f'Init. State Vector: {self.Init_cond_symbols}')
+        logging.info(f'Symbolic Variables: {self.Symbolic_variables}')
+        logging.info(f'Order Approx.: {self.p}')
+        logging.info(f'State space limits: {self.state_space_limits}')
+        logging.info(f'Precision deltas: {self.precision_deltas}')
+        logging.info(f'Grid points per dim: {self.grid_points_per_dim}')
+        logging.info(f'big_angles: {self.nr_cones_big_angle}')
+        logging.info(f'small angles: {self.nr_cones_small_angles}')
 
 
     def __repr__(self):
@@ -315,8 +364,9 @@ class TrafficModelNonlinearETC(Abstraction):
         Du.append((0, None))  # no bound on the last delta
         Du = tuple(Du)
 
+        logging.info("Approximating Isochronous Manifolds...")
         self._find_deltas(self.precision_deltas, self.timeout_deltas, 'revised simplex', Cu, Du)
-
+        logging.info("Creating Regions...")
         if (len(self.Parameters) > 0):
             logging.warning("WARNING: For perturbed systems, the only supported partitioning method is gridding.")
             self.partition_method = 'grid'
@@ -345,6 +395,7 @@ class TrafficModelNonlinearETC(Abstraction):
 
             Computes transitions for all Regions.
         """
+        print("Computing transitions...")
         dreal_precision = remainder_reach
         tau = sympy.symbols('tau')
         pbar1 = tqdm.tqdm(total=len(self.Regions), position=-1)
@@ -363,7 +414,7 @@ class TrafficModelNonlinearETC(Abstraction):
                         initial_set = initial_set & (e >= 0) & (e <= 0)
                     res = dReach.dReach_verify(initial_set, goal_set, region.timing_upper_bound, self.Original_State,
                                                self.Original_Dynamics, dreal_precision, dreach_path, smt_path,
-                                               "reach_analysis.drh", time_out)
+                                               f"reach_analysis{shortuuid.uuid()[:6]}.drh", time_out)
                 else:  # use flowstar if there are parameters
                     # for flowstar the initial set in the form of iintervals (list of lists)
                     box_domain = region.region_box[:]
@@ -371,7 +422,7 @@ class TrafficModelNonlinearETC(Abstraction):
                         box_domain.append([0, 0])
                     res = flowstar.flowstar_verify(box_domain, goal_set, region.timing_upper_bound, self.Original_State,
                                                    self.Original_Dynamics, self.Parameters, self.Parameters_domain,
-                                                   flowstar_path, smt_path, "reach_analysis.model",
+                                                   flowstar_path, smt_path, f"fl_reach_analysis{shortuuid.uuid()[:6]}.model",
                                                    time_out, remainder_reach, )
                 if (res['time-out']):  # if time out, enforce transition
                     logging.info('dReach or flowstar time out. Enforcing Transition from Region {} to Region {}'.format(
@@ -379,6 +430,33 @@ class TrafficModelNonlinearETC(Abstraction):
                 if (res['sat']):  # there is transition
                     logging.info('Transition found from Region {} to Region {}'.format(region.index, region2.index))
                     region.insert_transition(region2.index)
+
+    def _build_transition_single(self, region, region2, tau, time_out,dreal_precision, remainder_reach):
+        goal_set = region2.symbolic_domain_reach
+        goal_set = goal_set & (tau >= region.timing_lower_bound) & (tau <= region.timing_upper_bound)
+        if (self.Parameters == ()):  # use dreach if no parameters
+            # for dReach the initial set is given in the common symbolic format
+            initial_set = region.symbolic_domain_reach
+            for e in self.Original_State[int(len(self.Original_State) / 2):]:
+                initial_set = initial_set & (e >= 0) & (e <= 0)
+            res = dReach.dReach_verify(initial_set, goal_set, region.timing_upper_bound, self.Original_State,
+                                       self.Original_Dynamics, dreal_precision, dreach_path, smt_path,
+                                       f"reach_analysis{shortuuid.uuid()[:6]}.drh", time_out)
+        else:  # use flowstar if there are parameters
+            # for flowstar the initial set in the form of iintervals (list of lists)
+            box_domain = region.region_box[:]
+            for e in self.Original_State[int(len(self.Original_State) / 2):]:
+                box_domain.append([0, 0])
+            res = flowstar.flowstar_verify(box_domain, goal_set, region.timing_upper_bound, self.Original_State,
+                                           self.Original_Dynamics, self.Parameters, self.Parameters_domain,
+                                           flowstar_path, smt_path, f"fl_reach_analysis{shortuuid.uuid()[:6]}.model",
+                                           time_out, remainder_reach)
+        if (res['time-out']):  # if time out, enforce transition
+            logging.info('dReach or flowstar time out. Enforcing Transition from Region {} to Region {}'.format(
+                region.index, region2.index))
+        if (res['sat']):  # there is transition
+            logging.info('Transition found from Region {} to Region {}'.format(region.index, region2.index))
+            region.insert_transition(region2.index)
 
     def _find_deltas(self, dreal_precision=0.01, time_out=None, lp_method='revised simplex', C=[], D=[]):
         """ Solves the feasibility problem, by solving iteratively the LP version of it and checking with dReal
@@ -398,7 +476,7 @@ class TrafficModelNonlinearETC(Abstraction):
         res_flag_final = 0
         iteration = 1
         while res['sat'] == False:  # iterate until the solution is found
-            logging.info("\n Starting iteration {}".format(iteration))
+            logging.info("\nIteration {}".format(iteration))
             res_flag = self.LP_data.LP_solve(lp_method)  # first solve the LP
             if res_flag == -1:
                 break
@@ -555,6 +633,7 @@ class TrafficModelNonlinearETC(Abstraction):
             dic[self.State[i]] = self.Init_cond_symbols[i - int(self.n / 2)] - self.State[i - int(self.n / 2)]
         # the expression to be verified is:
         expression = (self.Function.subs(dic) > 0) | ((self.UBF - self.Lie_n >= 0) & (positivity_expr))
+
         return dReal.dReal_verify(expression, self.Symbolic_Box_of_Initial_Conditions,
                                   self.Symbolic_Domain_of_Parameters, self.Symbolic_variables, dreal_precision,
                                   dreal_path, smt_path, time_out=time_out)
@@ -634,7 +713,7 @@ class TrafficModelNonlinearETC(Abstraction):
         and the number of grid points per dimension ."""
 
         if ((grid_points_per_dim == None) | (state_space_limits == None)):
-            logging.error("Error. You should specify number of hypercubes and limits of the state-space.")
+            logging.error("Error. You should specify limits of the state-space and parameters (p1,p2,...) so that it is partitioned into p1 x p2 x ... hyper-rectangles.")
             return -1
         else:
             if self.Homogenization_Flag:
@@ -714,7 +793,7 @@ class TrafficModelNonlinearETC(Abstraction):
         # Verify if the given radius inner/outer approximates the manifold
         res = dReal.dReal_verify(expression, expression2, None,
                                  self.Symbolic_variables[:int(len(self.Symbolic_variables) / 2)], \
-                                 dreal_precision, dreal_path, smt_path, 'radius.smt2', time_out)
+                                 dreal_precision, dreal_path, smt_path, f'radius{shortuuid.uuid()[:6]}.smt2', time_out)
         if res['time-out'] == True:
             logging.warning("WARNING: Verification timed-out or other unexpected output. Please modify the time-out variable or adapt the specification")
             return -2
@@ -787,6 +866,7 @@ class TrafficModelNonlinearETC(Abstraction):
         Creates the objects Region_NonHomogeneous, using
         the manfifold of time=manifolds_times[-1] and the created grid (by self.create_grid).
         """
+        print("Constructing Regions by griding the state space, and estimating their timing lower bounds based on an isochronous manifold (the bounds will later be refined by reachability analysis)...")
         self.create_grid(state_space_limits, grid_points_per_dim)
         manifold_time = manifolds_times[-1]
         if (self.Homogenization_Flag):
@@ -827,6 +907,7 @@ class TrafficModelNonlinearETC(Abstraction):
                 temp = Region_Grid(self.State[:dimension], region_index, centroid, polytope_vertices_in_rn,
                                    halfspaces_A, halfspaces_b, lower_bound, False)
             logging.info('Region {} timing lower bound = {}'.format(region_index, lower_bound))
+            #print(('Region {} timing lower bound = {}'.format(region_index, lower_bound)))
             self.Regions.append(temp)
 
     def timing_lower_bounds_grid_manifold(self, polytope_vertices, manifold_time):
@@ -888,7 +969,7 @@ class TrafficModelNonlinearETC(Abstraction):
             self.create_grid(state_space_limits, grid_points_per_dim)
             region_index = 0
             polytope_sides_lengths = []
-            for i in tqdm.tqdm(range(0, int(dimension / 2) - 1)):  # for each dimension
+            for i in range(0, int(dimension / 2) - 1):  # for each dimension
                 lim_min = self.Grid.State_space_limits[i][0]  # calculate what is the displacement
                 lim_max = self.Grid.State_space_limits[i][1]  # from the center of a grid polytope
                 side_length = (lim_max - lim_min) / self.Grid.Grid_points_per_dim[i]  # to its vertices
@@ -899,7 +980,7 @@ class TrafficModelNonlinearETC(Abstraction):
             region_index = [0, 0]
             self.Regions = []
             # for centroid in self.Grid.Centroids: #iterate along all polytopes, each of which representing a region
-            for idx1 in tqdm.tqdm(range(0, len(self.Grid.Centroids))):
+            for idx1 in range(0, len(self.Grid.Centroids)):
                 centroid = self.Grid.Centroids[idx1]
                 region_index[0] = 0
                 region_index[1] = region_index[1] + 1
@@ -957,99 +1038,192 @@ class TrafficModelNonlinearETC(Abstraction):
         region_index = [0, 0]
         # for conic_domain in all_cones:
         logging.info("Constructing Regions")
+        print("\nConstructing regions as intersections of isochronous manifolds and cones, and computing overapproximations of these regions by ball segments.")
         logging.info(manifolds_times)
-        pbar1 = tqdm.tqdm(total=len(all_cones), leave=False, position=-1)
-        for idx in range(0, len(all_cones)):
-            pbar1.update(1)
-            conic_domain = all_cones[idx]
-            region_index[1] += 1
-            region_index[0] = 0
-            pbar2 = tqdm.tqdm(total=len(manifolds_times), leave=False, position=-1)
-            for j in range(0, len(manifolds_times)):
-                pbar2.update(1)
-                region_index[0] += 1
-                ###Derive inner and outer radius for the region###
+        if self.parallel:
+            Parallel(n_jobs=-2)(delayed(self._build_region_manifold_single_cone)(idx, all_cones[idx], manifolds_times,
+                                precision_for_sphere_approx, state_vector) for idx in
+                                tqdm.tqdm(range(0, len(all_cones)), desc='Loop over all cones'))
+        else:
+            for idx in tqdm.tqdm(range(0, len(all_cones)), desc='Loop over all cones'):
+                conic_domain = all_cones[idx]
+                region_index[1] += 1
+                region_index[0] = 0
+                for j in tqdm.tqdm(range(0, len(manifolds_times)), leave=False, desc='Loop over all manifolds'):
+                    region_index[0] += 1
+                    ###Derive inner and outer radius for the region###
 
-                # First derive inner and outer radii for the outermost manifold
-                # These will serve as starting points for the line searches
-                # for the radii of the other manifolds, through scaling
-                if (j == 0):
-                    if (j == len(manifolds_times) - 1):
-                        inner_radius = 0
-                    else:
-                        outermost_manifold_inner_radius = \
-                            self.radius_conic_section('i', conic_domain, manifolds_times[j], \
-                                                      None, precision_for_sphere_approx)
+                    # First derive inner and outer radii for the outermost manifold
+                    # These will serve as starting points for the line searches
+                    # for the radii of the other manifolds, through scaling
+                    if (j == 0):
+                        if (j == len(manifolds_times) - 1):
+                            inner_radius = 0
+                        else:
+                            outermost_manifold_inner_radius = \
+                                self.radius_conic_section('i', conic_domain, manifolds_times[j], \
+                                                          None, precision_for_sphere_approx)
 
-                    outermost_manifold_outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
-                                                                                None, precision_for_sphere_approx)
+                        outermost_manifold_outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
+                                                                                    None, precision_for_sphere_approx)
 
-                # Here we find the inner and outer radius for the current region
-                # the starting radius for the line search for the inner (outer) approximation
-                # is the scaling of the outer (inner) radius that has been found for the outermost manifold
-                if (j == 0):
-                    outer_radius = outermost_manifold_outer_radius
+                    # Here we find the inner and outer radius for the current region
+                    # the starting radius for the line search for the inner (outer) approximation
+                    # is the scaling of the outer (inner) radius that has been found for the outermost manifold
+                    if (j == 0):
+                        outer_radius = outermost_manifold_outer_radius
 
-                    lamda = (manifolds_times[0] / manifolds_times[j + 1]) ** (1 / self.Homogeneity_degree)
-                    starting_radius = outermost_manifold_outer_radius * lamda
-                    inner_radius = self.radius_conic_section('i', conic_domain, manifolds_times[j + 1], \
-                                                             starting_radius, precision_for_sphere_approx)
-                else:
-                    lamda = (manifolds_times[0] / manifolds_times[j]) ** (1 / self.Homogeneity_degree)
-                    starting_radius = outermost_manifold_inner_radius * lamda
-                    outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
-                                                             None, precision_for_sphere_approx)
-                    if (j == len(manifolds_times) - 1):
-                        inner_radius = 0  # these are the innermost regions
-                    else:
                         lamda = (manifolds_times[0] / manifolds_times[j + 1]) ** (1 / self.Homogeneity_degree)
                         starting_radius = outermost_manifold_outer_radius * lamda
                         inner_radius = self.radius_conic_section('i', conic_domain, manifolds_times[j + 1], \
                                                                  starting_radius, precision_for_sphere_approx)
-
-                # if system is homogenized
-                # check if the region enclosed by the manifolds and the cone intersects w=1
-                # if it doesnt, move on to next region
-                flag = True
-                if (self.Homogenization_Flag):
-                    expression1 = ~(
-                                (self.State[int(self.n / 2) - 1] >= 0.99) & (self.State[int(self.n / 2) - 1] <= 1.01))
-                    temp = 0
-                    for i in range(0, int(self.n / 2)):
-                        temp = temp + state_vector[i] ** 2
-                    expression2 = (temp - inner_radius ** 2 >= 0) & (temp - outer_radius ** 2 <= 0) & conic_domain
-                    res = dReal.dReal_verify(expression1, expression2, None,
-                                             self.Symbolic_variables[:int(len(self.Symbolic_variables) / 2)], \
-                                             1e-3, dreal_path, smt_path, 'aekara.smt2', 100)
-                    if res['sat'] == True:  # this means that the region does not intersect w=1
-                        flag = False
-
-                if flag:  # create the region object and append it to self.Regions
-                    outer_manifold_time = manifolds_times[j]
-                    if (j == len(manifolds_times) - 1):
-                        inner_manifold_time = 10  # something very big
-                        contains_origin_flag = True
                     else:
-                        inner_manifold_time = manifolds_times[j + 1]
-                        contains_origin_flag = False
-                    temp = Region_Manifold(state_vector, region_index, inner_manifold_time, outer_manifold_time, \
-                                           conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
-                                           contains_origin_flag, self.Homogenization_Flag)
-                    self.Regions.append(copy.deepcopy(temp))
-                    pbar1.write('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
-                                                                                                 temp.timing_lower_bound,
-                                                                                                 temp.inner_radius,
-                                                                                                 temp.outer_radius))
-                    # print('Cone: {}\n'.format(conic_domain))
-                    # print('Domain of Reach. Analysis {} \n'.format(temp.symbolic_domain_reach))
+                        lamda = (manifolds_times[0] / manifolds_times[j]) ** (1 / self.Homogeneity_degree)
+                        starting_radius = outermost_manifold_inner_radius * lamda
+                        outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
+                                                                 None, precision_for_sphere_approx)
+                        if (j == len(manifolds_times) - 1):
+                            inner_radius = 0  # these are the innermost regions
+                        else:
+                            lamda = (manifolds_times[0] / manifolds_times[j + 1]) ** (1 / self.Homogeneity_degree)
+                            starting_radius = outermost_manifold_outer_radius * lamda
+                            inner_radius = self.radius_conic_section('i', conic_domain, manifolds_times[j + 1], \
+                                                                     starting_radius, precision_for_sphere_approx)
 
-                else:
-                    logging.info(f'{j} Failed.')
+                    # if system is homogenized
+                    # check if the region enclosed by the manifolds and the cone intersects w=1
+                    # if it doesnt, move on to next region
+                    flag = True
+                    if (self.Homogenization_Flag):
+                        expression1 = ~(
+                                    (self.State[int(self.n / 2) - 1] >= 0.99) & (self.State[int(self.n / 2) - 1] <= 1.01))
+                        temp = 0
+                        for i in range(0, int(self.n / 2)):
+                            temp = temp + state_vector[i] ** 2
+                        expression2 = (temp - inner_radius ** 2 >= 0) & (temp - outer_radius ** 2 <= 0) & conic_domain
+                        res = dReal.dReal_verify(expression1, expression2, None,
+                                                 self.Symbolic_variables[:int(len(self.Symbolic_variables) / 2)], \
+                                                 1e-3, dreal_path, smt_path, f'aekara{shortuuid.uuid()[:6]}.smt2', 100)
+                        if res['sat'] == True:  # this means that the region does not intersect w=1
+                            flag = False
+
+                    if flag:  # create the region object and append it to self.Regions
+                        outer_manifold_time = manifolds_times[j]
+                        if (j == len(manifolds_times) - 1):
+                            inner_manifold_time = 10  # something very big
+                            contains_origin_flag = True
+                        else:
+                            inner_manifold_time = manifolds_times[j + 1]
+                            contains_origin_flag = False
+                        temp = Region_Manifold(state_vector, region_index, inner_manifold_time, outer_manifold_time, \
+                                               conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
+                                               contains_origin_flag, self.Homogenization_Flag)
+                        self.Regions.append(copy.deepcopy(temp))
+                        print('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
+                                                                                                     temp.timing_lower_bound,
+                                                                                                     temp.inner_radius,
+                                                                                                     temp.outer_radius))
+                        # pbar1.write('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
+                        #                                                                              temp.timing_lower_bound,
+                        #                                                                              temp.inner_radius,
+                        #                                                                              temp.outer_radius))
+                        # print('Cone: {}\n'.format(conic_domain))
+                        # print('Domain of Reach. Analysis {} \n'.format(temp.symbolic_domain_reach))
+
+                    else:
+                        logging.info(f'{j} Failed.')
         return 0
+
+    def _build_region_manifold_single_cone(self, idx, conic_domain, manifolds_times, precision_for_sphere_approx, state_vector):
+        # conic_domain = all_cones[idx]
+        region_index = [0, idx+1]
+        for j in tqdm.tqdm(range(0, len(manifolds_times)), leave=False, desc=f'Cone{idx}: Loop over all manifolds', position=idx+1):
+            region_index[0] += 1
+            ###Derive inner and outer radius for the region###
+
+            # First derive inner and outer radii for the outermost manifold
+            # These will serve as starting points for the line searches
+            # for the radii of the other manifolds, through scaling
+            if (j == 0):
+                if (j == len(manifolds_times) - 1):
+                    inner_radius = 0
+                else:
+                    outermost_manifold_inner_radius = \
+                        self.radius_conic_section('i', conic_domain, manifolds_times[j], \
+                                                  None, precision_for_sphere_approx)
+
+                outermost_manifold_outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
+                                                                            None, precision_for_sphere_approx)
+
+            # Here we find the inner and outer radius for the current region
+            # the starting radius for the line search for the inner (outer) approximation
+            # is the scaling of the outer (inner) radius that has been found for the outermost manifold
+            if (j == 0):
+                outer_radius = outermost_manifold_outer_radius
+
+                lamda = (manifolds_times[0] / manifolds_times[j + 1]) ** (1 / self.Homogeneity_degree)
+                starting_radius = outermost_manifold_outer_radius * lamda
+                inner_radius = self.radius_conic_section('i', conic_domain, manifolds_times[j + 1], \
+                                                         starting_radius, precision_for_sphere_approx)
+            else:
+                lamda = (manifolds_times[0] / manifolds_times[j]) ** (1 / self.Homogeneity_degree)
+                starting_radius = outermost_manifold_inner_radius * lamda
+                outer_radius = self.radius_conic_section('o', conic_domain, manifolds_times[j], \
+                                                         None, precision_for_sphere_approx)
+                if (j == len(manifolds_times) - 1):
+                    inner_radius = 0  # these are the innermost regions
+                else:
+                    lamda = (manifolds_times[0] / manifolds_times[j + 1]) ** (1 / self.Homogeneity_degree)
+                    starting_radius = outermost_manifold_outer_radius * lamda
+                    inner_radius = self.radius_conic_section('i', conic_domain, manifolds_times[j + 1], \
+                                                             starting_radius, precision_for_sphere_approx)
+
+            # if system is homogenized
+            # check if the region enclosed by the manifolds and the cone intersects w=1
+            # if it doesnt, move on to next region
+            flag = True
+            if (self.Homogenization_Flag):
+                expression1 = ~(
+                        (self.State[int(self.n / 2) - 1] >= 0.99) & (self.State[int(self.n / 2) - 1] <= 1.01))
+                temp = 0
+                for i in range(0, int(self.n / 2)):
+                    temp = temp + state_vector[i] ** 2
+                expression2 = (temp - inner_radius ** 2 >= 0) & (temp - outer_radius ** 2 <= 0) & conic_domain
+                res = dReal.dReal_verify(expression1, expression2, None,
+                                         self.Symbolic_variables[:int(len(self.Symbolic_variables) / 2)], \
+                                         1e-3, dreal_path, smt_path, f'dreal_aekara{shortuuid.uuid()[:6]}.smt2', 100)
+                if res['sat'] == True:  # this means that the region does not intersect w=1
+                    flag = False
+
+            if flag:  # create the region object and append it to self.Regions
+                outer_manifold_time = manifolds_times[j]
+                if (j == len(manifolds_times) - 1):
+                    inner_manifold_time = 10  # something very big
+                    contains_origin_flag = True
+                else:
+                    inner_manifold_time = manifolds_times[j + 1]
+                    contains_origin_flag = False
+                temp = Region_Manifold(state_vector, region_index, inner_manifold_time, outer_manifold_time, \
+                                       conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
+                                       contains_origin_flag, self.Homogenization_Flag)
+                self.Regions.append(copy.deepcopy(temp))
+                print('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
+                                                                                             temp.timing_lower_bound,
+                                                                                             temp.inner_radius,
+                                                                                             temp.outer_radius))
+                # pbar1.write('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
+                #                                                                              temp.timing_lower_bound,
+                #                                                                              temp.inner_radius,
+                #                                                                              temp.outer_radius))
+                # print('Cone: {}\n'.format(conic_domain))
+                # print('Domain of Reach. Analysis {} \n'.format(temp.symbolic_domain_reach))
+
+            else:
+                logging.info(f'{j} Failed.')
 
     # TODO: find some way to speed it up (e.g. using symengine)
     def compute_mu(self):
-        print("Computing symbolic expression for the approximation of the isochronous manifolds..")
+        print("Computing symbolic expression for the approximation of isochronous manifolds (this might take some time)...")
         r = self.Init_cond_domain[1][1]  # -0.00000000000000000001*self.Init_cond_domain[1][1]
         C = np.zeros(self.p, )
         C[0] = 1
@@ -1090,52 +1264,105 @@ class TrafficModelNonlinearETC(Abstraction):
             sympy.Matrix(A * tau * (state_norm / r) ** (self.Homogeneity_degree)))  # compute the symbolic matrix
 
         mu = C * exponential * mu_0  # compute the expression of the manifold
-        return sympy.simplify(mu[0])
+        return mu[0]
 
     def lower_bounds_refinement(self, precision=1e-3, time_out=30):
         tau = sympy.symbols('tau')
-        pbar = tqdm.tqdm(total=len(self.Regions), position=-1)
-        for region in self.Regions:
-            pbar.update()
-            lower_bound = 1.1 * region.timing_lower_bound  # first estimation of the lower bound
-            while True:  # iteratively check if the estimated upper_bound
-                # is truly a timing upper bound. If it isn't, increase and iterate again.
-                if not self.Homogenization_Flag:
-                    goal_set = (tau <= lower_bound) & (self.Function >= 0)
-                else:  # if system is homogenized, take out the 'w' variable
-                    goal_set = (tau <= lower_bound) & (
-                                self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) >= 0)
-                if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
-                    # we use dReach
-                    # for dReach the initial set is given in the common symbolic format
-                    initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
-                    for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
-                        # initial condition is 0
-                        initial_set = initial_set & (e >= 0) & (e <= 0)
-                    res = dReach.dReach_verify(initial_set, goal_set, 1.001 * lower_bound, self.Original_State,
-                                               self.Original_Dynamics, precision, dreach_path, smt_path,
-                                               "lower_bounds.drh", time_out)
-                else:  # if there are parameters, use flowstar.
-                    box_domain = region.region_box[:]
-                    for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
-                        # initial condition is 0
-                        box_domain.append([0, 0])
-                    res = flowstar.flowstar_verify(box_domain, goal_set, 1.01 * lower_bound, self.Original_State,
-                                                   self.Original_Dynamics, self.Parameters, self.Parameters_domain,
-                                                   flowstar_path, smt_path, "lower_bounds.model",
-                                                   time_out, precision)
-                if (res['time-out']):
-                    break
-                if (not res['sat']):  # verified lower bound
-                    lower_bound = 1.1 * lower_bound
-                else:
-                    break
-            lower_bound = lower_bound / 1.1
-            if (lower_bound > region.timing_lower_bound):
-                logging.info('Reach. Analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
-                region.timing_lower_bound = lower_bound
 
-        pbar.close()
+        if self.parallel:
+            lbounds = Parallel(n_jobs=-2)(delayed(self._timing_lower_bounds_single)(region, tau, time_out, precision) for region in self.Regions)
+            for idx, lb in lbounds:
+                for reg in self.Regions:
+                    if idx == reg.index:
+                        reg.timing_lower_bounds = lb
+        else:
+            pbar = tqdm.tqdm(total=len(self.Regions), position=-1)
+            for region in self.Regions:
+                pbar.update()
+                lower_bound = 1.1 * region.timing_lower_bound  # first estimation of the lower bound
+                while True:  # iteratively check if the estimated upper_bound
+                    # is truly a timing upper bound. If it isn't, increase and iterate again.
+                    if not self.Homogenization_Flag:
+                        goal_set = (tau <= lower_bound) & (self.Function >= 0)
+                    else:  # if system is homogenized, take out the 'w' variable
+                        goal_set = (tau <= lower_bound) & (
+                                    self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) >= 0)
+                    if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
+                        # we use dReach
+                        # for dReach the initial set is given in the common symbolic format
+                        initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
+                        for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                            # initial condition is 0
+                            initial_set = initial_set & (e >= 0) & (e <= 0)
+                        res = dReach.dReach_verify(initial_set, goal_set, 1.001 * lower_bound, self.Original_State,
+                                                   self.Original_Dynamics, precision, dreach_path, smt_path,
+                                                   f"lower_bounds{shortuuid.uuid()[:6]}.drh", time_out)
+                    else:  # if there are parameters, use flowstar.
+                        box_domain = region.region_box[:]
+                        for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                            # initial condition is 0
+                            box_domain.append([0, 0])
+                        res = flowstar.flowstar_verify(box_domain, goal_set, 1.01 * lower_bound, self.Original_State,
+                                                       self.Original_Dynamics, self.Parameters, self.Parameters_domain,
+                                                       flowstar_path, smt_path, f"fl_lower_bounds{shortuuid.uuid()[:6]}.model",
+                                                       time_out, precision)
+                    if (res['time-out']):
+                        break
+                    if (not res['sat']):  # verified lower bound
+                        lower_bound = 1.1 * lower_bound
+                    else:
+                        break
+                lower_bound = lower_bound / 1.1
+                if (lower_bound > region.timing_lower_bound):
+                    logging.info('Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+                    print('Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+                    region.timing_lower_bound = lower_bound
+
+            pbar.close()
+
+    def _timing_lower_bounds_single(self, region, tau, time_out, precision):
+        lower_bound = 1.1 * region.timing_lower_bound  # first estimation of the lower bound
+        while True:  # iteratively check if the estimated upper_bound
+            # is truly a timing upper bound. If it isn't, increase and iterate again.
+            if not self.Homogenization_Flag:
+                goal_set = (tau <= lower_bound) & (self.Function >= 0)
+            else:  # if system is homogenized, take out the 'w' variable
+                goal_set = (tau <= lower_bound) & (
+                        self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) >= 0)
+            if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
+                # we use dReach
+                # for dReach the initial set is given in the common symbolic format
+                initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
+                for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                    # initial condition is 0
+                    initial_set = initial_set & (e >= 0) & (e <= 0)
+                res = dReach.dReach_verify(initial_set, goal_set, 1.001 * lower_bound, self.Original_State,
+                                           self.Original_Dynamics, precision, dreach_path, smt_path,
+                                           f"lower_bounds{shortuuid.uuid()[:6]}.drh", time_out)
+            else:  # if there are parameters, use flowstar.
+                box_domain = region.region_box[:]
+                for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                    # initial condition is 0
+                    box_domain.append([0, 0])
+                res = flowstar.flowstar_verify(box_domain, goal_set, 1.01 * lower_bound, self.Original_State,
+                                               self.Original_Dynamics, self.Parameters, self.Parameters_domain,
+                                               flowstar_path, smt_path, f"fl_lower_bounds{shortuuid.uuid()[:6]}.model",
+                                               time_out, precision)
+            if (res['time-out']):
+                break
+            if (not res['sat']):  # verified lower bound
+                lower_bound = 1.1 * lower_bound
+            else:
+                break
+        lower_bound = lower_bound / 1.1
+        if (lower_bound > region.timing_lower_bound):
+            logging.info(
+                'Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+            print('Reachability analysis refined lower bound for Region {}: {}'.format(region.index, lower_bound))
+            region.timing_lower_bound = lower_bound
+
+        return (region.index, lower_bound)
+
 
     def timing_upper_bounds(self, time_out=200, heartbeat=0.5, precision=1e-3):
         """INPUTS:
@@ -1149,54 +1376,112 @@ class TrafficModelNonlinearETC(Abstraction):
         # found_bound_for_a_region = False
         for region in self.Regions:
             region.insert_timing_upper_bound(heartbeat)
-        pbar = tqdm.tqdm(total=len(self.Regions), position=-1)
-        for region in self.Regions:
-            pbar.update()
-            upper_bound = 1.05 * region.timing_lower_bound  # first estimation of the upper bound
-            while (True):  # iteratively check if the estimated upper_bound
-                # is truly a timing upper bound. If it isn't, increase and iterate again.
-                if (not self.Homogenization_Flag):
-                    goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & (self.Function <= 0)
-                else:  # if system is homogenized, take out the 'w' variable
-                    goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & \
-                               (self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) <= 0)
-                if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
-                    # we use dReach
-                    # for dReach the initial set is given in the common symbolic format
-                    initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
-                    for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
-                        # initial condition is 0
-                        initial_set = initial_set & (e >= 0) & (e <= 0)
-                    res = dReach.dReach_verify(initial_set, goal_set, 1.2 * upper_bound, self.Original_State,
-                                               self.Original_Dynamics, precision, dreach_path,
-                                               smt_path, "upper_bounds.drh", time_out)
-                else:  # if there are parameters, use flowstar.
-                    # for flowstar the initial set in the form of intervals (list of lists)
-                    box_domain = region.region_box[:]
-                    for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
-                        # initial condition is 0
-                        box_domain.append([0, 0])
-                    res = flowstar.flowstar_verify(box_domain, goal_set, 1.0001 * upper_bound, self.Original_State,
-                                                   self.Original_Dynamics, self.Parameters, self.Parameters_domain,
-                                                   flowstar_path, smt_path, "upper_bounds.model",
-                                                   time_out, precision)
-                if (not res['sat']):  # found upper bound
-                    logging.info('Region {}: Upper Bound found: {}!'.format(region.index, upper_bound))
-                    # found_bound_for_a_region = True
-                    break  # terminate
-                if (res['time-out']):
-                    logging.info('dReach or flowstar time out or other unexpected result. Exiting...')
-                    logging.info('flowstar cannot verify this time, due to computational complexity or inexistence of timing upper bound.')
-                    logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
-                    upper_bound = heartbeat
-                    break
 
-                logging.info(f'Trying upper bound: {1.05 * upper_bound}')
-                upper_bound = 1.05 * upper_bound  # increase upper bound
-                if (upper_bound >= heartbeat):  # if estimate is bigger than ad-hoc heartbeat
-                    upper_bound = heartbeat  # enforce heartbeat as upper bound and terminate
-                    logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, upper_bound))
-                    break
-            region.insert_timing_upper_bound(upper_bound)
-        pbar.close()
+        if self.parallel:
+            Parallel(n_jobs=-2)(delayed(self._upper_bound_ref_single)(region, tau, heartbeat, time_out, precision) for region in self.Regions)
+        else:
+            pbar = tqdm.tqdm(total=len(self.Regions), position=-1)
+            for region in self.Regions:
+                pbar.update()
+                upper_bound = 1.05 * region.timing_lower_bound  # first estimation of the upper bound
+                while (True):  # iteratively check if the estimated upper_bound
+                    # is truly a timing upper bound. If it isn't, increase and iterate again.
+                    if (not self.Homogenization_Flag):
+                        goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & (self.Function <= 0)
+                    else:  # if system is homogenized, take out the 'w' variable
+                        goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & \
+                                   (self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) <= 0)
+                    if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
+                        # we use dReach
+                        # for dReach the initial set is given in the common symbolic format
+                        initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
+                        for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                            # initial condition is 0
+                            initial_set = initial_set & (e >= 0) & (e <= 0)
+                        res = dReach.dReach_verify(initial_set, goal_set, 1.2 * upper_bound, self.Original_State,
+                                                   self.Original_Dynamics, precision, dreach_path,
+                                                   smt_path, f"upper_bounds{shortuuid.uuid()[:6]}.drh", time_out)
+                    else:  # if there are parameters, use flowstar.
+                        # for flowstar the initial set in the form of intervals (list of lists)
+                        box_domain = region.region_box[:]
+                        for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                            # initial condition is 0
+                            box_domain.append([0, 0])
+                        res = flowstar.flowstar_verify(box_domain, goal_set, 1.0001 * upper_bound, self.Original_State,
+                                                       self.Original_Dynamics, self.Parameters, self.Parameters_domain,
+                                                       flowstar_path, smt_path, f"fl_upper_bounds{shortuuid.uuid()[:6]}.model",
+                                                       time_out, precision)
+                    if (not res['sat']):  # found upper bound
+                        print('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
+                        logging.info('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
+                        # found_bound_for_a_region = True
+                        break  # terminate
+                    if (res['time-out']):
+                        logging.info('dReach or flowstar time out or other unexpected result. Exiting...')
+                        logging.info('flowstar cannot verify this time, due to computational complexity or inexistence of timing upper bound.')
+                        logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                        print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                        upper_bound = heartbeat
+                        break
 
+                    logging.info(f'Trying upper bound: {1.05 * upper_bound}')
+                    upper_bound = 1.05 * upper_bound  # increase upper bound
+                    if (upper_bound >= heartbeat):  # if estimate is bigger than ad-hoc heartbeat
+                        upper_bound = heartbeat  # enforce heartbeat as upper bound and terminate
+                        logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, upper_bound))
+                        print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                        break
+                region.insert_timing_upper_bound(upper_bound)
+            pbar.close()
+
+    def _upper_bound_ref_single(self, region, tau, heartbeat, time_out, precision):
+        upper_bound = 1.05 * region.timing_lower_bound  # first estimation of the upper bound
+        while (True):  # iteratively check if the estimated upper_bound
+            # is truly a timing upper bound. If it isn't, increase and iterate again.
+            if (not self.Homogenization_Flag):
+                goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & (self.Function <= 0)
+            else:  # if system is homogenized, take out the 'w' variable
+                goal_set = (tau >= upper_bound) & (tau <= 1.0001 * upper_bound) & \
+                           (self.Function.subs(self.State[int(len(self.State) / 2) - 1], 1) <= 0)
+            if (self.Parameters == ()):  # if no parameters (uncertainties, disturbances, etc.)
+                # we use dReach
+                # for dReach the initial set is given in the common symbolic format
+                initial_set = region.symbolic_domain_reach & (tau >= 0) & (tau <= 0)
+                for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                    # initial condition is 0
+                    initial_set = initial_set & (e >= 0) & (e <= 0)
+                res = dReach.dReach_verify(initial_set, goal_set, 1.2 * upper_bound, self.Original_State,
+                                           self.Original_Dynamics, precision, dreach_path,
+                                           smt_path, f"upper_bounds{shortuuid.uuid()[:6]}.drh", time_out)
+            else:  # if there are parameters, use flowstar.
+                # for flowstar the initial set in the form of intervals (list of lists)
+                box_domain = region.region_box[:]
+                for e in self.Original_State[int(len(self.Original_State) / 2):]:  # for all measurement errors
+                    # initial condition is 0
+                    box_domain.append([0, 0])
+                res = flowstar.flowstar_verify(box_domain, goal_set, 1.0001 * upper_bound, self.Original_State,
+                                               self.Original_Dynamics, self.Parameters, self.Parameters_domain,
+                                               flowstar_path, smt_path, f"fl_upper_bounds{shortuuid.uuid()[:6]}.model",
+                                               time_out, precision)
+            if (not res['sat']):  # found upper bound
+                print('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
+                logging.info('Region {}: timing upper bound = {}.'.format(region.index, upper_bound))
+                # found_bound_for_a_region = True
+                break  # terminate
+            if (res['time-out']):
+                logging.info('dReach or flowstar time out or other unexpected result. Exiting...')
+                logging.info(
+                    'flowstar cannot verify this time, due to computational complexity or inexistence of timing upper bound.')
+                logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                upper_bound = heartbeat
+                break
+
+            logging.info(f'Trying upper bound: {1.05 * upper_bound}')
+            upper_bound = 1.05 * upper_bound  # increase upper bound
+            if (upper_bound >= heartbeat):  # if estimate is bigger than ad-hoc heartbeat
+                upper_bound = heartbeat  # enforce heartbeat as upper bound and terminate
+                logging.info('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, upper_bound))
+                print('Region {}: Enforcing heartbeat as upper bound: {}'.format(region.index, heartbeat))
+                break
+        region.insert_timing_upper_bound(upper_bound)

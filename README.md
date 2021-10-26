@@ -33,9 +33,14 @@ The project consists of two main parts:
 ---------------------------------------
 
 ### Prerequisites
-This tool requires Python 3.8 to function correctly, so make sure it is installed beforehand. 
+This tool requires Python 3.8 to function correctly, so make sure it is installed beforehand, by running:
+```bash
+   $ add-apt-repository ppa:deadsnakes/ppa 
+   $ apt update
+   $ apt install python3.8
+```
 
-First, download or clone the project to a local directory. Secondly, run one of the scripts in ``scripts/`` (corresponding to your OS) to install the dependencies.
+First, download or clone the project to a local directory. Secondly, run one of the scripts in ``scripts/``, corresponding to your OS to install the dependencies (it might be necessary to make it executable by using `chmod +x`).
 Thirdly, download and copy the third-party tools, dReal, dReach, and Flow* in the 'third-party' folder in the root project
 directory if you want to install them. You can download them from below location:
 
@@ -75,15 +80,30 @@ To install with conda, make sure a C/C++ compiler (e.g. ``gcc``/``g++``) and GMP
    $ conda install conda-build
    $ conda develop .
 ```
-where the last two lines are necessary (temporarily, until proper conda package has been built) to import ``SENTIENT`` in a script.
+where the last two lines are necessary (temporarily, until a proper conda package has been built) to import ``SENTIENT`` in a script.
 
 ### Pip
 
-Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS). Run
+Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS). First create a virtual environment:
+```shell
+$ python3.8 -m venv <path-to-venv>
+```
+
+Activate the environment and install:
 ``` shell
+   $ source <path-to-venv>/bin/activate
    $ pip install wheel
    $ pip install .
 ```
+
+To use `graph-tool`, we have to link to `dist-packages` (in the default python installation):
+
+```shell
+$ cd <path-to-venv>/lib/python3.8/site-packages/
+$ touch dist-packages.pth
+$ echo "/usr/lib/python3/dist-packages/" >> dist-packages.pth
+```
+
 If you want to use the CUDD bindings for [dd](https://github.com/tulip-control/dd), then also run:
 ``` shell
    $ pip install --force-reinstall -r \
@@ -117,7 +137,7 @@ Or, for nonlinear ETC system, you can run one of the following examples:
 ```shell
 $ python etc2traffic.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
 $ python etc2traffic.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
-$ python etc2traffic.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+$ python etc2traffic.py nonlinear examples/nl_perturbed.txt --output_file=dist.json
 ```
 
 
@@ -241,12 +261,7 @@ The input fields are:
   - `manifold_times: [t1, t2, ...]`. The times used for partitioning using isochronous manifolds. Should be specified
     when `partition_method=manifold` and have at least two elements. When `partition_method=grid`, this value is used
     as a reference manifold for timing lower bounds, which then has default: `[1e-4]`
-  - `nr_cones_small_angles: [n1, n2, ...]`. The number of divisions for the small angles. When the state space is 
-  represented using generalized spherical coordinates, there are `n-2` angle coordinates which run from `0` to `pi`. 
-    These are the `small angles`. Default: `[5, ...]`
-  - `nr_cones_big_angle: n`. The number of divisions for the big angle. When the state space is 
-  represented using generalized spherical coordinates, there is only one angle that runs from `-pi` to `pi`. 
-    This is the `big angle`. Default: `None`
+  - `angles_discretization: [n1, n2, ...]`. The number of divisions for the spherical angles for constructing cones. The first number corresponds to the angle which run from `-pi` to `pi`, the rest correspond to the angles running from `0` to `pi`. The length should be one less than the state space dimension. Default: `[6, 4, ...]`. 
     
   - `heartbeat: f`. The maximum trigger time. Default: `0.1`
   - `order_approx: n`. The order to which the isochronous manifold are approximated. Default: `2`
