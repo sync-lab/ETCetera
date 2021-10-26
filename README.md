@@ -75,15 +75,30 @@ To install with conda, make sure a C/C++ compiler (e.g. ``gcc``/``g++``) and GMP
    $ conda install conda-build
    $ conda develop .
 ```
-where the last two lines are necessary (temporarily, until proper conda package has been built) to import ``SENTIENT`` in a script.
+where the last two lines are necessary (temporarily, until a proper conda package has been built) to import ``SENTIENT`` in a script.
 
 ### Pip
 
-Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS). Run
+Installation with pip is a bit more involved, as more packages will have to be build from source (depending on your OS). First create a virtual environment:
+```shell
+$ python3.8 -m venv <path-to-venv>
+```
+
+Activate the environment and install:
 ``` shell
+   $ source <path-to-venv>/bin/activate
    $ pip install wheel
    $ pip install .
 ```
+
+To use `graph-tool`, we have to link to `dist-packages` (in the default python installation):
+
+```shell
+$ cd <path-to-venv>/lib/python3.8/site-packages/
+$ touch dist-packages.pth
+$ echo "/usr/lib/python3/dist-packages/" >> dist-packages.pth
+```
+
 If you want to use the CUDD bindings for [dd](https://github.com/tulip-control/dd), then also run:
 ``` shell
    $ pip install --force-reinstall -r \
