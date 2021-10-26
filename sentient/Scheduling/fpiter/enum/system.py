@@ -53,6 +53,8 @@ class system(abstract_system):
         self.outputs = self._c_dict([o._outputs for o in self.control_loops])
         self.actions = self._c_dict([o.actions for o in self.control_loops])
         self.output_map = self._c_dict([o.output_map for o in self.control_loops])
+        inits = (o._initial for o in self.control_loops)
+        self.initial = {x for x in itertools.product(*inits)}
 
         self.transitions = {x: {u: set() for u in self.actions} for x in self.states}
         for xxx in self.states:
@@ -114,7 +116,7 @@ class system(abstract_system):
                 F_new = self.__safety_operator_trap(F_old)
                 it += 1
 
-            if F_old == {}:
+            if F_old == {} or any(x0 not in F_old for x0 in self.initial):
                 return None
 
             return F_old
@@ -132,7 +134,7 @@ class system(abstract_system):
                 F_new = self.__safety_operator(W, F_old)
                 it += 1
 
-            if F_old == {}:
+            if F_old == {} or any(x0 not in F_old for x0 in self.initial):
                 return None
 
             return F_old
