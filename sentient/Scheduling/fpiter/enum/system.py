@@ -155,7 +155,7 @@ class system(abstract_system):
         for x in c_states:
             for u in self.actions:
                 p = self.transitions[x][u]
-                if len(p) > 0 and set(Z.keys()).issuperset(p):
+                if len(p) > 0 and all(xp in Z for xp in p):
                     U_c[x].add(u)
 
         if not any([s._is_part for s in self.control_loops]):
@@ -326,7 +326,7 @@ class system(abstract_system):
                     p = self.transitions[x][uk]
                     if len(p) == 0:
                         continue
-                    elif not set(Z.keys()).issuperset(p):
+                    elif any(xp not in Z for xp in p):  # 200x faster
                         continue
                     else:
                         F.update({x: v})
@@ -348,10 +348,10 @@ class system(abstract_system):
                     p = self.transitions[x][uk]
                     if len(p) == 0:
                         continue
-                    elif not set(Z.keys()).issuperset(p):
+                    elif any(xp not in Z for xp in p):  # 200x faster
                         continue
                     else:
-                        F.update({x: v})
+                        F[x] = v
 
         return F
 
