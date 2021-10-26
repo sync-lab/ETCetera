@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy
 import math
@@ -202,7 +201,6 @@ class TrafficModelNonlinearETC(Abstraction):
         self.Regions = None
         self.Grid = None
 
-
         # Setting solver options
         if manifolds_times is not None:
             manifolds_times.sort()
@@ -249,6 +247,10 @@ class TrafficModelNonlinearETC(Abstraction):
         self.parallel = parallel
         if parallel:
             print("Warning: parallelization is still being tested, so use at your own risk..")
+
+        if not self.Homogenization_Flag and partition_method == 'manifold' and grid_points_per_dim is not None:
+            logging.warning('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dime is not used.')
+            print('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dim is not used.')
 
         logging.info(f'Original State Vector: {original_state}')
         logging.info(f'Original Dynamics: {original_dynamics}')
