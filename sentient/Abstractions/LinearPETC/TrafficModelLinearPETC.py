@@ -17,6 +17,7 @@ from sentient.Abstractions.Abstraction import Abstraction
 from sentient.Systems import linearetc as etc
 from sentient.Abstractions.LinearPETC.utils.optim import QuadraticForm, sdr_problem, QuadraticProblem
 from sentient.util.etcgraph import TrafficAutomaton
+import sentient.util.etcgame as gm
 # from sentient.Systems.Automata.timed_automaton import TimedAutomaton
 # from sentient.Systems.Automata.priced_timed_automaton import PricedTimedAutomaton
 from sentient.Systems.Automata import Automaton
@@ -380,7 +381,7 @@ class TrafficModelLinearPETC(Abstraction):
         self._initial = set()
         # self._all_regions stores all regions ever visited during the
         # algorithm execution. Essentially used for memoization
-        self._all_regions = set((k,) for k in self.K)
+        self._all_regions = set()
         # self._marginal stores regions that also satisfy the constraint
         # V(x) == 1. These regions are associated with sampling sequences
         # that ensure a reduction of the Lyapunov function by a factor of
@@ -392,6 +393,10 @@ class TrafficModelLinearPETC(Abstraction):
         # or the set related to epsilon if self._stop_around_the_origin
         # ({x in R^n: x'Px <= end_level})
         self._regions = set()
+
+        # With some types of abstraction, memoizing regions proven to not
+        # exist can allow us to shortcircuit some Z3 checks
+        self._non_regions = set()
 
         # If MACE equivalence is checked, memoize the behavioral cycles
         if stop_if_omega_bisimilar or stop_if_mace_equivalent:
@@ -537,6 +542,30 @@ class TrafficModelLinearPETC(Abstraction):
 
         return self._transition
 
+    def optimize_sampling_strategy(self):
+        if self.etc_only:
+            raise ETCAbstractionError('Abstraction must be built with etc_only'
+                                      '=False for synthesis.')
+
+        _ = self.regions  # Ensure that regions have been created
+
+        g1 = gm.TrafficGameAutomaton(self.transitions)
+        logging.info('Solving mean-payoff game')
+        nu, sigma, W0, W1 = gm.solve_mean_payoff_game(g1.G, g1.G.ep.weight,
+                                                      g1.V0, g1.V1,
+                                                      True)
+        strat = {}
+        I1 = len(g1.V0)
+        for i in g1.V0:
+            strat[g1.regions[i]] = max(g1.branchpoints[x-I1][0]
+                                       for x in sigma[i])
+        trs = {(x,k):y for (x,k),y in self.transitions.items()
+               if strat[x] == k}
+
+        self.strat = strat
+        self.strat_transition = trs
+        return strat, trs
+
     # TODO: When symbolic works also make sure this works
     # @symbolic_decorator
     def refine(self, i=1) -> None:
@@ -549,9 +578,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(start, self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
 
         self._clear_cache()
 
@@ -573,9 +605,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
         # if self.symbolic:
         #     self._convert_MQP_to_numeric()
 
@@ -590,14 +625,19 @@ class TrafficModelLinearPETC(Abstraction):
             self._mac_candidates = None
 
         # Main refinement algorithm
-        if self.strat and self.depth == 1:
+        if self.strat and self._d == 0:
+            # When an external sampling strategy is given, initialize regions
+            # from it
+            self._regions = {x+z for (x,k),y in self.strat_transition.items()
+                             for z in y}
+            self.automaton = TrafficAutomaton(self._regions, self.strat)
             new_regions = self._regions
         else:
             new_regions = self._refinement_step(self._mac_candidates,
                                                 self.l_complete)
 
-        logging.debug(f'REGIONS: {self.regions}')
-        print('regions====', self._regions)
+        logging.debug(f'REGIONS: {self._regions}')
+        #print('regions====', self._regions)
 
         # First bisimulation stopping criterion: no new candidates are
         # generated (note: it probably never happens)
@@ -1247,13 +1287,30 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
         out_set = set()
-
-        results = Parallel(n_jobs=NUM_CORES)(
-            delayed(self._verify_sequence)(r) for r in tqdm(regions))
-
         extended_set = set()
         marginal_set = set()
         initial_set = set()
+
+        if not self.l_complete:
+            minL = min(len(x) for x in regions)
+            maxL = max(len(x) for x in regions)
+
+            if minL < maxL:
+                for l in range(minL, maxL+1):
+                    rl = set(x for x in regions if len(x) == l)
+                    if len(rl) > 0:
+                        o, e, m, i = self._verify_candidates(rl)
+                        out_set.update(o)
+                        extended_set.update(e)
+                        marginal_set.update(m)
+                        initial_set.update(i)
+                out = namedtuple("candidate_sets",
+                                 ["out", "extended", "marginal", "initial"])
+                return out(out_set, extended_set, marginal_set, initial_set)
+
+        results = Parallel(n_jobs=NUM_CORES)(
+            delayed(self._verify_sequence)(r) for r in tqdm(regions))
+        # results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):
             exists, inside, marginal = result
@@ -1263,10 +1320,15 @@ class TrafficModelLinearPETC(Abstraction):
                     out_set.add(r)
                     if marginal:
                         marginal_set.add(r)
+            else:
+                self._non_regions.add(r)
+
 
         for r in self._regions:
-            if all((k,) + r not in out_set for k in self.K):
+            if all((k,) + r not in out_set for k in self.K) and \
+                    all((k,) + r in regions for k in self.K):
                 initial_set.add(r)
+
 
         out = namedtuple("candidate_sets", ["out", "extended", "marginal",
                                             "initial"])
@@ -1317,6 +1379,13 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
 
+        # Most basic shortcut: s is already a region (it was not refined)
+        if s in self._all_regions:
+            exists = True
+            inside = s in self._regions
+            marginal = s in self._marginal
+            return exists, inside, marginal
+
         # This verification is a short-circuit to prevent the more expensive
         # constraint satisfaction problem described in the docstring. It
         # verifies (1) if there is only one possible successor to the current
@@ -1340,38 +1409,40 @@ class TrafficModelLinearPETC(Abstraction):
 
         # This creates a list of QuadraticForm constraints associated with
         # the sequence s.
-        con = self._add_constraints_for_region_i(s, set())
+        if self.strat:
+            con = self._add_constraints_for_region_strat(s, set())
+        else:
+            con = self._add_constraints_for_region_i(s, set())
+
+        # If we're using symbolic (exact) solving, add x'x > 0 to prevent
+        # x = zeros as a solution.
+        if self.symbolic:
+            con.add(QuadraticForm(-sympy.Identity(self.n), strict=True))
 
         # Create the (basic) quadratic problem.
-
         prob = QuadraticProblem(con, solver=self.solver)
 
         # If it has a solution, try the more specific problems
+        logging.debug(f'Verifying {s}...')
         if prob.solve():
+            logging.debug(f'... {s} exists')
             exists = True
             # Now check if initial state can belong inside {x: V(x) <= 1}
             if self.stop_around_origin:
                 # V(x) <= 1
-                new_cons = set((QuadraticForm(self.P, c=-1),))
-                # Build matrices: Mns = M(k_(m-1))@...@M(k_2)@M(k_1)
-                Mns = self._M_prod(s, len(s) - 1)
-                # Ms = M(k_m)@M(k_(m-1))@...@M(k_2)@M(k_1)
-                Ms = self.M[s[-1]] @ Mns
-                # Last point of the trajectory should be in target set
-                new_cons.add(QuadraticForm(Ms.T @ self.P @ Ms, c=-self.end_level))
-                # The one before the last should not!
-                new_cons.add(QuadraticForm(-Mns.T @ self.P @ Mns, c=self.end_level,
-                                           strict=True))
+                new_cons = self._add_reach_ball_constraints(s, set())
                 prob.add_constraints(new_cons)
                 if prob.solve():  # Solved again? Try the marginal condition
                     inside = True
                     # Now check if there exists x: V(x) = 1
-                    new_cons = set((QuadraticForm(-self.P, c=1),))  # V(x) >= 1
+                    new_cons = set((QuadraticForm(-self.P, c=1),)) # V(x) >= 1
                     prob.add_constraints(new_cons)
                     if prob.solve():
                         marginal = True
             else:  # If not self.stop_around_the_origin, set the others True
                 inside, marginal = True, True
+        else:
+            logging.debug(f'... {s} does not exist')
 
         out = namedtuple("result", ["exists", "inside", "marginal"])
         return out(exists, inside, marginal)
@@ -1575,6 +1646,24 @@ class TrafficModelLinearPETC(Abstraction):
                         if not self.symbolic:
                             MQM = MQM / min(abs(la.eigvalsh(MQM)))
                         con.add(QuadraticForm(MQM.copy()))
+        return con
+
+    def _add_constraints_for_region_strat(self, i_tuple, con):
+        # Now consider a strategy strat : tuple -> k
+        # i_tuple is a tuple of tuples t0, t1, ...
+        # x in Q_t0
+        # M[k_0]x in Q_t1
+        # M[k_1]M[k_0] in Q_t2 ...
+
+        it = iter(i_tuple)
+        t0 = next(it)
+
+        con = self._add_constraints_for_region_i(t0, con)
+        k = (self.strat[t0],)
+        for t in it:
+            con = self._add_constraints_for_reaching_j_after_k(t, k, con)
+            k += (self.strat[t],)
+
         return con
 
     def _M_prod(self, i_tuple, l):
@@ -1996,8 +2085,13 @@ class TrafficModelLinearPETC(Abstraction):
         self.complete_transition = complete_transition
 
     def is_related(self, x: np.array, s: tuple):
-        return all(x in Q
-                   for Q in self._add_constraints_for_region_i(s, set()))
+        if self.strat:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_strat(s,
+                                                                       set()))
+        else:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_i(s, set()))
 
     def region_of_state(self, x: np.array):
         """ Determines which region state x belongs
@@ -2015,10 +2109,25 @@ class TrafficModelLinearPETC(Abstraction):
         """
 
         # TODO: use a tree search instead.
-        for k in sorted(self._regions):
-            if self.is_related(x, k):
-                return k
-        raise ETCAbstractionError('State %s belongs to no region', str(x))
+        r = []
+        for d in range(self.final_depth+1):
+            for k in self.K:
+                if self.is_related(x, (k,)):
+                    x = self.M[k] @ x
+                    r.append(k)
+                    if tuple(r) in self._regions:
+                        return tuple(r)
+                    break
+        r = tuple(r)
+        if r not in self.regions:
+            raise ETCAbstractionError('State %s belongs to no region. '
+                                      'Region would be %s', str(x), str(r))
+        return r
+
+        # for k in sorted(self.regions):
+        #     if self.is_related(x, k):
+        #         return k
+        # raise ETCAbstractionError('State %s belongs to no region', str(x))
 
     def level_of_state(self, x: np.array):
         """ Determines the Lyapunov level where state x belongs.
