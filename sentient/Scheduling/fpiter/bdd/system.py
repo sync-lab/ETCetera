@@ -5,6 +5,7 @@ import sys
 from typing import List
 import numpy as np
 import random
+import shortuuid
 
 try:
     import dd.cudd as _bdd
@@ -19,14 +20,13 @@ from config import save_path
 
 class system(abstract_system):
 
-    def __init__(self, cl: List[controlloop], trap_state=False):
-
+    def __init__(self, cl: List[controlloop], trap_state=False, name=None):
         # First check if all correct controlloop types
         if not all([type(i) == controlloop for i in cl]):
             print('All specified controlloops should be of the bdd type')
             raise ValueError()
 
-        super().__init__(cl)
+        super().__init__(cl, name=name)
 
         # self.bdd = _bdd.BDD()  # BDD manager (empty until compose())
         self.bdd = _bdd.BDD()
@@ -244,25 +244,26 @@ class system(abstract_system):
         Xr = self.bdd.exist(self.bvars, self.bdd.apply('&', X, self.Q))
         return Xr
 
-    def generate_safety_scheduler(self):
+    def generate_safety_scheduler(self, basic=None):
         Ux = None
 
-        if self.ns > 5 or (any([hasattr(x, '_is_late') for x in self.control_loops]) and self.ns > 3):
+        if not basic is True and (self.ns > 5 or (any([hasattr(x, '_is_late') for x in self.control_loops]) and self.ns > 3)):
             Ux, Q = self.gen_safety_scheduler_part()
         else:
             Ux, Q = self.gen_safety_scheduler_basic()
 
         # Save Ux to a DDDMP file
-        fpathsched = os.path.join(save_path, 'scheduler.dddmp')
-        self.bdd.dump(fpathsched, roots=[Ux])
-        print(f"Saved Scheduler BDD to {fpathsched}")
+        if Ux is not None:
+            fpathsched = os.path.join(save_path, f'scheduler_{self.name}.dddmp')
+            self.bdd.dump(fpathsched, roots=[Ux])
+            print(f"Saved Scheduler BDD to {fpathsched}")
 
-        fpathsys = os.path.join(save_path, 'transitions.dddmp')
+        fpathsys = os.path.join(save_path, f'transitions_{self.name}.dddmp')
         self.bdd.dump(fpathsys, roots=[self.tr])
         print(f"Saved composed system transitions BDD to {fpathsys}")
 
         if Q is not None:
-            fpathsys = os.path.join(save_path, 'state2block.dddmp')
+            fpathsys = os.path.join(save_path, f'state2block_{self.name}.dddmp')
             self.bdd.dump(fpathsys, roots=[Q])
             print(f"Saved state-block BDD to {fpathsys}")
 

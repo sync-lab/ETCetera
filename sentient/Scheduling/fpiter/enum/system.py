@@ -10,7 +10,7 @@ from .controlloop import controlloop
 
 class system(abstract_system):
 
-    def __init__(self, cl: List[controlloop], trap_state=False):
+    def __init__(self, cl: List[controlloop], trap_state=False, name=None):
         if not all([type(i) == controlloop for i in cl]):
             print('All specified controlloops should be of the enumerative type')
             raise ValueError()

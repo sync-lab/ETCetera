@@ -14,7 +14,7 @@ def controlloop(abstraction, maxLate: int = None, maxLateStates: int = None, rat
                                 label_split_T=label_split_T, init_steps=init_steps)
 
 
-def system(cl: list, trap_state=False):
+def system(cl: list, trap_state=False, name=None):
     if not all(type(x) == type(cl[0]) for x in cl):
         print('Please specify same type of control loops')
         return None
@@ -22,8 +22,8 @@ def system(cl: list, trap_state=False):
         print('All control loops should share same sampling period')
     else:
         if type(cl[0]) == enum.controlloop:
-            return enum.system(cl, trap_state=trap_state)
+            return enum.system(cl, trap_state=trap_state, name=name)
         elif type(cl[0]) == bdd.controlloop:
-            return bdd.system(cl, trap_state=trap_state)
+            return bdd.system(cl, trap_state=trap_state, name=name)
         else:
             return None
