@@ -45,3 +45,30 @@ regions, transitions = traffic.create_abstraction()
 # Print obtained SAIST and its minimizing cycle
 print(f'SAIST is {traffic.limavg}')
 print(f'Smallest average cycles: {traffic.cycles}')
+
+
+''' Now create an abstraction to design an improved sampling strategy '''
+traffic_synth = abstr.TrafficModelLinearPETC(trigger,
+                                             depth=1,
+                                             etc_only=False,  # <--
+                                             solver='z3',
+                                             early_trigger_only=True)  # <--
+
+strat, strat_tran = traffic.optimize_sampling_strategy()
+# Inspect strategy
+print(strat)
+
+# Compute its SAIST value
+traffic2 = abstr.TrafficModelLinearPETC(trigger,
+                                        #symbolic=True,
+                                        depth=100,
+                                        etc_only=True,
+                                        solver='z3',
+                                        stop_if_mace_equivalent=True,
+                                        smart_mace=True,
+                                        strategy=strat,  # <--
+                                        strategy_transition=strat_tran)  # <--
+
+print(f'Optimized SAIST is {traffic2.limavg}')
+print(f'Smallest average cycles: {traffic.cycles}')
+

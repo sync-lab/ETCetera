@@ -17,6 +17,7 @@ from sentient.Abstractions.Abstraction import Abstraction
 from sentient.Systems import linearetc as etc
 from sentient.Abstractions.LinearPETC.utils.optim import QuadraticForm, sdr_problem, QuadraticProblem
 from sentient.util.etcgraph import TrafficAutomaton
+import sentient.util.etcgame as gm
 # from sentient.Systems.Automata.timed_automaton import TimedAutomaton
 # from sentient.Systems.Automata.priced_timed_automaton import PricedTimedAutomaton
 from sentient.Systems.Automata import Automaton
@@ -547,6 +548,25 @@ class TrafficModelLinearPETC(Abstraction):
             self._build_transition()
 
         return self._transition
+
+    def optimize_sampling_strategy(self):
+        if self.etc_only:
+            raise ETCAbstractionError('Abstraction must be built with etc_only'
+                                      '=False for synthesis.')
+        g1 = gm.TrafficGameAutomaton(self.transition)
+        nu, sigma, W0, W1 = gm.solve_mean_payoff_game(g1.G, g1.G.ep.weight,
+                                                      g1.V0, g1.V1,
+                                                      True)
+        strat = {}
+        I1 = len(g1.V0)
+        for i in g1.V0:
+            strat[g1.regions[i]] = max(g1.branchpoints[x-I1][0]
+                                       for x in sigma[i])
+        trs = {(x,k):y for (x,k),y in self.transition.items() if strat[x] == k}
+
+        self.strat = strat
+        self.strat_transition = trs
+        return strat, trs
 
     # TODO: When symbolic works also make sure this works
     # @symbolic_decorator
