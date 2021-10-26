@@ -54,7 +54,7 @@ traffic_synth = abstr.TrafficModelLinearPETC(trigger,
                                              solver='z3',
                                              early_trigger_only=True)  # <--
 
-strat, strat_tran = traffic.optimize_sampling_strategy()
+strat, strat_tran = traffic_synth.optimize_sampling_strategy()
 # Inspect strategy
 print(strat)
 

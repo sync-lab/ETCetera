@@ -553,7 +553,11 @@ class TrafficModelLinearPETC(Abstraction):
         if self.etc_only:
             raise ETCAbstractionError('Abstraction must be built with etc_only'
                                       '=False for synthesis.')
-        g1 = gm.TrafficGameAutomaton(self.transition)
+
+        _ = self.regions  # Ensure that regions have been created
+
+        g1 = gm.TrafficGameAutomaton(self.transitions)
+        logging.info('Solving mean-payoff game')
         nu, sigma, W0, W1 = gm.solve_mean_payoff_game(g1.G, g1.G.ep.weight,
                                                       g1.V0, g1.V1,
                                                       True)
@@ -562,7 +566,8 @@ class TrafficModelLinearPETC(Abstraction):
         for i in g1.V0:
             strat[g1.regions[i]] = max(g1.branchpoints[x-I1][0]
                                        for x in sigma[i])
-        trs = {(x,k):y for (x,k),y in self.transition.items() if strat[x] == k}
+        trs = {(x,k):y for (x,k),y in self.transitions.items()
+               if strat[x] == k}
 
         self.strat = strat
         self.strat_transition = trs
