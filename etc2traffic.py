@@ -70,6 +70,7 @@ if __name__ == "__main__":
             from sentient.util.construct_from_file_nonlinearETC import \
                 construct_nonlinearETC_traffic_from_file
             traffic = construct_nonlinearETC_traffic_from_file(input_file)
+            traffic.visualize()
         # More to follow...
 
     except SentientBaseException as e:
