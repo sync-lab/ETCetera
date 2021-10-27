@@ -209,7 +209,7 @@ class TrafficModelNonlinearETC(Abstraction):
         self.LP_data = None
         self.cones_big_angle = None
         self.cones_small_angles = None
-        self.mu = None
+        # self.mu = None
         self.Regions = None
         self.Grid = None
 
@@ -451,6 +451,7 @@ class TrafficModelNonlinearETC(Abstraction):
         pbar1 = tqdm.tqdm(total=len(self.Regions), position=-1)
 
         for region in self.Regions:  # for each region
+            print('Computing transitions for Region {}'.format(region.index))
             pbar1.update()
             pbar2 = tqdm.tqdm(total=len(self.Regions), position=-1, leave=False)
             for region2 in self.Regions:  # check if there is transition with each of all regions
@@ -1011,7 +1012,7 @@ class TrafficModelNonlinearETC(Abstraction):
         state_vector = sympy.Matrix(self.State[:int(self.n / 2)])
         dimension = self.n
 
-        self.mu = self.compute_mu()
+        # self.mu = self.compute_mu()
 
         if (self.Homogenization_Flag):  # if non-hom. system
             # create a grid on w=1
@@ -1166,7 +1167,7 @@ class TrafficModelNonlinearETC(Abstraction):
                             inner_manifold_time = manifolds_times[j + 1]
                             contains_origin_flag = False
                         temp = Region_Manifold(state_vector, region_index, inner_manifold_time, outer_manifold_time, \
-                                               conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
+                                               conic_domain, inner_radius, outer_radius, \
                                                contains_origin_flag, self.Homogenization_Flag)
                         self.Regions.append(copy.deepcopy(temp))
                         print('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
@@ -1254,7 +1255,7 @@ class TrafficModelNonlinearETC(Abstraction):
                     inner_manifold_time = manifolds_times[j + 1]
                     contains_origin_flag = False
                 temp = Region_Manifold(state_vector, region_index, inner_manifold_time, outer_manifold_time, \
-                                       conic_domain, inner_radius, outer_radius, copy.deepcopy(self.mu), \
+                                       conic_domain, inner_radius, outer_radius, \
                                        contains_origin_flag, self.Homogenization_Flag)
                 self.Regions.append(copy.deepcopy(temp))
                 print('Region {}, lower bound {}, inner_radius {}, outer_radius {}\n'.format(temp.index, \
