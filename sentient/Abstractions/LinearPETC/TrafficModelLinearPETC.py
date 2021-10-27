@@ -16,7 +16,8 @@ from sentient.Abstractions.Abstraction import Abstraction
 
 from sentient.Systems import linearetc as etc
 from sentient.Abstractions.LinearPETC.utils.optim import QuadraticForm, sdr_problem, QuadraticProblem
-from sentient.util.etcgraph_python_specific import TrafficAutomaton
+from sentient.util.etcgraph import TrafficAutomaton
+import sentient.util.etcgame as gm
 # from sentient.Systems.Automata.timed_automaton import TimedAutomaton
 # from sentient.Systems.Automata.priced_timed_automaton import PricedTimedAutomaton
 from sentient.Systems.Automata import Automaton
@@ -274,7 +275,11 @@ class TrafficModelLinearPETC(Abstraction):
                  reduced_actions=False, early_trigger_only=False,
                  max_delay_steps=0, depth=1,
                  etc_only=False, end_level=0.01, solver='sdr',
-                 stop_around_origin=False, stop_if_omega_bisimilar=False):
+                 stop_around_origin=False, stop_if_omega_bisimilar=False,
+                 stop_if_mace_equivalent=False,
+                 smart_mace=False,
+                 strategy=None,
+                 strategy_transition=None):
 
         super().__init__()
 
@@ -298,12 +303,27 @@ class TrafficModelLinearPETC(Abstraction):
         self.stop_if_omega_bisimilar = stop_if_omega_bisimilar
         self.kmaxextra = kmaxextra
         self.P = trigger.P
+        self.stop_if_omega_bisimilar = stop_if_omega_bisimilar
+        self.stop_if_mace_equivalent = stop_if_mace_equivalent
+        self.smart_mace = smart_mace
+        self.strat = None
+
+        self.l_complete = True  # Standard refinement
 
         # Depending on the solver, symbolic matrix manipulation is used.
         self.symbolic = symbolic
         # TODO: Currently not working so throw error
         if symbolic:
             raise NotImplementedError
+
+        # When a sampling strategy is given
+        self.strat = strategy
+        if strategy:
+            minlstrat = min(len(x) for x in self.strat)
+            assert minlstrat == max(len(x) for x in self.strat)
+            self.strat_l = minlstrat
+            self.strat_transition = {((x,),k):{(z,) for z in y}
+                                     for (x,k),y in strategy_transition.items()}
 
         # Sanity check: algorithm only works for LTI state feedback
         if depth > 1 and (consider_noise or self.controller.is_dynamic or \
@@ -361,7 +381,7 @@ class TrafficModelLinearPETC(Abstraction):
         self._initial = set()
         # self._all_regions stores all regions ever visited during the
         # algorithm execution. Essentially used for memoization
-        self._all_regions = set((k,) for k in self.K)
+        self._all_regions = set()
         # self._marginal stores regions that also satisfy the constraint
         # V(x) == 1. These regions are associated with sampling sequences
         # that ensure a reduction of the Lyapunov function by a factor of
@@ -374,9 +394,23 @@ class TrafficModelLinearPETC(Abstraction):
         # ({x in R^n: x'Px <= end_level})
         self._regions = set()
 
-        # If omega-bisimulation is checked, memoize the behavioral cycles
-        if stop_if_omega_bisimilar:
+        # With some types of abstraction, memoizing regions proven to not
+        # exist can allow us to shortcircuit some Z3 checks
+        self._non_regions = set()
+
+        # If MACE equivalence is checked, memoize the behavioral cycles
+        if stop_if_omega_bisimilar or stop_if_mace_equivalent:
             self.cycles = set()
+            self.non_cycles = set()
+            if stop_if_mace_equivalent:
+                if smart_mace:
+                    self.l_complete = False
+                self.limavg = min(self.K)  # Worst case, kmin^omega
+
+        self._mac_regions = None  # This will store regions associated with
+        # the current MAC, in case MACE equivalence is checked
+        self._mac_candidates = None  # This is a subset of MAC regions to be
+        # refined
 
         # self.generate_regions()
         #
@@ -508,6 +542,30 @@ class TrafficModelLinearPETC(Abstraction):
 
         return self._transition
 
+    def optimize_sampling_strategy(self):
+        if self.etc_only:
+            raise ETCAbstractionError('Abstraction must be built with etc_only'
+                                      '=False for synthesis.')
+
+        _ = self.regions  # Ensure that regions have been created
+
+        g1 = gm.TrafficGameAutomaton(self.transitions)
+        logging.info('Solving mean-payoff game')
+        nu, sigma, W0, W1 = gm.solve_mean_payoff_game(g1.G, g1.G.ep.weight,
+                                                      g1.V0, g1.V1,
+                                                      True)
+        strat = {}
+        I1 = len(g1.V0)
+        for i in g1.V0:
+            strat[g1.regions[i]] = max(g1.branchpoints[x-I1][0]
+                                       for x in sigma[i])
+        trs = {(x,k):y for (x,k),y in self.transitions.items()
+               if strat[x] == k}
+
+        self.strat = strat
+        self.strat_transition = trs
+        return strat, trs
+
     # TODO: When symbolic works also make sure this works
     # @symbolic_decorator
     def refine(self, i=1) -> None:
@@ -520,9 +578,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(start, self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
 
         self._clear_cache()
 
@@ -544,9 +605,12 @@ class TrafficModelLinearPETC(Abstraction):
 
         for d in range(self.depth):
             logging.info(f'Depth: {d + 1}/{self.depth}')
+            self._d = d
             s = self._refine_regions()
             if not s:
                 break
+
+        self.final_depth = d
         # if self.symbolic:
         #     self._convert_MQP_to_numeric()
 
@@ -557,18 +621,69 @@ class TrafficModelLinearPETC(Abstraction):
         # Split the state-space by computing potential Pre's of the
         # current regions. We say potential because we have to verify if
         # these regions can actually occur.
+        if not self.smart_mace:
+            self._mac_candidates = None
 
-        new_regions = self._generate_backward_candidates()
+        # Main refinement algorithm
+        if self.strat and self._d == 0:
+            # When an external sampling strategy is given, initialize regions
+            # from it
+            self._regions = {x+z for (x,k),y in self.strat_transition.items()
+                             for z in y}
+            self.automaton = TrafficAutomaton(self._regions, self.strat)
+            new_regions = self._regions
+        else:
+            new_regions = self._refinement_step(self._mac_candidates,
+                                                self.l_complete)
+
+        logging.debug(f'REGIONS: {self._regions}')
+        #print('regions====', self._regions)
 
         # First bisimulation stopping criterion: no new candidates are
         # generated (note: it probably never happens)
         if len(new_regions) == 0:
-            print('Do I ever enter here?')
             logging.info('Bisimulation: all sequences computed!')
             return False
 
+        if not self.stop_around_origin:
+            # If current system is deterministic, stop: system admits
+            # a bisimulation, no deepening is needed!
+            G = self.automaton.G
+            if all(G.get_out_degrees(G.get_vertices())==1):
+                print('SYSTEM ADMITS A BISIMULATION!!!!')
+                return False
+
+            # Alternative stopping criteria for cycle equivalence
+            if self.stop_if_omega_bisimilar and \
+                    self._is_omega_bisimilar():
+                print('System is non-deterministic but omega-'
+                      'bisimilar. Stopping.')
+                return False
+
+            if self.stop_if_mace_equivalent and \
+                    self._is_mace_equivalent():
+                print('System is MACE-equivalent. Stopping.')
+                return False
+
+        return True
+
+    def _refinement_step(self, candidates, l_complete):
+        if not self.stop_around_origin:
+            new_regions, verified_regions = \
+                self._generate_domino_candidates(
+                    subset=candidates,
+                    backward=l_complete)
+            logging.debug(f'NEW: {new_regions}')
+            logging.debug(f'VERIFIED: {verified_regions}')
+            logging.debug(f'{len(new_regions)} ({len(verified_regions)})')
+            self._verified_regions = verified_regions
+        else:
+            new_regions = self._generate_backward_candidates(
+                subset=candidates,
+                backward=l_complete)
+
         logging.info(f'Number of regions to be verified: '
-                     f'{len(new_regions)}. Was: {len(self._regions)}.')
+                      f'{len(new_regions)}. Was: {len(self._regions)}.')
 
         # Now verify if the new region candidates can actually exist
         # by performing reachability analysis. The following function
@@ -592,40 +707,12 @@ class TrafficModelLinearPETC(Abstraction):
             # Replace regions by the new_regions generated in this
             # iteration
             self._regions = new_regions
+            if self.strat:
+                self.automaton = TrafficAutomaton(self._regions, self.strat)
+            else:
+                self.automaton = TrafficAutomaton(self._regions)
 
-        print('regions====', self._regions)
-
-        # Second bisimulation stopping criterion: if all new regions were
-        # already in self._initial, it means that no new states were found,
-        # and therefore the bisimulation algorithm has converged.
-        # Note: it also seems that this condition is never met.
-        if len(new_regions - self._initial) == 0:
-            logging.info('Bisimulation: all sequences computed!')
-            return False
-
-        if not self.stop_around_origin:
-            # If current system is deterministic, stop: system admits
-            # a bisimulation, no deepening is needed!
-            for s in self._regions:
-                # Compute Post(s) following the domino rule.
-                post = [sp for sp in self._regions if sp[:-1] == s[1:]]
-                if len(post) > 1:
-                    break  # At least one state has > 1 successor.
-            else:  # Enter here if for all s, |Post(s)| = 1 (determinism)
-                # Caps because it is very exciting. I.e., it does not
-                # happen very often.
-                print('SYSTEM ADMITS A BISIMULATION!!!!')
-                return False
-
-            # A final stopping criterion, allows stopping if an omega-
-            # bisimulation is found. This is work in progress.
-            if self.stop_if_omega_bisimilar and \
-                    self._is_omega_bisimilar():
-                print('System is non-deterministic but omega-'
-                      'bisimilar. Stopping.')
-                return False
-
-        return True
+        return new_regions
 
     def return_region_descriptors(self):
         """
@@ -998,7 +1085,62 @@ class TrafficModelLinearPETC(Abstraction):
             MQM = {x: mqm / la.norm(mqm) for x, mqm in MQM.items()}
         self._MQM = MQM
 
-    def _generate_backward_candidates(self):
+    def _generate_domino_candidates(self, subset=None, backward=True):
+        # Update max and min string lengths existing in self.regions.
+        try:
+            self._minL = min(len(x) for x in self._regions)
+            self._maxL = max(len(x) for x in self._regions)
+        except ValueError:
+            self._minL, self._maxL = 0, 0
+            return set((k,) for k in self.K), set()
+
+        out_set = set()
+        verified_set = set()
+
+        G = self.automaton
+        if subset is None:
+            for e in G.G.edges():
+                s = G.regions[int(e.source())]
+                d = G.regions[int(e.target())]
+                r = s + d[len(s)-1:]
+                out_set.add(r)
+                if e.source().out_degree() == 1:
+                    verified_set.add(r)
+        else:
+            logging.debug(f'Subset received in domino: {subset}')
+            logging.debug(f'Backward refinement? {backward}')
+            logging.debug(f'Current graph: {G.G}')
+            for i, v in enumerate(G.G.vertices()):
+                region = G.regions[i]
+                #logging.debug(f'Region: {region}')
+                if region in subset:
+                    if backward:
+                        d = region
+                        for vs in v.in_neighbors():
+                            s = G.regions[int(vs)]
+                            r = s + d[len(s)-1:]
+                            out_set.add(r)
+                        if v.in_degree() == 1:
+                            verified_set.add(r)
+                    else:
+                        s = region
+                        out_s = set()
+                        for vs in v.out_neighbors():
+                            d = G.regions[int(vs)]
+                            r = s + d[len(s)-1:]
+                            r = s + (d[len(s)-1],)  # Could it work?
+                            logging.debug(f'{s}-->{d}: {r}')
+                            out_s.add(r)
+                            out_set.add(r)
+                        if len(out_s) == 1:
+                            verified_set.update(out_s)
+                else:
+                    out_set.add(region)
+                    verified_set.add(region)
+
+        return out_set, verified_set
+
+    def _generate_backward_candidates(self, subset=None, backward=True):
         """Generate candidates for new regions.
 
         For every current region s that is not initial, generate
@@ -1012,6 +1154,12 @@ class TrafficModelLinearPETC(Abstraction):
         for some k. Checking such emptiness is the most expensive part of the
         algorithm, done later in _verify_candidates. Some candidates are
         excluded in this function using some cheaper check.
+
+        Parameters
+        ----------
+        subset : set
+            Subset of self.regions to generate refined candidates. Default:
+            None, which means that all regions are used.
 
         Returns
         -------
@@ -1031,10 +1179,19 @@ class TrafficModelLinearPETC(Abstraction):
         # Generate all candidates
         # TODO: this is not very smart; can use the Pres instead.
         # (For now, leave it as is, it's not a bottleneck of the code runtime)
-        out_set = set()
+        if subset is None:
+            out_set = set()
+            regions = self._regions - self._initial
+        else:
+            out_set = self._regions - subset
+            regions = subset.intersection(self._regions - self._initial)
+
         possible_initial = set()  # Deprecated for now
-        for (i, k) in itertools.product(self._regions - self._initial, self.K):
-            ki = (k,) + i
+        for (i,k) in itertools.product(regions, self.K):
+            if backward:
+                ki = (k,) + i
+            else:
+                ki = i + (k,)
 
             # _substring_exists verifies if all substrings of ki exist in
             # self.regions (respecting minimum and maximum string lengths)
@@ -1054,6 +1211,14 @@ class TrafficModelLinearPETC(Abstraction):
                     if ki[:len(s)] == s:
                         possible_initial.add(ki)
                         break
+                # If not using l-complete refinement, add smaller substrings
+                # that have not been checked yet
+                if not self.l_complete:
+                    # We know that ki[:-1] exists. We need the tail substrings
+                    for m in range(1,len(ki)):
+                        subki = ki[m:]
+                        if subki not in self._all_regions:
+                            out_set.add(subki)
                 out_set.add(ki)
         return out_set
 
@@ -1122,18 +1287,30 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
         out_set = set()
-
-        try:  # Paralelization does not work in iPython
-            __IPYTHON__
-        except NameError:
-            results = Parallel(n_jobs=NUM_CORES)(
-                delayed(self._verify_sequence)(r) for r in regions)
-        else:
-            results = [self._verify_sequence(r) for r in regions]
-
         extended_set = set()
         marginal_set = set()
         initial_set = set()
+
+        if not self.l_complete:
+            minL = min(len(x) for x in regions)
+            maxL = max(len(x) for x in regions)
+
+            if minL < maxL:
+                for l in range(minL, maxL+1):
+                    rl = set(x for x in regions if len(x) == l)
+                    if len(rl) > 0:
+                        o, e, m, i = self._verify_candidates(rl)
+                        out_set.update(o)
+                        extended_set.update(e)
+                        marginal_set.update(m)
+                        initial_set.update(i)
+                out = namedtuple("candidate_sets",
+                                 ["out", "extended", "marginal", "initial"])
+                return out(out_set, extended_set, marginal_set, initial_set)
+
+        results = Parallel(n_jobs=NUM_CORES)(
+            delayed(self._verify_sequence)(r) for r in tqdm(regions))
+        # results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):
             exists, inside, marginal = result
@@ -1143,10 +1320,15 @@ class TrafficModelLinearPETC(Abstraction):
                     out_set.add(r)
                     if marginal:
                         marginal_set.add(r)
+            else:
+                self._non_regions.add(r)
+
 
         for r in self._regions:
-            if all((k,) + r not in out_set for k in self.K):
+            if all((k,) + r not in out_set for k in self.K) and \
+                    all((k,) + r in regions for k in self.K):
                 initial_set.add(r)
+
 
         out = namedtuple("candidate_sets", ["out", "extended", "marginal",
                                             "initial"])
@@ -1197,6 +1379,13 @@ class TrafficModelLinearPETC(Abstraction):
 
         """
 
+        # Most basic shortcut: s is already a region (it was not refined)
+        if s in self._all_regions:
+            exists = True
+            inside = s in self._regions
+            marginal = s in self._marginal
+            return exists, inside, marginal
+
         # This verification is a short-circuit to prevent the more expensive
         # constraint satisfaction problem described in the docstring. It
         # verifies (1) if there is only one possible successor to the current
@@ -1220,38 +1409,40 @@ class TrafficModelLinearPETC(Abstraction):
 
         # This creates a list of QuadraticForm constraints associated with
         # the sequence s.
-        con = self._add_constraints_for_region_i(s, set())
+        if self.strat:
+            con = self._add_constraints_for_region_strat(s, set())
+        else:
+            con = self._add_constraints_for_region_i(s, set())
+
+        # If we're using symbolic (exact) solving, add x'x > 0 to prevent
+        # x = zeros as a solution.
+        if self.symbolic:
+            con.add(QuadraticForm(-sympy.Identity(self.n), strict=True))
 
         # Create the (basic) quadratic problem.
-
         prob = QuadraticProblem(con, solver=self.solver)
 
         # If it has a solution, try the more specific problems
+        logging.debug(f'Verifying {s}...')
         if prob.solve():
+            logging.debug(f'... {s} exists')
             exists = True
             # Now check if initial state can belong inside {x: V(x) <= 1}
             if self.stop_around_origin:
                 # V(x) <= 1
-                new_cons = set((QuadraticForm(self.P, c=-1),))
-                # Build matrices: Mns = M(k_(m-1))@...@M(k_2)@M(k_1)
-                Mns = self._M_prod(s, len(s) - 1)
-                # Ms = M(k_m)@M(k_(m-1))@...@M(k_2)@M(k_1)
-                Ms = self.M[s[-1]] @ Mns
-                # Last point of the trajectory should be in target set
-                new_cons.add(QuadraticForm(Ms.T @ self.P @ Ms, c=-self.end_level))
-                # The one before the last should not!
-                new_cons.add(QuadraticForm(-Mns.T @ self.P @ Mns, c=self.end_level,
-                                           strict=True))
+                new_cons = self._add_reach_ball_constraints(s, set())
                 prob.add_constraints(new_cons)
                 if prob.solve():  # Solved again? Try the marginal condition
                     inside = True
                     # Now check if there exists x: V(x) = 1
-                    new_cons = set((QuadraticForm(-self.P, c=1),))  # V(x) >= 1
+                    new_cons = set((QuadraticForm(-self.P, c=1),)) # V(x) >= 1
                     prob.add_constraints(new_cons)
                     if prob.solve():
                         marginal = True
             else:  # If not self.stop_around_the_origin, set the others True
                 inside, marginal = True, True
+        else:
+            logging.debug(f'... {s} does not exist')
 
         out = namedtuple("result", ["exists", "inside", "marginal"])
         return out(exists, inside, marginal)
@@ -1306,8 +1497,9 @@ class TrafficModelLinearPETC(Abstraction):
         # (complete_cost[((i,k),j)])
         complete_cost = {}  # for costs depending on reached set j.
 
-        nIK = len(R) * len(M)
-        for i, k in tqdm(itertools.product(R, M), total=nIK):
+        to_check = set()
+
+        for i, k in itertools.product(R, M):
             k_tuple = (k,)
             if type(i) is not tuple:
                 i = (i,)
@@ -1333,8 +1525,7 @@ class TrafficModelLinearPETC(Abstraction):
                 if type(j) is not tuple:
                     j = (j,)
                 if not self.cost_computation:
-                    if self._reaches(i, j, k_tuple):
-                        transition[(i, k)].add(j)
+                    to_check.add((i,j,k_tuple))
                 else:  # TODO: review this whole cost thing
                     try:
                         logging.debug('Checing transition for %d --%d-> %d',
@@ -1367,6 +1558,21 @@ class TrafficModelLinearPETC(Abstraction):
                         else:
                             raise e
                     transition[(i, k)].add(j)
+
+        # For the normal case, parallelize the transition computations
+        if not self.cost_computation:
+            results = Parallel(n_jobs=NUM_CORES)(
+                delayed(self._reaches)(i, j, k) for i, j, k in tqdm(to_check))
+            # results = [self._reaches(i, j, k)
+            #            for i, j, k in tqdm(to_check)]
+
+            for ((i, j, k_tuple), exists) in zip(to_check, results):
+                if exists:
+                    k = k_tuple[0]
+                    try:
+                        transition[(i, k)].add(j)
+                    except KeyError:
+                        transition[(i, k)] = {j}
 
         self._transition = transition
         self.complete_cost = complete_cost
@@ -1440,6 +1646,24 @@ class TrafficModelLinearPETC(Abstraction):
                         if not self.symbolic:
                             MQM = MQM / min(abs(la.eigvalsh(MQM)))
                         con.add(QuadraticForm(MQM.copy()))
+        return con
+
+    def _add_constraints_for_region_strat(self, i_tuple, con):
+        # Now consider a strategy strat : tuple -> k
+        # i_tuple is a tuple of tuples t0, t1, ...
+        # x in Q_t0
+        # M[k_0]x in Q_t1
+        # M[k_1]M[k_0] in Q_t2 ...
+
+        it = iter(i_tuple)
+        t0 = next(it)
+
+        con = self._add_constraints_for_region_i(t0, con)
+        k = (self.strat[t0],)
+        for t in it:
+            con = self._add_constraints_for_reaching_j_after_k(t, k, con)
+            k += (self.strat[t],)
+
         return con
 
     def _M_prod(self, i_tuple, l):
@@ -1537,32 +1761,104 @@ class TrafficModelLinearPETC(Abstraction):
                     return False
         return True
 
+    def _is_mace_equivalent(self):
+        # Get all MACs
+        value, cycle, regs, _ = self.automaton.minimum_average_cycle()
+
+        self._mac_regions = set(regs)
+        minL = min(len(r) for r in regs)
+        self._mac_candidates = set(r for r in regs if len(r)==minL)
+        logging.debug(f'{regs}, {self._mac_candidates}')
+        self.limavg = value
+        logging.info(f'Verifying {cycle}, whose value is {value}')
+        if self._verify_cycle(cycle):
+            logging.info(f'{cycle} is a valid cycle!')
+            return True
+        else:
+            self.non_cycles.add(cycle)
+
+        logging.info('MACE equivalence not verified yet')
+        return False
+
     def _verify_cycle(self, cycle):
+        """Verify whether a given cycle is a behavior of the PETC.
+
+
+        Parameters
+        ----------
+        cycle : tuple
+            Behavioral cycle to be verified
+
+        Returns
+        -------
+        bool
+            Whether this cycle exists in the PETC.
+
+        """
         # First check if cycle was already there
         for c in self.cycles:
             if self.two_cycles_are_equal(c, cycle):
                 return True
 
+        # Then check if cycle was falsified
+        for c in self.non_cycles:
+            if self.two_cycles_are_equal(c, cycle):
+                return False
+
         # Now perform the check using eigenvectors
         l = len(cycle)
-        m = self._M_prod(cycle, l)
-        for (lbd, mult, vecs) in m.eigenvects():
-            if lbd.is_real:
-                for vec in vecs:  # To check: when is there more than 1?
-                    c = cycle[:]
-                    for i in range(l):
-                        # print(i)
-                        if not self.is_related(vec, c):
-                            break
-                        # re-cycle
-                        vec = self.M[c[0]] @ vec
-                        c = c[1:] + c[:1]
+        if self.strat:
+            ks = tuple((self.strat[r] for r in cycle))
+            m = self._M_prod(ks, l)
+        else:
+            m = self._M_prod(cycle, l)
+
+        if self.n == 2 and self.symbolic:
+            eigenvects = m.eigenvects()
+        else:  # SymPy eigenvects is prohibitevly slow for n>2
+            mm = np.array(m).astype('float64')
+            eigvals, v = la.eig(mm)
+            eigenvects = []
+            for i, lbd in enumerate(eigvals):
+                lbd = sympy.nsimplify(lbd, tolerance=0.001, rational=True)
+                vec = [sympy.nsimplify(sympy.Matrix(v[:,i]), tolerance=0.001,
+                                       rational=True)]
+                eigenvects.append((lbd, 1, vec))  # Numerically there are no
+                # repeated eigenvalues --> mult=1
+        for (lbd, mult, vecs) in eigenvects:
+            if mult > 1:
+                # Geo > 1 - Use Jordan
+                # Geo = 1 - constrain Q to the subspace, any solution works
+                # Alternative: find x in S : MMMMx not in S
+                #   (this might have been easier to implement in general...)
+                raise NotImplementedError('Code not implemented for the '
+                                          'case with repeated eigenvalues.')
+            for vec in vecs:  # when mult == 1, there is only one.
+                if lbd.is_real:
+                    V = vec
+                else:
+                    if self.n == 2:  # Then it is the whole R^2, cannot happen
+                        return False
+                    real, imag = vec.as_real_imag()
+                    # v - v.conj(),  i*v + i*v.conj() = 2*imag(v)
+                    V = sympy.Matrix([real.T, imag.T]).T
+
+                c = cycle[:]
+
+                for i in range(l):
+                    if not self.is_related(V, c):
+                        break
+                    # re-cycle
+                    if self.strat:
+                        k = self.strat[c[0]]
                     else:
-                        self.cycles.add(tuple(cycle))
-                        return True
-            else:
-                # TODO: what to do for R^n, n >= 3?
-                return False
+                        k = c[0]
+                    V = self.M[k] @ V
+                    c = c[1:] + c[:1]
+                else:
+                    self.cycles.add(tuple(cycle))
+                    return True
+
         return False
 
     @staticmethod
@@ -1789,8 +2085,13 @@ class TrafficModelLinearPETC(Abstraction):
         self.complete_transition = complete_transition
 
     def is_related(self, x: np.array, s: tuple):
-        return all(x in Q
-                   for Q in self._add_constraints_for_region_i(s, set()))
+        if self.strat:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_strat(s,
+                                                                       set()))
+        else:
+            return all(x in Q
+                       for Q in self._add_constraints_for_region_i(s, set()))
 
     def region_of_state(self, x: np.array):
         """ Determines which region state x belongs
@@ -1808,10 +2109,25 @@ class TrafficModelLinearPETC(Abstraction):
         """
 
         # TODO: use a tree search instead.
-        for k in sorted(self._regions):
-            if self.is_related(x, k):
-                return k
-        raise ETCAbstractionError('State %s belongs to no region', str(x))
+        r = []
+        for d in range(self.final_depth+1):
+            for k in self.K:
+                if self.is_related(x, (k,)):
+                    x = self.M[k] @ x
+                    r.append(k)
+                    if tuple(r) in self._regions:
+                        return tuple(r)
+                    break
+        r = tuple(r)
+        if r not in self.regions:
+            raise ETCAbstractionError('State %s belongs to no region. '
+                                      'Region would be %s', str(x), str(r))
+        return r
+
+        # for k in sorted(self.regions):
+        #     if self.is_related(x, k):
+        #         return k
+        # raise ETCAbstractionError('State %s belongs to no region', str(x))
 
     def level_of_state(self, x: np.array):
         """ Determines the Lyapunov level where state x belongs.

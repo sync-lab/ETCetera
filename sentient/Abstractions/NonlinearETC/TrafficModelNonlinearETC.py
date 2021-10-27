@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy
 import math
@@ -140,8 +139,20 @@ class TrafficModelNonlinearETC(Abstraction):
         hom_deg = util.test_homogeneity(dynamics, state)
 
         if hom_deg is None:
+            # Calculate order of system
+            try:
+                sym_x = sympy.symbols('x')
+                poly = [expr.subs({x: sym_x for x in dynamics.free_symbols}) for expr in dynamics]
+                default_hom = max([sympy.degree(expr, gen=sym_x) for expr in poly])
+            except Exception:
+                print("Finding highest order failed... use 2 for homogeneity degree")
+                default_hom = 2
+
+            if homogeneity is None:
+                homogeneity = default_hom
+
             print(f'Dynamics {dynamics} are not yet homogeneous.')
-            print(f'Make Homogeneous with degree {homogeneity} (Default: 2)')
+            print(f'Make Homogeneous with degree {homogeneity} (Default: {default_hom})')
 
             # Make homogeneous (default: 2)
             dynamics, state, trigger = util.make_homogeneous_etc(dynamics, state, homogeneity or 2, trigger=trigger)
@@ -202,7 +213,6 @@ class TrafficModelNonlinearETC(Abstraction):
         self.Regions = None
         self.Grid = None
 
-
         # Setting solver options
         if manifolds_times is not None:
             manifolds_times.sort()
@@ -249,6 +259,10 @@ class TrafficModelNonlinearETC(Abstraction):
         self.parallel = parallel
         if parallel:
             print("Warning: parallelization is still being tested, so use at your own risk..")
+
+        if not self.Homogenization_Flag and partition_method == 'manifold' and grid_points_per_dim is not None:
+            logging.warning('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dime is not used.')
+            print('For homogeneous systems with partition_method=manifold, the parameter grid_points_per_dim is not used.')
 
         logging.info(f'Original State Vector: {original_state}')
         logging.info(f'Original Dynamics: {original_dynamics}')

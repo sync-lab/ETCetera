@@ -193,30 +193,33 @@ def construct_nonlinearETC_traffic_from_file(file_name, CreateAbstraction=True):
             dynamics_new.insert(len(dict_symbol_to_attr['x']), 0)
             dynamics_new += [0]
 
+    ## Now performs hom. checks in TrafficModelNonlinearETC constructor
     else:
-        # First check whether the system is then homogeneous already. If no homogenize itself with desired hom. degree
-        # (Deg. of Homogeneity)
-        # xwvars = dict_symbol_to_attr['x'].copy()
-        # xwvars.update(dict_symbol_to_attr['w'])
-        # xwvars.update(dict_symbol_to_attr['e'])
-        # xwvars = {sympy.Symbol(i) if type(i) is str else i for i in xwvars}
-
-        xwvars = list(dict_symbol_to_attr['x'])
-        xwvars += list(dict_symbol_to_attr['w'])
-        xwvars += list(dict_symbol_to_attr['e'])
-        # xwvars += list(dict_symbol_to_attr['d'])
-        xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
-        alpha = test_homogeneity(dynamics_new, xwvars)
-        if alpha:
-            is_homogenized = False
-
-        else:
-            is_homogenized = True
-            des_deg = dict_key_to_attrs['Deg. of Homogeneity'] or 2
-            dynamics_new, b, dict_key_to_attrs['Triggering Condition'] = make_homogeneous_etc(dynamics_new, list(xwvars), des_deg, trigger=dict_key_to_attrs['Triggering Condition'])
-            dict_symbol_to_attr['w'].add('w1')
-            dict_symbol_to_attr['e'].add('ew')
-            dict_key_to_attrs['Deg. of Homogeneity'] = des_deg
+        is_homogenized = False
+    # else:
+    #     # First check whether the system is then homogeneous already. If no homogenize itself with desired hom. degree
+    #     # (Deg. of Homogeneity)
+    #     # xwvars = dict_symbol_to_attr['x'].copy()
+    #     # xwvars.update(dict_symbol_to_attr['w'])
+    #     # xwvars.update(dict_symbol_to_attr['e'])
+    #     # xwvars = {sympy.Symbol(i) if type(i) is str else i for i in xwvars}
+    #
+    #     xwvars = list(dict_symbol_to_attr['x'])
+    #     xwvars += list(dict_symbol_to_attr['w'])
+    #     xwvars += list(dict_symbol_to_attr['e'])
+    #     # xwvars += list(dict_symbol_to_attr['d'])
+    #     xwvars = [sympy.Symbol(i) if type(i) is str else i for i in xwvars]
+    #     alpha = test_homogeneity(dynamics_new, xwvars)
+    #     if alpha:
+    #         is_homogenized = False
+    #
+    #     else:
+    #         is_homogenized = True
+    #         des_deg = dict_key_to_attrs['Deg. of Homogeneity'] or 2
+    #         dynamics_new, b, dict_key_to_attrs['Triggering Condition'] = make_homogeneous_etc(dynamics_new, list(xwvars), des_deg, trigger=dict_key_to_attrs['Triggering Condition'])
+    #         dict_symbol_to_attr['w'].add('w1')
+    #         dict_symbol_to_attr['e'].add('ew')
+    #         dict_key_to_attrs['Deg. of Homogeneity'] = des_deg
 
     dict_key_to_attrs['Dynamics'] = sympy.Matrix(dynamics_new)
 

@@ -7,4 +7,4 @@ if [[ "${EUID}" -eq 0 ]]; then
 fi
 
 brew update
-brew install gmp mpfr gsl glpk bison flex gnuplot
+brew install gmp mpfr gsl glpk bison flex gnuplot graph-tool
