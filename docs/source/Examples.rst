@@ -19,7 +19,7 @@ You can construct traffic models using the CLI ``etc2traffic.py`` by running one
     $ python etc2traffic.py linear examples/linear_ifac2020.txt --output_file=ex.json
     $ python etc2traffic.py nonlinear examples/nl_homogeneous.txt --output_file=hom.json
     $ python etc2traffic.py nonlinear examples/nl_nonhomogeneous.txt --output_file=nonhom.json
-    $ python etc2traffic.py nonlinear examples/nl_disturbances.txt --output_file=dist.json
+    $ python etc2traffic.py nonlinear examples/nl_perturbed.txt --output_file=dist.json
 
 Linear PETC
 ------------
@@ -122,9 +122,9 @@ With triggering condition:
 
 .. math::
 
-    \Gamma = |e|^2 - |x|^2 * (0.0127*0.3)^2
+    \Gamma = |e|^2 - |x|^2 * 0.01^2
 
-The system first has to be converted into a ETC form. This is done by:
+The system is defined as follows (with controller in etc form already):
 
 .. code-block:: python
 
@@ -142,36 +142,27 @@ The system first has to be converted into a ETC form. This is done by:
     x2dot = x1**2*x2 + x2**3 + u1
     dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 
-These dynamics are not yet homogeneous, so they are homogenized (see ...):
-
-.. code-block:: python
-
-    # Make the system homogeneous (with degree 2)
-    hom_degree = 2
-    dynamics, state_vector = utils.make_homogeneous_etc(dynamics, state_vector, hom_degree)
-    dynamics = sympy.Matrix(dynamics)
-
 Then we define the triggering condition and the portion of the state space we want to consider.
 
 .. code-block:: python
 
     # Triggering condition & other etc.
-    trigger = ex**2 + ey**2 - (x1**2+y1**2)*(0.0127*0.3)**2
+    trigger = ex**2 + ey**2 - 0.01^2
 
     # State space limits
     state_space_limits = [[-2.5, 2.5], [-2.5, 2.5]]
+    grid_points_per_dim = [3, 3]
 
-And lastly, we define the traffic model (since we homogenized the dynamics, ``homogenization_flag`` should be set to ``True``):
+These dynamics are not yet homogeneous, however they are automatically homogenized. The degree can be set by supplying `homogeneity`. Alternatively, we can homogenize the system ourselves, and in this case we need to set `homogenization_flag=True`. The traffic model is then created as:
 
 .. code-block:: python
 
     import sentient.Abstractions as abstr
 
-    traffic = abstr.TrafficModelNonlinearETC(dynamics, hom_degree, trigger, state_vector, homogenization_flag=True, state_space_limits=state_space_limits)
+    traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector, state_space_limits=state_space_limits, grid_points_per_dim=grid_points_per_dim, partition_method='manifold')
     regions, transitions = traffic.create_abstraction()
     # Result: {'1': 0.003949281693284397, '2': 0.003924684110791467, ...}, {('1', (0.00358211491454367, 0.003949281693284397)): [1, 2, 6, 7], ... }
 
-Now, the state space has been partitioned by gridding (default). To partition the state space by means of manifold, set ``partition_method=manifolds``.
 Alternatively, the regions/transitions can also be accessed separately:
 
 .. code-block:: python
@@ -286,3 +277,10 @@ To allow late triggers, at least specify ``maxLate``, and optionally ``maxLateSt
     S = sched.system([cl1, cl2])
     Ux = S.generate_safety_scheduler()  # Scheduler
     # Result: BDD representing the boolean function of Ux
+
+The effect of the scheduler can also be tested by running:
+
+.. code-block:: python
+
+    S.simulate()
+    # Shows some plots
