@@ -81,7 +81,7 @@ class Region_Manifold(object):
     """
 
     def __init__(self, state_vector, region_index, inner_manifold_time, outer_manifold_time, \
-                 conic_domain, inner_radius, outer_radius, mu, contains_origin_flag, homogenized):
+                 conic_domain, inner_radius, outer_radius, contains_origin_flag, homogenized):
         self.transitions = []
         self.index = region_index
         self.inner_manifold_time = inner_manifold_time
@@ -104,12 +104,14 @@ class Region_Manifold(object):
             expression = expression.subs(state_vector[-1], 1)
         self.symbolic_domain_reach = expression
 
-        tau = sympy.symbols("tau")
-        expression2 = (mu.subs({tau: inner_manifold_time}) >= 0) & (mu.subs({tau: outer_manifold_time}) <= 0) \
-                      & conic_domain
-        if homogenized:
-            expression2 = expression2.subs(state_vector[-1], 1)
-        self.symbolic_domain = expression2
+        #if u wanna compute the symbolic expressions of the actual regions
+        #u have to parse mu (which is computed via TrafficModelNonlinearETC.compute_mu
+        # tau = sympy.symbols("tau")
+        # expression2 = (mu.subs({tau: inner_manifold_time}) >= 0) & (mu.subs({tau: outer_manifold_time}) <= 0) \
+        #               & conic_domain
+        # if homogenized:
+        #     expression2 = expression2.subs(state_vector[-1], 1)
+        # self.symbolic_domain = expression2
 
     def insert_timing_upper_bound(self, upper_bound):
         "upper_bound: float, >0."
