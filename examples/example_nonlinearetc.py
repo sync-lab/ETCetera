@@ -37,6 +37,9 @@ region_descriptors = traffic.return_region_descriptors()
 
 print(region_descriptors)
 
+# Visualize results
+traffic.visualize()
+
 # To pickle the object:
 traffic.export('traffic_etc', 'pickle')
 

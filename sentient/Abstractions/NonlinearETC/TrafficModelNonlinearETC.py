@@ -334,6 +334,56 @@ class TrafficModelNonlinearETC(Abstraction):
                 return reg
 
 
+    def visualize(self, plot_timing_bounds=True, plot_transitions=True):
+        import matplotlib.pyplot as plt
+        from matplotlib import rc
+        ticks = list(range(0, len(self.Regions), (len(self.Regions) - 2) // 6))
+        if self.partition_method == 'manifold':
+            reg_sort = sorted(self.Regions, key=lambda x: x.index[1] * len(self.Regions) + x.index[0])
+            tick_labels = [f'$\mathcal{{R}}_{{{str(reg_sort[i].index)[1:-1]}}}$' for i in ticks]
+        else:
+            reg_sort = sorted(self.Regions, key=lambda x: x.index)
+            tick_labels = [f'$\mathcal{{R}}_{{{reg_sort[i].index}}}$' for i in ticks]
+
+        if plot_timing_bounds:
+            lower = [i.timing_lower_bound for i in reg_sort]
+            upper = [i.timing_upper_bound for i in reg_sort]
+            plt.figure(num=None, figsize=(6, 3), facecolor='w', edgecolor='k')
+            rc('text', usetex=True)
+            rc('xtick', labelsize=13)
+            rc('ytick', labelsize=13)
+            string = r"$\underline{\tau}_{\mathcal{R}_{i,j}}$"
+            plt.plot(lower, 'blue', label=string)
+            plt.plot(lower, 'k+')
+            string = r"$\overline{\tau}_{\mathcal{R}_{i,j}}$"
+            plt.plot(upper, 'red', label=string)
+            plt.plot(upper, 'k+')
+            plt.legend(loc='upper left', fontsize='xx-large')
+            plt.xticks(ticks, tick_labels)
+            plt.ylabel('Seconds', fontsize=18)
+            plt.show()
+
+        if plot_transitions:
+            X = np.arange(len(self.Regions))
+            Y = np.arange(len(self.Regions))
+            X, Y = np.meshgrid(X, Y)
+            transit = np.zeros((len(self.Regions), len(self.Regions)))
+            transitions_counter = 0
+            for i in range(0, len(self.Regions)):
+                for j in range(0, len(self.Regions)):
+                    if (self.Regions[j].index in self.Regions[i].transitions):
+                        transit[i, j] = 15
+                        transitions_counter = transitions_counter + 1
+                    else:
+                        transit[i, j] = np.NaN
+            plt.figure(num=None, figsize=(6, 3), facecolor='w', edgecolor='k')
+            plt.xticks(ticks, tick_labels)
+            plt.yticks(ticks, tick_labels)
+            plt.scatter(X, Y, transit[X, Y], c='b', marker='.')
+            plt.xlabel('From', fontsize=18)
+            plt.ylabel('To', fontsize=18)
+            plt.show()
+
     """ Implemented Abstract Methods  """
     def _create_automaton(self):
         return None
