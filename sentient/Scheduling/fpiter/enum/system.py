@@ -209,6 +209,7 @@ class system(abstract_system):
         v = [[[]] for i in range(0, self.ns)]   # inputs (w/t/lw)
 
         TriggerTimes = [[0] for i in range(0, self.ns)]
+        TriggerTimesEarly = [[] for i in range(0, self.ns)]
         CollisionTimes = {}
 
         N = int(Tmax/Ts) # Number of samples
@@ -255,7 +256,10 @@ class system(abstract_system):
                         s[i].append(si)
                         xhat[i][-1] = xn[i]
                         regions[i].append(reg)
-                        TriggerTimes[i].append(t * Ts)
+                        if t * Ts - TriggerTimes[i][-1] < self.control_loops[i].kmax:
+                            TriggerTimesEarly[i].append(t * Ts)
+                        else:
+                            TriggerTimes[i].append(t * Ts)
 
                     else:
                         # reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
@@ -273,40 +277,54 @@ class system(abstract_system):
                         TriggerTimes[i].append(t*Ts)
                         triggers.add(i)
 
+                    reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
+                    regions[i].append(reg)
+
                 if len(triggers) > 1:
-                    CollisionTimes[t*Ts] = triggers
+                    CollisionTimes[t * Ts] = triggers
+                    for i in range(0, self.ns):
+                        TriggerTimes[i].pop(-1)
 
         import matplotlib.pyplot as plt
 
-        dur = np.arange(0, Ts*N, Ts)
+        name = 'safety_scheduler'
+        if not use_scheduler:
+            name = 'no_scheduler_'
+
+        dur = np.arange(0, Ts * N, Ts)
         for i in range(0, self.ns):
             plt.plot(dur, x[i][0:len(dur)], '--')
             plt.gca().set_prop_cycle(None)
             plt.plot(dur, xhat[i][0:len(dur)])
-            plt.title(f'Controlloop {i+1}: $x(t)$ and $x_e(t)$.')
+            plt.title(f'Controlloop {i + 1}: $x(t)$ and $x_e(t)$.')
+            plt.savefig(f'{name}simulation_Controlloop_{i + 1}_states.pdf')
             plt.show()
 
         for i in range(0, self.ns):
             plt.plot(dur, u_hist[i][0:len(dur)])
-            plt.title(f'Controlloop {i+1}: $u(t)$.')
+            plt.title(f'Controlloop {i + 1}: $u(t)$.')
+            plt.savefig(f'{name}simulation_Controlloop_{i + 1}_inputs.pdf')
             plt.show()
 
         for i in range(0, self.ns):
-            plt.plot(TriggerTimes[i], i*np.ones(len(TriggerTimes[i])), 'x')
+            plt.plot(TriggerTimes[i], i * np.ones(len(TriggerTimes[i])), 'x')
+            plt.plot(TriggerTimesEarly[i], i * np.ones(len(TriggerTimesEarly[i])), 'o')
 
         for t, ii in CollisionTimes.items():
             for i in ii:
-                plt.plot(t, i, 'd')
+                plt.plot(t, i, 'dk')
 
         plt.title('Trigger times')
         plt.yticks(range(0, self.ns), [f'Controlloop {i}' for i in range(1, self.ns + 1)])
+        plt.savefig(f'{name}simulation_trigger_events.pdf')
         plt.show()
 
         for i in range(0, self.ns):
             plt.plot(dur, regions[i][0:len(dur)])
 
         plt.title('Traffic Model Regions')
-        plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)])
+        plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)], loc='upper left')
+        plt.savefig(f'{name}simulation_traffic_model_regions.pdf')
         plt.show()
         
     

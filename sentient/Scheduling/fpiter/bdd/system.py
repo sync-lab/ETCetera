@@ -308,11 +308,13 @@ class system(abstract_system):
         v = [[[]] for i in range(0, self.ns)]  # inputs (w/t/lw)
 
         TriggerTimes = [[0] for i in range(0, self.ns)]
-        CollisionTimes = []
+        TriggerTimesEarly = [[] for i in range(0, self.ns)]
+        CollisionTimes = {}
 
         N = int(Tmax / Ts)  # Number of samples
 
         import scipy
+        print('Discretize input matrix (sometimes can time a while...)')
         I = [scipy.integrate.quad_vec(lambda s: scipy.linalg.expm(cl.abstraction.plant.A * s), 0, Ts)[0] for cl in
              self.control_loops]
 
@@ -361,7 +363,10 @@ class system(abstract_system):
                         s[-1].update(si)
                         xhat[i][-1] = xn[i]
                         regions[i].append(reg)
-                        TriggerTimes[i].append(t * Ts)
+                        if t*Ts - TriggerTimes[i][-1] < self.control_loops[i].kmax:
+                            TriggerTimesEarly[i].append(t*Ts)
+                        else:
+                            TriggerTimes[i].append(t * Ts)
 
                     else:
                         reg = self.control_loops[i].abstraction.region_of_state(x[i][-1])
@@ -382,8 +387,14 @@ class system(abstract_system):
 
                 if len(triggers) > 1:
                     CollisionTimes[t * Ts] = triggers
+                    for i in range(0, self.ns):
+                        TriggerTimes[i].pop(-1)
 
         import matplotlib.pyplot as plt
+
+        name = ''
+        if not use_scheduler:
+            name = 'no_scheduler_'
 
         dur = np.arange(0, Ts * N, Ts)
         for i in range(0, self.ns):
@@ -391,15 +402,18 @@ class system(abstract_system):
             plt.gca().set_prop_cycle(None)
             plt.plot(dur, xhat[i][0:len(dur)])
             plt.title(f'Controlloop {i + 1}: $x(t)$ and $x_e(t)$.')
+            plt.savefig(f'{name}simulation_Controlloop_{i+1}_states.pdf')
             plt.show()
 
         for i in range(0, self.ns):
             plt.plot(dur, u_hist[i][0:len(dur)])
             plt.title(f'Controlloop {i + 1}: $u(t)$.')
+            plt.savefig(f'{name}simulation_Controlloop_{i + 1}_inputs.pdf')
             plt.show()
 
         for i in range(0, self.ns):
             plt.plot(TriggerTimes[i], i * np.ones(len(TriggerTimes[i])), 'x')
+            plt.plot(TriggerTimesEarly[i], i * np.ones(len(TriggerTimesEarly[i])), 'o')
 
         for t, ii in CollisionTimes.items():
             for i in ii:
@@ -407,6 +421,7 @@ class system(abstract_system):
 
         plt.title('Trigger times')
         plt.yticks(range(0, self.ns), [f'Controlloop {i}' for i in range(1, self.ns + 1)])
+        plt.savefig(f'{name}simulation_trigger_events.pdf')
         plt.show()
 
         for i in range(0, self.ns):
@@ -414,27 +429,5 @@ class system(abstract_system):
 
         plt.title('Traffic Model Regions')
         plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)], loc='upper left')
+        plt.savefig(f'{name}simulation_traffic_model_regions.pdf')
         plt.show()
-
-        if save_results:
-            import csv
-            from itertools import zip_longest
-            with open('sim.csv', 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(
-                    ['t', 'x11', 'x12', 'x1hat1', 'x1hat2', 'x21', 'x22', 'x2hat1', 'x2hat2', 'u1', 'u2', 'reg1', 'reg2'])
-                for (t, x1, xhat1, x2, xhat2, u1, u2, reg1, reg2) in zip(dur, x[0], xhat[0], x[1], xhat[1], u_hist[0],
-                                                                         u_hist[1], regions[0], regions[1]):
-                    writer.writerow([t, *x1, *xhat1, *x2, *xhat2, *u1, *u2, *reg1, *reg2])
-
-            with open('simTT1.csv', 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(['y', 'TT', 'TTc'])
-                for i in zip_longest(TriggerTimes[0], CollisionTimes):
-                    writer.writerow([1, *i])
-
-            with open('simTT2.csv', 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(['y', 'TT', 'TTc'])
-                for i in zip_longest(TriggerTimes[1], CollisionTimes):
-                    writer.writerow([-1, *i])
