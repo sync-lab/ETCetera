@@ -98,7 +98,7 @@ class TrafficModelNonlinearETC(Abstraction):
     #              precision_timing_bounds=1e-3, precision_transitions=1e-3,
     #              timeout_timing_bounds=200, timeout_transitions=200, order_approx=2):
     def __init__(self, dynamics, trigger,
-                 state, homogeneity=2, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
+                 state, homogeneity=None, init_cond_symbols=None, dist_param=None, dist_param_domain=None,
                  homogenization_flag=False,  # Following are solver options
                  precision_deltas=1e-7, timeout_deltas=1000, partition_method='grid',
                  manifolds_times=None, angles_discretization=None,
@@ -361,6 +361,7 @@ class TrafficModelNonlinearETC(Abstraction):
             plt.legend(loc='upper left', fontsize='xx-large')
             plt.xticks(ticks, tick_labels)
             plt.ylabel('Seconds', fontsize=18)
+            plt.savefig('nl_traffic_model_timing_bounds.pdf')
             plt.show()
 
         if plot_transitions:
@@ -382,6 +383,7 @@ class TrafficModelNonlinearETC(Abstraction):
             plt.scatter(X, Y, transit[X, Y], c='b', marker='.')
             plt.xlabel('From', fontsize=18)
             plt.ylabel('To', fontsize=18)
+            plt.savefig('nl_traffic_model_transitions.pdf')
             plt.show()
 
     """ Implemented Abstract Methods  """
