@@ -14,10 +14,10 @@ x2dot = x1**2*x2 + x2**3 + u1 + d1
 dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 
 # Triggering condition & other etc.
-trigger = e1 ** 2 + e2 ** 2 - 0.0162**2
+trigger = e1 ** 2 + e2 ** 2 - 0.01**2
 
 # State space limits
-state_space_limits = [[-2.5, 2.5], [-2.5, 2.5]]
+state_space_limits = [[-2, 2], [-2, 2]]
 disturbace_limits = [[-0.1, 0.1]]
 
 import sentient.Abstractions as abstr
