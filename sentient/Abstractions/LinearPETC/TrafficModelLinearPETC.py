@@ -312,9 +312,8 @@ class TrafficModelLinearPETC(Abstraction):
 
         # Depending on the solver, symbolic matrix manipulation is used.
         self.symbolic = symbolic
-        # TODO: Currently not working so throw error
         if symbolic:
-            raise NotImplementedError
+            self.solver='z3'
 
         # When a sampling strategy is given
         self.strat = strategy
