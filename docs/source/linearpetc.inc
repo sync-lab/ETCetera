@@ -3,7 +3,7 @@ Traffic Models of Linear PETC Systems
 
 
 
-.. py:currentmodule:: sentient.Abstractions
+.. py:currentmodule:: ETCetera.Abstractions
 
 .. py:class:: TrafficModelLinearPETC(trigger[, kmaxextra=None, cost_computation=False, consider_noise=False, mu_threshold=0.0, min_eig_threshold=0.0, symbolic=False, reduced_actions=False, early_trigger_only=False, max_delay_steps=0, depth=1, etc_only=False, end_level=0.01, solver='sdr', stop_around_origin=False, stop_if_omega_bisimilar=False])
 

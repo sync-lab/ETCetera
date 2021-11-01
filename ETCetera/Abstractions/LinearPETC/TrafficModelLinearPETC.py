@@ -820,7 +820,7 @@ class TrafficModelLinearPETC(Abstraction):
             Also, compute auxiliary transition matrix N(\dk) such that
             [y(t+\dk*h); u(t+\dk*h)].T = N(\dk)[xp; xc; y].'''
 
-        for i in tqdm(range(0, t.kmax)):
+        for i in tqdm(range(0, t.kmax), desc='Loop over kmax'):
             # M and N according to [1]_ (basic linear systems math)
             M1 = np.block([Phipk, Gammapk @ c.C, Gammapk @ c.D])
             M2 = np.block([np.zeros((nxc, nxp)), Ack, Bck])
@@ -970,7 +970,7 @@ class TrafficModelLinearPETC(Abstraction):
         if self.mu_threshold > 0.0:
             new_Q = {self.kmin: self.Q[self.kmin]}
             Q1 = QuadraticForm(self.Q[self.kmin])
-            for k in tqdm(sorted(self.Q)):
+            for k in tqdm(sorted(self.Q), desc='Loop over Q'):
                 if k > self.kmin:
                     Q2 = QuadraticForm(self.Q[k])
                     if Q1.difference_magnitude(Q2) >= self.mu_threshold:
@@ -1308,7 +1308,7 @@ class TrafficModelLinearPETC(Abstraction):
                 return out(out_set, extended_set, marginal_set, initial_set)
 
         results = Parallel(n_jobs=NUM_CORES)(
-            delayed(self._verify_sequence)(r) for r in tqdm(regions))
+            delayed(self._verify_sequence)(r) for r in tqdm(regions, desc='Loop over regions'))
         # results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):
@@ -1561,7 +1561,7 @@ class TrafficModelLinearPETC(Abstraction):
         # For the normal case, parallelize the transition computations
         if not self.cost_computation:
             results = Parallel(n_jobs=NUM_CORES)(
-                delayed(self._reaches)(i, j, k) for i, j, k in tqdm(to_check))
+                delayed(self._reaches)(i, j, k) for i, j, k in tqdm(to_check, desc='Loop over possible transitions'))
             # results = [self._reaches(i, j, k)
             #            for i, j, k in tqdm(to_check)]
 
@@ -2198,7 +2198,7 @@ class TrafficModelLinearPETC(Abstraction):
 
         # The cost dictionary will accumulate costs of every visited string
         # for computational reasons
-        for r in tqdm(self._initial):
+        for r in tqdm(self._initial, desc='Loop over _initial'):
             self._regions.remove(r)
             while len(r) > 1:
                 r_new = r[:-1]
@@ -2368,7 +2368,7 @@ class TrafficModelLinearPETC(Abstraction):
         old_cost = self.cost.copy()
         to_be_deleted = set()
 
-        for i in tqdm(self._regions):
+        for i in tqdm(self._regions, desc='Compute costs: over reg'):
             try:
                 if i not in old_cost:
                     self.cost[i] = 1 \

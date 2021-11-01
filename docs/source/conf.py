@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# SENTIENT documentation build configuration file, created by
+# ETCetera documentation build configuration file, created by
 # sphinx-quickstart on Mon Sep 13 11:30:26 2021.
 #
 # This file is execfile()d with the current directory set to its
@@ -152,8 +152,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'SENTIENT.tex', 'ETCetera Documentation',
-     'SENTIENT', 'manual'),
+    (master_doc, 'ETCetera.tex', 'ETCetera Documentation',
+     'ETCetera', 'manual'),
 ]
 
 
@@ -173,8 +173,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'SENTIENT', 'ETCetera Documentation',
-     author, 'SENTIENT', 'One line description of project.',
+    (master_doc, 'ETCetera', 'ETCetera Documentation',
+     author, 'ETCetera', 'One line description of project.',
      'Miscellaneous'),
 ]
 

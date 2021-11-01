@@ -1,4 +1,4 @@
-# SENTIENT
+# ETCetera
 Toolchain for abstraction and scheduling of event-triggered controllers.
 The project consists of two main parts:
 - Creating abstraction/traffic models of Event-Triggered Controllers (ETC):
