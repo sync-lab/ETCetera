@@ -337,7 +337,7 @@ class TrafficModelNonlinearETC(Abstraction):
     def visualize(self, plot_timing_bounds=True, plot_transitions=True):
         import matplotlib.pyplot as plt
         from matplotlib import rc
-        ticks = list(range(0, len(self.Regions), (len(self.Regions) - 2) // 6))
+        ticks = list(range(0, len(self.Regions), math.ceil((len(self.Regions) - 2) / 6)))
         if self.partition_method == 'manifold':
             reg_sort = sorted(self.Regions, key=lambda x: x.index[1] * len(self.Regions) + x.index[0])
             tick_labels = [f'$\mathcal{{R}}_{{{str(reg_sort[i].index)[1:-1]}}}$' for i in ticks]

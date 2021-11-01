@@ -21,7 +21,7 @@ grid_points_per_dim = [3,3]
 import sentient.Abstractions as abstr
 
 # Partition method manifold
-traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector, state_space_limits=state_space_limits, grid_points_per_dim=grid_points_per_dim, manifolds_times=[0.002, 0.0028, 0.0038, 0.005, 0.0065, 0.0075], partition_method='manifold', heartbeat=0.021, order_approx=4)
+traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector, homogeneity=2, state_space_limits=state_space_limits, grid_points_per_dim=grid_points_per_dim, manifolds_times=[0.002, 0.0028, 0.0038, 0.005, 0.0065, 0.0075], partition_method='manifold', heartbeat=0.021, order_approx=4)
 regions, transitions = traffic.create_abstraction()
 # Result: {}
 
