@@ -314,6 +314,7 @@ class system(abstract_system):
         N = int(Tmax / Ts)  # Number of samples
 
         import scipy
+        from scipy import integrate
         print('Discretize input matrix (sometimes can time a while...)')
         I = [scipy.integrate.quad_vec(lambda s: scipy.linalg.expm(cl.abstraction.plant.A * s), 0, Ts)[0] for cl in
              self.control_loops]
