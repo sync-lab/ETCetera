@@ -5,8 +5,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from config import root_path
-from sentient.util import construct_linearPETC_traffic_from_file
-from sentient.Abstractions import TrafficModelLinearPETC
+from ETCetera.util import construct_linearPETC_traffic_from_file
+from ETCetera.Abstractions import TrafficModelLinearPETC
 
 sys1_file = os.path.join(root_path, 'tests/abstraction_tests/files/sys1.txt')
 sys1_corr = os.path.join(root_path, 'tests/abstraction_tests/files/sys1_corr.pickle')

@@ -1,5 +1,5 @@
 import sympy
-import sentient.util as utils
+import ETCetera.util as utils
 
 # Define
 state_vector = x1, x2, e1, e2 = sympy.symbols('x1 x2 e1 e2')
@@ -14,13 +14,13 @@ x2dot = x1**2*x2 + x2**3 + u1 + d1
 dynamics = [x1dot, x2dot, -x1dot, -x2dot]
 
 # Triggering condition & other etc.
-trigger = e1 ** 2 + e2 ** 2 - 0.0162**2
+trigger = e1 ** 2 + e2 ** 2 - 0.01**2
 
 # State space limits
-state_space_limits = [[-2.5, 2.5], [-2.5, 2.5]]
+state_space_limits = [[-2, 2], [-2, 2]]
 disturbace_limits = [[-0.1, 0.1]]
 
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 
 traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector,
                                          state_space_limits=state_space_limits, dist_param=(d1,),
@@ -38,8 +38,10 @@ print(transitions)
 
 # # Get symbolic expressions for the regions
 region_descriptors = traffic.return_region_descriptors()
-
 print(region_descriptors)
+
+# Visualize results
+traffic.visualize()
 
 # To pickle the object:
 traffic.export('traffic_etc_dist', 'pickle')

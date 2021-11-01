@@ -1,9 +1,9 @@
 *************
 Abstractions
 *************
-.. py:module:: sentient.Abstractions
+.. py:module:: ETCetera.Abstractions
 
-.. .. py:class:: sentient.Abstractions.Abstraction
+.. .. py:class:: ETCetera.Abstractions.Abstraction
 ..
 ..    Abstract traffic model class every other traffic model inherits from.
 

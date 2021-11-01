@@ -1,0 +1,5 @@
+Dynamics: [0 1;-2 3], [0;1] 
+Controller: [1 -4] 
+Triggering Sampling Time: 0.01 
+Triggering Heartbeat: 0.40
+Triggering Condition: [0.95 0 -1 0;0 0.95 0 -1;-1 0 1 0;0 -1 0 1]

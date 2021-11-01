@@ -7,11 +7,11 @@ if not os.path.exists(os.path.join(root_path, 'saves/traffic_petc.pickle')):
     print('Run examples/example_linearpetc.py first, as the resulting traffic model is used here!')
     sys.exit()
 
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 traffic = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic_petc.pickle')
 
 # Scheduling by solving a safety game
-import sentient.Scheduling.fpiter as sched
+import ETCetera.Scheduling.fpiter as sched
 
 # Without BDDs
 cl1 = sched.controlloop(traffic, use_bdd=False)
