@@ -15,14 +15,14 @@ Qtrigger = np.block([[(1-sigma)*np.eye(4), -np.eye(4)], [-np.eye(4), np.eye(4)]]
 
 
 # Construct object representing the PETC system
-import sentient.Systems as systems
+import ETCetera.Systems as systems
 
 plant = systems.LinearPlant(A, B)
 controller = systems.LinearController(K, h)
 trigger = systems.LinearQuadraticPETC(plant, controller, kmax=kmax, Qbar=Qtrigger)
 
 # Create Traffic Model
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 
 traffic = abstr.TrafficModelLinearPETC(trigger)
 regions, transitions = traffic.create_abstraction()

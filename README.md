@@ -62,9 +62,9 @@ directory if you want to install them. You can download them from below location
    
  Finally, add the paths to ``config.py``, e.g.
    ```python
-   dreal_path = '<path>/sentient/third-party/dreal4/bazel-bin/dreal/dreal'
-   dreach_path = '<path>/sentient/third-party/dReal-3.16.06.02-*/bin/dReach'
-   flowstar_path = '<path>/sentient/third-party/flowstar-2.0.0/flowstar-2.0.0/flowstar'
+   dreal_path = '<path>/ETCetera/third-party/dreal4/bazel-bin/dreal/dreal'
+   dreach_path = '<path>/ETCetera/third-party/dReal-3.16.06.02-*/bin/dReach'
+   flowstar_path = '<path>/ETCetera/third-party/flowstar-2.0.0/flowstar-2.0.0/flowstar'
    ```
 
    To be able to create schedulers with timed automata, [UPPAAL Stratego](https://people.cs.aau.dk/~marius/stratego/) also needs to be installed. Then the path to ``verifyta`` has to be set in ``config.py`` as well:

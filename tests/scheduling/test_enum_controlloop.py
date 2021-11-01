@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from config import root_path
-from sentient.Abstractions import TrafficModelLinearPETC
-from sentient.Scheduling.fpiter import controlloop
+from ETCetera.Abstractions import TrafficModelLinearPETC
+from ETCetera.Scheduling.fpiter import controlloop
 
 large_sys_file = os.path.join(root_path, 'tests/scheduling/files/_large_linpetc_sys_tr.txt')
 traffic1_file = os.path.join(root_path, 'tests/scheduling/files/traffic1.pickle')
@@ -295,7 +295,7 @@ class TestBDDControlLoop(unittest.TestCase):
         # with open(traffic1_ref_file, 'rb') as f:
         #     traffic_ref = pickle.load(f)
 
-        from sentient.util import construct_linearPETC_traffic_from_file
+        from ETCetera.util import construct_linearPETC_traffic_from_file
         traffic = construct_linearPETC_traffic_from_file(sys_refsim_file)
 
         c1 = controlloop(traffic, use_bdd=False)

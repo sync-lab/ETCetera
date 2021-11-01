@@ -3,7 +3,7 @@ import sys
 import argparse
 import os
 
-from sentient.exceptions.sentient_base_exception import SentientBaseException
+from ETCetera.exceptions.sentient_base_exception import SentientBaseException
 
 
 
@@ -62,12 +62,12 @@ if __name__ == "__main__":
 
     try:
         if system_type == 'linear':
-            from sentient.util.construct_from_file_linearPETC import \
+            from ETCetera.util.construct_from_file_linearPETC import \
                 construct_linearPETC_traffic_from_file
             traffic = construct_linearPETC_traffic_from_file(input_file)
 
         if system_type in ['general', 'nonlinear', 'non-linear']:
-            from sentient.util.construct_from_file_nonlinearETC import \
+            from ETCetera.util.construct_from_file_nonlinearETC import \
                 construct_nonlinearETC_traffic_from_file
             traffic = construct_nonlinearETC_traffic_from_file(input_file)
             traffic.visualize()

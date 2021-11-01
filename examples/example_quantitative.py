@@ -20,14 +20,14 @@ Qtrigger = np.array([[ -0.14770797,  -2.52808495,  -0.20224506,   0.80898024],
 
 
 # Construct object representing the PETC system
-import sentient.Systems as systems
+import ETCetera.Systems as systems
 
 plant = systems.LinearPlant(A, B)
 controller = systems.LinearController(K, h)
 trigger = systems.LinearQuadraticPETC(plant, controller, kmax=kmax, Qbar=Qtrigger)
 
 # Create Traffic Model
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 
 
 # Best selection for verification:

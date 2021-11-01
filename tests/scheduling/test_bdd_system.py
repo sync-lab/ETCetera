@@ -4,10 +4,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 from config import root_path
-from sentient.Abstractions import TrafficModelLinearPETC
-from sentient.Scheduling.fpiter import controlloop, system
-import sentient.Scheduling.fpiter.enum as schedenum
-import sentient.Scheduling.fpiter.bdd as schedbdd
+from ETCetera.Abstractions import TrafficModelLinearPETC
+from ETCetera.Scheduling.fpiter import controlloop, system
+import ETCetera.Scheduling.fpiter.enum as schedenum
+import ETCetera.Scheduling.fpiter.bdd as schedbdd
 
 large_sys_file = os.path.join(root_path, 'tests/scheduling/files/_large_linpetc_sys_tr.txt')
 traffic1_file = os.path.join(root_path, 'tests/scheduling/files/traffic1.pickle')

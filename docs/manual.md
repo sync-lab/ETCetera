@@ -50,7 +50,7 @@ $ conda env create --file environment.yml
 This will automatically create a conda environment named `sentient` and install the dependencies. 
 To activate the environment simply run
 ```shell
-$ conda activate sentient
+$ conda activate ETCetera
 ```
 
 ### Pip and venv

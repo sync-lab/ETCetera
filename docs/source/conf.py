@@ -51,9 +51,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'SENTIENT'
-copyright = '2021, SENTIENT'
-author = 'SENTIENT'
+project = 'ETCetera'
+copyright = '2021, ETCetera'
+author = 'ETCetera'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -125,7 +125,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'SENTIENTdoc'
+htmlhelp_basename = 'ETCeteradoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -152,7 +152,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'SENTIENT.tex', 'SENTIENT Documentation',
+    (master_doc, 'SENTIENT.tex', 'ETCetera Documentation',
      'SENTIENT', 'manual'),
 ]
 
@@ -162,7 +162,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'sentient', 'SENTIENT Documentation',
+    (master_doc, 'ETCetera', 'ETCetera Documentation',
      [author], 1)
 ]
 
@@ -173,13 +173,13 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'SENTIENT', 'SENTIENT Documentation',
+    (master_doc, 'SENTIENT', 'ETCetera Documentation',
      author, 'SENTIENT', 'One line description of project.',
      'Miscellaneous'),
 ]
 
 import sys
-sys.path.append('/media/ivo/Shared Space/skool/Master Thesis Abstraction Scheduling of PETC/Code/sentient/')
+sys.path.append('/media/ivo/Shared Space/skool/Master Thesis Abstraction Scheduling of PETC/Code/ETCetera/')
 print(sys.path)
       # Or edit existing 'extensions' list
 

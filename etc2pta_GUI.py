@@ -7,22 +7,22 @@ Created on Sat May 16 14:53:58 2020
 
 import random
 from tkinter import *
-import sentient.util.parsing.parser_linear_systems as lp
-import sentient.util.parsing.parser_nonlinear_systems as nlp
-import sentient.data.linear_systems_datastructure as ld
+import ETCetera.util.parsing.parser_linear_systems as lp
+import ETCetera.util.parsing.parser_nonlinear_systems as nlp
+import ETCetera.data.linear_systems_datastructure as ld
 import sympy as sp
-#import sentient.nonlinear_systems_utils as nonlinear
-import sentient.data.nonlinear_systems_datastructure as nld
-import sentient.logic.nonlinear_systems as nonlinear_logic
-import sentient.logic.linear_systems as linear_logic
+#import ETCetera.nonlinear_systems_utils as nonlinear
+import ETCetera.data.nonlinear_systems_datastructure as nld
+import ETCetera.logic.nonlinear_systems as nonlinear_logic
+import ETCetera.logic.linear_systems as linear_logic
 from config import dreach_path, flowstar_path, smt_path, dreal_path
 
 # Linear system layout definitions
-from sentient.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
+from ETCetera.exceptions.nonlinear_systems_exceptions.LP_exceptions import \
     LPOptimizationFailedException, LPGeneralException
-from sentient.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
+from ETCetera.exceptions.nonlinear_systems_exceptions.data_object_exceptions import \
     DataObjectGeneralException
-from sentient.exceptions.parser_exceptions.general_parser_exception import \
+from ETCetera.exceptions.parser_exceptions.general_parser_exception import \
     GenericParsingException
 
 
