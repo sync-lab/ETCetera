@@ -1,8 +1,8 @@
 from sentient.util import *
 
 # First construct the traffic models
-traffic1 = construct_linearPETC_traffic_from_file('./linear_hscc1.txt')
-traffic2 = construct_linearPETC_traffic_from_file('./linear_hscc2.txt')
+traffic1 = construct_linearPETC_traffic_from_file('examples/linear_hscc1.txt')
+traffic2 = construct_linearPETC_traffic_from_file('examples/linear_hscc2.txt')
 
 import sentient.Scheduling.fpiter as sched
 
