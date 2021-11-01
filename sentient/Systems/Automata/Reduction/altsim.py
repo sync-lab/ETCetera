@@ -21,10 +21,6 @@ def minimize_alternating_simulation_equivalence(S, H, X0, Hrel=None):
     SQ, HQ, simulated, RQ, S0, X0Q = make_quotient(S, H, R, X0)
     logging.info('Removing irrational controller actions')
     Sr = remove_controller_actions(SQ, RQ)
-    Sr1 = Sr.copy()
-    Sr = remove_controller_actions(Sr, RQ)
-    if Sr1 != Sr:
-        raise Exception('Fudeu')
     logging.info('Removing irrational environment actions and unreachable'
                  ' states')
     X0r = remove_initial_states(Sr, RQ, X0Q)
@@ -123,6 +119,57 @@ def make_quotient(S, H, R, X0=None):
                     simulated[q].add(S0[y])
     return SQ, HQ, simulated, RQ, S0, X0Q
 
+
+def make_quotient_bisim(S, H, R, X0=None):
+    S0 = {x:set() for x in S} #dictionary, key and its corresponding items are equivalent
+    for (x,y) in R: #looks for symmetric entries and appends states equivalent to x to the list indexed by x
+        if (y,x) in R:
+            S0[x].add(y)
+
+    # Freeze sets
+    S0 = {x:frozenset(val) for x, val in S0.items()}
+
+    # Create quotient set and output map
+    Q = set(S0.values())
+
+    HQ = {q : H[next(x for x in q)] for q in Q}
+    if X0:
+        X0Q = {S0[x] for x in X0}
+    else:
+        X0Q = None
+
+    # AQ is the quotient system. Initialize it with quotient states.
+    SQ = {q:dict() for q in Q}
+
+    for q in Q:
+        candidates = {x: set() for x in q}
+        for x in q:
+            for u,xp in S[x].items():
+                for xpp in xp:
+                    candidates[x].add((u,S0[xpp]))
+        print(candidates)
+        good = set.intersection(*candidates.values())
+        ptran = dict()
+        for (u,post) in good:
+            try:
+                ptran[u].add(post)
+            except KeyError:
+                ptran[u] = {post}
+        SQ[q] = ptran
+
+
+    # Now create a dictionary of simulated states
+    # simulated[q] = set of states that are strictly simulated by states q.
+
+    simulated = {q:set() for q in Q}
+    RQ = set()
+    for q in Q:
+        for (x,y) in R:
+            if x in q:
+                RQ.add((q, S0[y]))
+                if y not in q:
+                    simulated[q].add(S0[y])
+    return SQ, HQ, simulated, RQ, S0, X0Q
 
 def remove_controller_actions(S, R):
     rem_u = {x:set() for x in S}  # Actions marked to be removed
