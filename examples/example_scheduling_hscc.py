@@ -1,10 +1,10 @@
-from sentient.util import *
+from ETCetera.util import *
 
 # First construct the traffic models
 traffic1 = construct_linearPETC_traffic_from_file('examples/linear_hscc1.txt')
 traffic2 = construct_linearPETC_traffic_from_file('examples/linear_hscc2.txt')
 
-import sentient.Scheduling.fpiter as sched
+import ETCetera.Scheduling.fpiter as sched
 
 # Convert traffic models into different form
 cl1 = sched.controlloop(traffic1, use_bdd=False)

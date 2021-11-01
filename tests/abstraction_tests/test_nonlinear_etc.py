@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 import sympy
 
 from config import root_path
-from sentient.util import construct_nonlinearETC_traffic_from_file
-from sentient.Abstractions import TrafficModelNonlinearETC
+from ETCetera.util import construct_nonlinearETC_traffic_from_file
+from ETCetera.Abstractions import TrafficModelNonlinearETC
 
 hom_sys_file = os.path.join(root_path, 'tests/abstraction_tests/files/nl_homogeneous.txt')
 hom_sys_corr = os.path.join(root_path, 'tests/abstraction_tests/files/hom_ex_regs_dict.pickle')

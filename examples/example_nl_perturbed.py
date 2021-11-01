@@ -1,5 +1,5 @@
 import sympy
-import sentient.util as utils
+import ETCetera.util as utils
 
 # Define
 state_vector = x1, x2, e1, e2 = sympy.symbols('x1 x2 e1 e2')
@@ -20,7 +20,7 @@ trigger = e1 ** 2 + e2 ** 2 - 0.01**2
 state_space_limits = [[-2, 2], [-2, 2]]
 disturbace_limits = [[-0.1, 0.1]]
 
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 
 traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector,
                                          state_space_limits=state_space_limits, dist_param=(d1,),

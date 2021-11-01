@@ -1,7 +1,7 @@
 import unittest
 import os
-from sentient.util import construct_nonlinearETC_traffic_from_file
-from sentient.exceptions import *
+from ETCetera.util import construct_nonlinearETC_traffic_from_file
+from ETCetera.exceptions import *
 import sympy
 
 test_file_name = 'test.txt'

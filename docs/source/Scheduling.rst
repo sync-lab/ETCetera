@@ -1,22 +1,22 @@
 ******************
 Scheduling
 ******************
-.. py:module:: sentient.Scheduling
+.. py:module:: ETCetera.Scheduling
 
 
 Scheduling with TGAs and UPPAAL Stratego
 ----------------------------------------------
 
-.. py:module:: sentient.Scheduling.NTGA
+.. py:module:: ETCetera.Scheduling.NTGA
 
-.. py:currentmodule:: sentient.Scheduling.NTGA
+.. py:currentmodule:: ETCetera.Scheduling.NTGA
 
 .. py:class:: controlloop(abstraction[, name=None, index=None, initial_location=None, max_delay_steps=0, max_early=None, max_early_triggers=0, delta=None, sync='up', nack='nack', ack='ack', timeout='timeout', down='down', clock='c'])
 
 
     Timed Game Automaton represention of a traffic model of a (P)ETC control loop as is discussed in :ref:`theory_ntga_uppaal`.
 
-    :param ~sentient.Abstractions.Abstraction abstraction: Traffic model of the control loop.
+    :param ~ETCetera.Abstractions.Abstraction abstraction: Traffic model of the control loop.
     :param str name: Name that this will be referred to (mainly in UPPAAL). Default: ``'controlloop'``.
     :param str or int index: Index of the controlloop. This is to make sure no name clash occurs (in UPPAAL). Default: 6 random characters in ``[A-z0-9]``.
     :param initial_location: Known initial location of the traffic model.
@@ -28,7 +28,7 @@ Scheduling with TGAs and UPPAAL Stratego
 
     .. note::
 
-        Recommended to leave the following parameters at their default value. If you do, make sure they match those defined in :py:class:`~sentient.Scheduling.NTGA.network` and supply them to :py:class:`~sentient.Scheduling.NTGA.nta`.
+        Recommended to leave the following parameters at their default value. If you do, make sure they match those defined in :py:class:`~ETCetera.Scheduling.NTGA.network` and supply them to :py:class:`~ETCetera.Scheduling.NTGA.nta`.
 
     :param str sync: Synchronization action for requesting access to the communication channel. Default: ``'up'``.
     :param str ack: Synchronization action to indicate that the communication channel is available. Default: ``'ack'``.
@@ -41,14 +41,14 @@ Scheduling with TGAs and UPPAAL Stratego
 
 .. py:class:: network([, name='Network', index=None, sync='up', ack='ack', nack='nack', timeout='timeout', down='down'])
 
-    Timed Game Automaton representing the network/communication channel shared between multiple :py:class:`~sentient.Scheduling.NTGA.controlloop`. Structure is as is described in :ref:`theory_ntga_uppaal`.
+    Timed Game Automaton representing the network/communication channel shared between multiple :py:class:`~ETCetera.Scheduling.NTGA.controlloop`. Structure is as is described in :ref:`theory_ntga_uppaal`.
 
     :param str name: Name of the network. Default: ``Network``.
     :param str or int index: Number of the network. This is to make sure no name clash occurs (in UPPAAL). Default: 6 random characters in ``[A-z0-9]``.
 
     .. note::
 
-        Recommended to leave the following parameters at their default value. If you do, make sure they match those defined in :py:class:`~sentient.Scheduling.NTGA.controlloop` and supply them to :py:class:`~sentient.Scheduling.NTGA.nta`.
+        Recommended to leave the following parameters at their default value. If you do, make sure they match those defined in :py:class:`~ETCetera.Scheduling.NTGA.controlloop` and supply them to :py:class:`~ETCetera.Scheduling.NTGA.nta`.
 
     :param str sync: Synchronization action for requesting access to the communication channel. Default: ``'up'``.
     :param str ack: Synchronization action to indicate that the communication channel is available. Default: ``'ack'``.
@@ -99,9 +99,9 @@ Scheduling with TGAs and UPPAAL Stratego
 Scheduling by solving safety games
 -----------------------------------------
 
-.. py:module:: sentient.Scheduling.fpiter
+.. py:module:: ETCetera.Scheduling.fpiter
 
-.. py:currentmodule:: sentient.Scheduling.fpiter
+.. py:currentmodule:: ETCetera.Scheduling.fpiter
 
 .. py:function:: controlloop(abstraction[, use_bdd=True, maxLate: int = None, maxLateStates: int = None, ratio: int = 1])
 
@@ -132,7 +132,7 @@ Scheduling by solving safety games
     :returns: New traffic model representation
     :rtype: :py:class:`enum.controlloop` or :py:class:`bdd.controlloop`
 
-.. py:currentmodule:: sentient.Scheduling.fpiter.enum
+.. py:currentmodule:: ETCetera.Scheduling.fpiter.enum
 
 .. py:class:: controlloop(abstraction[, maxLate: int = None, maxLateStates: int = None, ratio: int = 1])
 
@@ -140,7 +140,7 @@ Scheduling by solving safety games
 
     .. note::
 
-        This is purely for documentation. Recommended is to construct the control loop using :func:`~sentient.Scheduling.fpiter.controlloop`.
+        This is purely for documentation. Recommended is to construct the control loop using :func:`~ETCetera.Scheduling.fpiter.controlloop`.
 
     :param TrafficModelLinearPETC abstraction: The traffic model of a PETC system.
     :param int maxLate: The maximum amount of ``wait`` actions (:math:`\Delta`) after the triggering deadline can be performed in a row. Default: ``None``.
@@ -267,7 +267,7 @@ Scheduling by solving safety games
 
         :return: :math:`U_c`
 
-.. py:currentmodule:: sentient.Scheduling.fpiter.bdd
+.. py:currentmodule:: ETCetera.Scheduling.fpiter.bdd
 
 .. py:class:: controlloop(abstraction[, name: str = None, maxLate: int = None, maxLateStates: int = None, ratio: int = 1])
 

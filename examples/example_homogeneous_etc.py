@@ -23,7 +23,7 @@ trigger = e1**2 + e2**2 - (x1**2+x2**2)*(0.0127*0.3)**2
 # Order of manifold approximations
 p = 4
     
-import sentient.Abstractions as abstr
+import ETCetera.Abstractions as abstr
 
 #Declare parameters
 state_space_limits = [[-2.5,2.5],[-2.5,2.5]]

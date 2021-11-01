@@ -8,7 +8,7 @@ Traffic Model Examples
 =======================
 Here we discuss examples of how to construct traffic models for linear PETC and nonlinear ETC systems.
 
-Alternative to these approaches, the functions :func:`~sentient.util.construct_linearPETC_traffic_from_file` and :func:`~sentient.util.construct_nonlinearETC_traffic_from_file` can be used to construct the traffic models from a file.
+Alternative to these approaches, the functions :func:`~ETCetera.util.construct_linearPETC_traffic_from_file` and :func:`~ETCetera.util.construct_nonlinearETC_traffic_from_file` can be used to construct the traffic models from a file.
 
 Command Line Interface
 -------------------------
@@ -63,17 +63,17 @@ In the tool, a PETC system is then defined as follows:
     Qtrigger = np.block([[(1-sigma)*np.eye(4), -np.eye(4)], [-np.eye(4), np.eye(4)]])
 
     # Construct object representing the PETC system
-    import sentient.Systems as systems
+    import ETCetera.Systems as systems
 
     plant = systems.LinearPlant(A, B)
     controller = systems.LinearController(K, h)
     trigger = systems.LinearQuadraticPETC(plant, controller, kmax=kmax, Qbar=Qtrigger)
 
-Then a traffic model is generated as follows. More arguments can be specified as described in :class:`sentient.Abstractions.TrafficModelLinearPETC`.
+Then a traffic model is generated as follows. More arguments can be specified as described in :class:`ETCetera.Abstractions.TrafficModelLinearPETC`.
 
 .. code-block:: python
 
-    import sentient.Abstractions as abstr
+    import ETCetera.Abstractions as abstr
 
     traffic = abstr.TrafficModelLinearPETC(trigger)
     regions, transitions = traffic.create_abstraction()
@@ -88,7 +88,7 @@ Alternatively, the regions/transitions can also be accessed separately:
     transitions = traffic.transitions
     # Returns: {((2,), 1): {(1,), (2,), (3,)}, ((2,), 2): {(2,), (5,), (4,), (1,), (3,)}, ...}
 
-This will instead cause the regions/transitions to be computed on first access (after caches are reset by for instance :func:`~sentient.Abstractions.TrafficModelLinearPETC.refine`).
+This will instead cause the regions/transitions to be computed on first access (after caches are reset by for instance :func:`~ETCetera.Abstractions.TrafficModelLinearPETC.refine`).
 Use
 
 .. code-block:: python
@@ -129,7 +129,7 @@ The system is defined as follows (with controller in etc form already):
 .. code-block:: python
 
     import sympy
-    import sentient.util as utils
+    import ETCetera.util as utils
 
     # Define
     state_vector = x1, x2, e1, e2 = sympy.symbols('x1 x2 e1 e2')
@@ -157,7 +157,7 @@ These dynamics are not yet homogeneous, however they are automatically homogeniz
 
 .. code-block:: python
 
-    import sentient.Abstractions as abstr
+    import ETCetera.Abstractions as abstr
 
     traffic = abstr.TrafficModelNonlinearETC(dynamics, trigger, state_vector, state_space_limits=state_space_limits, grid_points_per_dim=grid_points_per_dim, partition_method='manifold')
     regions, transitions = traffic.create_abstraction()
@@ -201,7 +201,7 @@ In the two following examples, two identical linear PETC systems are used. These
 
 .. code-block:: python
 
-    import sentient.Abstractions as abstr
+    import ETCetera.Abstractions as abstr
     traffic_petc = abstr.TrafficModelLinearPETC.from_bytestream_file('traffic_petc.pickle')
 
 To determine which of the scheduling algorithms should be used see ...
@@ -214,7 +214,7 @@ First both traffic models are converted:
 
 .. code-block:: python
 
-    import sentient.Scheduling.NTGA as sched
+    import ETCetera.Scheduling.NTGA as sched
     cl1 = sched.controlloop(traffic_petc)
     cl2 = sched.controlloop(traffic_petc)
 
@@ -243,7 +243,7 @@ Similar to before, first both traffic models are converted:
 
 .. code-block:: python
 
-    import sentient.Scheduling.fpiter as sched
+    import ETCetera.Scheduling.fpiter as sched
     # For the example do not use BDDs to represent the models
     cl1 = sched.controlloop(traffic_petc, use_bdd=False)
     cl2 = sched.controlloop(traffic_petc, use_bdd=False)

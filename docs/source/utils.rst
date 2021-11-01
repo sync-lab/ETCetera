@@ -3,7 +3,7 @@
 Utils
 ======
 
-.. py:module:: sentient.util
+.. py:module:: ETCetera.util
 
 .. py:function:: construct_linearPETC_traffic_from_file(file_name)
 

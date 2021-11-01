@@ -226,7 +226,7 @@ requires = [
 ]
 
 setup(
-    name='sentient',
+    name='ETCetera',
     cmdclass={
         'install': CustomInstallCommand
     },

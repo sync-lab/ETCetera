@@ -3,8 +3,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from config import root_path
-from sentient.Abstractions import TrafficModelLinearPETC
-from sentient.Scheduling.fpiter import controlloop
+from ETCetera.Abstractions import TrafficModelLinearPETC
+from ETCetera.Scheduling.fpiter import controlloop
 
 large_sys_file = os.path.join(root_path, 'tests/scheduling/files/_large_linpetc_sys_tr.txt')
 
