@@ -23,7 +23,7 @@ if __name__ == "__main__":
     system_type = args.system_type.lower()
     input_file = args.input_file
 
-    if system_type not in {'linear', 'non-linear', 'nonlinear'}:
+    if system_type not in {'linear', 'non-linear', 'nonlinear', 'general'}:
         print(f'{system_type} is not a valid system type.')
         parser.print_help()
         sys.exit(os.EX_IOERR)
