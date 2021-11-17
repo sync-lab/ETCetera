@@ -10,6 +10,7 @@ import itertools
 import copy
 import tqdm
 import logging
+import os
 from functools import cached_property
 from joblib import Parallel, delayed
 
@@ -23,7 +24,7 @@ from ETCetera.Abstractions.NonlinearETC.utils.regions_lib import *
 from ETCetera.exceptions import *
 import ETCetera.util as util
 
-from config import smt_path, dreach_path, dreal_path, flowstar_path
+from config import smt_path, dreach_path, dreal_path, flowstar_path, save_path
 
 class TrafficModelNonlinearETC(Abstraction):
     """
@@ -361,8 +362,9 @@ class TrafficModelNonlinearETC(Abstraction):
             plt.legend(loc='upper left', fontsize='xx-large')
             plt.xticks(ticks, tick_labels)
             plt.ylabel('Seconds', fontsize=18)
-            plt.savefig('nl_traffic_model_timing_bounds.pdf')
+            plt.savefig(os.path.join(save_path, 'nl_traffic_model_timing_bounds.pdf'))
             plt.show()
+            plt.clf()
 
         if plot_transitions:
             X = np.arange(len(self.Regions))
@@ -383,8 +385,9 @@ class TrafficModelNonlinearETC(Abstraction):
             plt.scatter(X, Y, transit[X, Y], c='b', marker='.')
             plt.xlabel('From', fontsize=18)
             plt.ylabel('To', fontsize=18)
-            plt.savefig('nl_traffic_model_transitions.pdf')
+            plt.savefig(os.path.join(save_path, 'nl_traffic_model_transitions.pdf'))
             plt.show()
+            plt.clf()
 
     """ Implemented Abstract Methods  """
     def _create_automaton(self):

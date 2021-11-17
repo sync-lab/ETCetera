@@ -17,13 +17,11 @@ import sympy
 __TEST__ = False
 _QCQP_TOLERANCE = 1e-4
 _SSC_MAX_ITERS = 500000#30000  # Reaching maximum number of iterations is bad.
-_SSC_MAX_ATTEMPTS = 20#10  # Number of times to try the SDP problem in inaccurate.
-# Should avoid it at all cost. Increase this number if inaccurate results
-# are obtained.
+_SSC_MAX_ATTEMPTS = 20#10  # Number of times to try the SDP problem if inaccurate.
 
 
-
-
+class ETCOptimError(Exception):
+    pass
 
 '''Z3 <--> sympy'''
 
@@ -216,7 +214,7 @@ class QuadraticForm:
             if 'innacurate' in prob.status:
                 logging.warning('Problem status is %s', prob.status)
             else:
-                raise ETCUtilError(
+                raise ETCOptimError(
                     'This shouldn''t be happening. Problem status is %s',
                     prob.status)
 
@@ -417,24 +415,15 @@ class QuadraticProblem():
 
     def solve(self):
         if self.solver=='sdr':
-            n_tries = 0
-            warnings.filterwarnings('error')
-            while n_tries < _SSC_MAX_ATTEMPTS:
-                try:
-                    self.problem.solve(eps=_QCQP_TOLERANCE, max_iters=_SSC_MAX_ITERS,
-                                  verbose=__TEST__)
-                except KeyboardInterrupt:
-                    raise
-                except:
-                    n_tries += 1
-                else:
-                    break
-                # if 'inaccurate' not in self.problem.status:
-                #     break
-                n_tries += 1
+            warnings.filterwarnings('ignore', 'Solution may be inaccurate. Try another solver,*')
 
-            if n_tries >= _SSC_MAX_ATTEMPTS:
-                raise Warning(f'After {n_tries} tries, the QCQP (tol. {_QCQP_TOLERANCE}, max. iter. {_SSC_MAX_ITERS})  still remains inaccurate.')
+            n_tries = 0
+            while n_tries < _SSC_MAX_ATTEMPTS:
+                self.problem.solve(eps=_QCQP_TOLERANCE, max_iters=_SSC_MAX_ITERS,
+                              verbose=__TEST__)
+                if 'inaccurate' not in self.problem.status:
+                    break
+                n_tries += 1
 
             # print(prob.status)
             if 'optimal' in self.problem.status:
@@ -443,27 +432,14 @@ class QuadraticProblem():
             elif 'unbounded' in self.problem.status:
                 warnings.warn(f'SDR gave {self.problem.status}!')
             elif 'infeasible' not in self.problem.status:
-                raise ETCUtilError(
+                raise ETCOptimError(
                     'Some unknown exception happened! The semi-definite'
                     ' relaxation problem should be either feasible or'
                     ' infeasible.  If you are here that means it was neither.'
                     '  Possibily, the problem is numerically ill conditioned'
                     ' and failed.')
 
-            n_tries = 0
-            while n_tries < _SSC_MAX_ATTEMPTS:
-                try:
-                    self.problem.solve()
-                except KeyboardInterrupt:
-                    raise
-                except:
-                    n_tries += 1
-                else:
-                    break
-            if n_tries >= _SSC_MAX_ATTEMPTS:
-                raise Warning(f'After {n_tries}, the QCQP still remain inaccurate.')
-
-
+            self.problem.solve()
             self.feasible = 'optimal' in self.problem.status \
                 or ('inaccurate' in self.problem.status and 'unbounded'
                     not in self.problem.status)
@@ -472,14 +448,14 @@ class QuadraticProblem():
             result_value = 0
             counter = 0
             while result_value == 0 and counter <= 10:
-                self.problem.set('timeout', 60000*(counter + 1))
+                #self.problem.set('timeout', 60000*(counter + 1))
                 result = self.problem.check()
                 # print(result)
                 result_value = result.r
                 counter += 1
 
             if result_value == 0:
-                error = ETCUtilError('Z3 failed to provide an answer!')
+                error = ETCOptimError('Z3 failed to provide an answer!')
                 error.problem = self.problem
                 raise error
 
@@ -627,5 +603,7 @@ if __name__ == '__main__':
     Q1 = QuadraticForm(np.array([[1, 0], [0, 1]]))
     Q2 = QuadraticForm(np.array([[1, 0], [0, 0]]), np.zeros((2,)), -1)
     Q3 = QuadraticForm(np.array([[0, 0], [0, 1]]), np.zeros((2,)), -1)
-    prob = sdr_problem(Q1, {Q2, Q3})
+    prob = QuadraticProblem({Q2, Q3}, objective=Q1)
     prob.solve()
+    probz3 = QuadraticProblem({Q2, Q3}, solver='z3', unit_ball=True)
+    probz3.solve()

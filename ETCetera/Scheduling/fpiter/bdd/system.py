@@ -393,7 +393,7 @@ class system(abstract_system):
 
         import matplotlib.pyplot as plt
 
-        name = ''
+        name = 'safety_scheduler_'
         if not use_scheduler:
             name = 'no_scheduler_'
 
@@ -403,14 +403,16 @@ class system(abstract_system):
             plt.gca().set_prop_cycle(None)
             plt.plot(dur, xhat[i][0:len(dur)])
             plt.title(f'Controlloop {i + 1}: $x(t)$ and $x_e(t)$.')
-            plt.savefig(f'{name}simulation_Controlloop_{i+1}_states.pdf')
+            plt.savefig(os.path.join(save_path, f'{name}simulation_Controlloop_{i+1}_states.pdf'))
             plt.show()
+            plt.clf()
 
         for i in range(0, self.ns):
             plt.plot(dur, u_hist[i][0:len(dur)])
             plt.title(f'Controlloop {i + 1}: $u(t)$.')
-            plt.savefig(f'{name}simulation_Controlloop_{i + 1}_inputs.pdf')
+            plt.savefig(os.path.join(save_path, f'{name}simulation_Controlloop_{i + 1}_inputs.pdf'))
             plt.show()
+            plt.clf()
 
         for i in range(0, self.ns):
             plt.plot(TriggerTimes[i], i * np.ones(len(TriggerTimes[i])), 'x')
@@ -422,13 +424,15 @@ class system(abstract_system):
 
         plt.title('Trigger times')
         plt.yticks(range(0, self.ns), [f'Controlloop {i}' for i in range(1, self.ns + 1)])
-        plt.savefig(f'{name}simulation_trigger_events.pdf')
+        plt.savefig(os.path.join(save_path, f'{name}simulation_trigger_events.pdf'))
         plt.show()
+        plt.clf()
 
         for i in range(0, self.ns):
             plt.plot(dur, regions[i][0:len(dur)])
 
         plt.title('Traffic Model Regions')
         plt.legend([f'Controlloop {i}' for i in range(1, self.ns + 1)], loc='upper left')
-        plt.savefig(f'{name}simulation_traffic_model_regions.pdf')
+        plt.savefig(os.path.join(save_path, f'{name}simulation_traffic_model_regions.pdf'))
         plt.show()
+        plt.clf()
