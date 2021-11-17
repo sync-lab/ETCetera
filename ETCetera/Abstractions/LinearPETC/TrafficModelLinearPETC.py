@@ -566,7 +566,7 @@ class TrafficModelLinearPETC(Abstraction):
         return strat, trs
 
     # TODO: When symbolic works also make sure this works
-    # @symbolic_decorator
+    @symbolic_decorator
     def refine(self, i=1) -> None:
         self.depth += i
         # If regions are not yet generated -> do more refinements
@@ -597,7 +597,7 @@ class TrafficModelLinearPETC(Abstraction):
         self._transition = {}
 
     # TODO: When symbolic works also make sure this works
-    # @symbolic_decorator
+    @symbolic_decorator
     def generate_regions(self):
         # if self.symbolic:
         #     self._convert_MQP_to_symbolic()
@@ -1447,7 +1447,7 @@ class TrafficModelLinearPETC(Abstraction):
         return out(exists, inside, marginal)
 
     # TODO: When symbolic works also make sure this works
-    # @symbolic_decorator
+    @symbolic_decorator
     def _build_transition(self):
         """Build the transition relation.
 
