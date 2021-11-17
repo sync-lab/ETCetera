@@ -415,6 +415,8 @@ class QuadraticProblem():
 
     def solve(self):
         if self.solver=='sdr':
+            warnings.filterwarnings('ignore', 'Solution may be inaccurate. Try another solver,*')
+
             n_tries = 0
             while n_tries < _SSC_MAX_ATTEMPTS:
                 self.problem.solve(eps=_QCQP_TOLERANCE, max_iters=_SSC_MAX_ITERS,
