@@ -195,18 +195,19 @@ class TrafficAutomaton:
         self.max_vs = vs_array
 
     def generate_min_avg_cycle_per_state(self):
-        max_v = self.max_v
-        max_vs = self.max_vs
+        if self.min_v is None:
+            self.minimum_average_cycle()
+        if self.CG is None:
+            self.generate_condensation_graph()
 
-        self.G.ep.weight.a = -self.G.ep.weight.a
-        self.generate_max_avg_cycle_per_state()
-        self.min_v = -self.max_v
-        self.min_vs = -self.max_vs
-        self.G.ep.weight.a = -self.G.ep.weight.a
+        # Generate minimum average cycle per SCC
+        w = -self.min_v
+        w_comp = max_reachable_node_dag(self.CG, w)
 
-        # Recover max values
-        self.max_v = max_v
-        self.max_vs = max_vs
+        # Value of state... first sort back to the order of components
+        w_comp = np.array([x[1] for x in sorted(zip(self.comp_map.a, w_comp.a))])
+        vs_array = w_comp[self.comp.a]
+        self.min_vs = -vs_array
 
     def maximum_average_cycle(self):
         min_v = self.min_v
@@ -255,6 +256,9 @@ class TrafficAutomaton:
         else:
             val = max(max(r) for r in self.regions)+1  # kbar + 1
 
+        # Save maximal weight of the whole graph
+        w_max = max(self.G.ep.weight.a)
+
         val_list = []
         full_val_list = []
         cycle_list = []
@@ -297,7 +301,10 @@ class TrafficAutomaton:
 
             else:  # Unfilter and move on
                 self.G.set_vertex_filter(None)
-                full_val_list.append(0.0)
+
+                # Default value for acyclic components should be larger than
+                # the global maximal weight (inf would also work)
+                full_val_list.append(w_max + 1)
 
         cycle_regions = [self.regions[int(x)] for x in cycle]
         behavioral_cycle = tuple(r[0] for r in cycle_regions)
@@ -490,7 +497,7 @@ def max_reachable_node_dag(G, w):
 
     class Visitor(gt.DFSVisitor):
         def __init__(self, w):
-            self.w = G.new_vertex_property('float',w)
+            self.w = G.new_vertex_property('float', w)
             self.s = 0
         def discover_vertex(self, u):
             self.s = u
@@ -502,24 +509,6 @@ def max_reachable_node_dag(G, w):
     visitor = Visitor(w.copy())
     gt.dfs_search(G, visitor=visitor)
     return visitor.w
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
