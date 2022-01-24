@@ -57,7 +57,7 @@ def minimize_alternating_simulation_equivalence(S, H, X0):
     Sr = remove_controller_actions(SQ, RQ)
 
     # Steps 3 and 4 are done together for efficiency
-    logging.info('Removing irrational environment actions and unreachable'
+    logging.info('Removing irrational environment actions and inaccessible'
                  ' states')
     X0r = remove_initial_states(Sr, RQ, X0Q)
     Sr = delete_transitions(Sr, simulated, X0r)
@@ -396,7 +396,7 @@ def delete_transitions(S, simulated, X0):
         else:
             l.pop(0)
 
-    ''' Delete unreachable states '''
+    ''' Delete inaccessible states '''
     for x in simulated.keys():  # simulated.keys() is just the original X
         if x not in visited:
             S.pop(x)
