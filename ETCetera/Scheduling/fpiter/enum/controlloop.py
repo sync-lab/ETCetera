@@ -596,8 +596,7 @@ class controlloop:
 
         # Minimize system
         # Hrel = {('T', 'T'), ('W','W'), ('T','W')}
-        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)#,
-                                                                  #Hrel=Hrel)
+        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)
 
         # Rename states
         names = {q:next(x for x in q) for q in Sr}
@@ -617,5 +616,5 @@ class controlloop:
         self._outputs = {y:i for i,y in enumerate(self.outputs)}
         self._clear_cache()
 
-    def stats(self, x0=set()):
-        return stats(self.transitions, x0)
+    def stats(self):
+        return stats(self.transitions, self._initial)
