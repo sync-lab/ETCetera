@@ -99,6 +99,10 @@ def maximal_alternating_simulation_relation(S, H, S2=None, H2=None):
         subset of X x X2.
 
     """
+
+    # TODO: implement Chatterjee's O(m^2) algorithm. Currently this is very
+    # bad and happens to be the whole implementation's bottleneck...
+
     if S2 is None:
         S2 = S
         H2 = H
@@ -169,114 +173,141 @@ def is_alternating(xa, xb, R, Sa, Sb):
     return True
 
 
-def make_quotient(S, H, R, X0=None):
-    S0 = {x:set() for x in S} #dictionary, key and its corresponding items are equivalent
-    for (x,y) in R: #looks for symmetric entries and appends states equivalent to x to the list indexed by x
+def make_quotient(S, H, R, X0):
+    """Make quotient system of (S,H,X0) given the maximal alteranting
+    simulation relation R from (S,H,X0) to itself.
+
+
+    Parameters
+    ----------
+    S : dictionaty of dictionaries X -> (U -> 2^X)
+        Function mapping states to a function mapping inputs to state sets.
+        This is a convenient way of describing the transition function for
+        our implementation. Every state in X must be in S, even if its value
+        is an empty dictionary (i.e., S.keys() must return the whole state set)
+    H : dictionary (X -> Y)
+        Function mapping states to outputs
+    R : set
+         Maximal alternating simulation relation from (S,H) to itself. A
+         subset of X^2.
+    X0 : set (subset of X)
+        Initial state set.
+
+    Returns
+    -------
+    SQ : dictionaty of dictionaries Q -> (U -> 2^Q)
+        Transition function of the quotient system (whose state set is Q)
+    HQ : dictionary (Q -> Y)
+        Function mapping quotient states to outputs
+    simulated : dictionary (X -> 2^X)
+        simulated[x] gives the set of states that are strictly alternatingly
+        simulated by x. This is used in the other steps of the minimization
+        algorithm, but cheaper to extract here.
+    RQ : set
+        Maximal alternating simulation relation from (SQ,HQ,Q0) to itself.
+        RQ is a partial order.
+    EC : dictionary (X -> 2^X)
+        Map from x to its equivalence class.
+    Q0 : set
+        Initial state set of the quotient system,
+
+    """
+
+    # Build the equivalence classes (which comprise the quotient state set)
+    # (x,y) are equivalent iff (x,y) in R and (y,x) in R
+    EC = {x:set() for x in S}
+    for (x,y) in R:
         if (y,x) in R:
-            S0[x].add(y)
+            EC[x].add(y)
 
     # Freeze sets
-    S0 = {x:frozenset(val) for x, val in S0.items()}
+    EC = {x:frozenset(val) for x, val in EC.items()}
 
-    # Create quotient set and output map
-    Q = set(S0.values())
-
+    # Create quotient state set, output map, initial set
+    Q = set(EC.values())
     HQ = {q : H[next(x for x in q)] for q in Q}
-    if X0:
-        X0Q = {S0[x] for x in X0}
-    else:
-        X0Q = None
+    Q0 = {EC[x] for x in X0}
 
-    # AQ is the quotient system. Initialize it with quotient states.
+    # SQ is the quotient system. Initialize it with quotient states.
     SQ = {q:dict() for q in Q}
 
-    # Populate transitions
+    # Populate transitions: every (x,u,x') gives ([x],u,[x']) in the quotient
+    # transition system.
     for x, tran in S.items():
-        q = S0[x]
+        q = EC[x]
         ptran = dict()
         for a, post in tran.items():
             # Get corresponding quotient states
-            ptran[a] = {S0[xp] for xp in post}
+            ptran[a] = {EC[xp] for xp in post}
         SQ[q] = ptran
 
-    # Now create a dictionary of simulated states
-    # simulated[q] = set of states that are strictly simulated by states q.
-
+    # Now create the final maximal alternating simulation relation from the
+    # quotient system to itself, and a dictionary of simulated states
+    # on the original state space.
     simulated = {q:set() for q in Q}
     RQ = set()
     for q in Q:
         for (x,y) in R:
             if x in q:
-                RQ.add((q, S0[y]))
+                RQ.add((q, EC[y]))
                 if y not in q:
-                    simulated[q].add(S0[y])
-    return SQ, HQ, simulated, RQ, S0, X0Q
+                    simulated[q].add(EC[y])
 
+    return SQ, HQ, simulated, RQ, EC, Q0
 
-def make_quotient_bisim(S, H, R, X0=None):
-    S0 = {x:set() for x in S} #dictionary, key and its corresponding items are equivalent
-    for (x,y) in R: #looks for symmetric entries and appends states equivalent to x to the list indexed by x
-        if (y,x) in R:
-            S0[x].add(y)
-
-    # Freeze sets
-    S0 = {x:frozenset(val) for x, val in S0.items()}
-
-    # Create quotient set and output map
-    Q = set(S0.values())
-
-    HQ = {q : H[next(x for x in q)] for q in Q}
-    if X0:
-        X0Q = {S0[x] for x in X0}
-    else:
-        X0Q = None
-
-    # AQ is the quotient system. Initialize it with quotient states.
-    SQ = {q:dict() for q in Q}
-
-    for q in Q:
-        candidates = {x: set() for x in q}
-        for x in q:
-            for u,xp in S[x].items():
-                for xpp in xp:
-                    candidates[x].add((u,S0[xpp]))
-        print(candidates)
-        good = set.intersection(*candidates.values())
-        ptran = dict()
-        for (u,post) in good:
-            try:
-                ptran[u].add(post)
-            except KeyError:
-                ptran[u] = {post}
-        SQ[q] = ptran
-
-
-    # Now create a dictionary of simulated states
-    # simulated[q] = set of states that are strictly simulated by states q.
-
-    simulated = {q:set() for q in Q}
-    RQ = set()
-    for q in Q:
-        for (x,y) in R:
-            if x in q:
-                RQ.add((q, S0[y]))
-                if y not in q:
-                    simulated[q].add(S0[y])
-    return SQ, HQ, simulated, RQ, S0, X0Q
 
 def remove_controller_actions(S, R):
+    """Remove irrational controller actions from S.
+
+    Given a maximal alternating simulation relation R from S to itself, remove
+    irrational controller actions from S. That is, for every x and every a,b
+    in S[x], s.t. a != b, if for every xb in S[x][b] there exists an
+    xa in S[x][a] s.t. (xa,xb) in R, then delete a from S[x].
+
+
+    Parameters
+    ----------
+    S : dictionaty of dictionaries X -> (U -> 2^X)
+        Function mapping states to a function mapping inputs to state sets.
+        This is a convenient way of describing the transition function for
+        our implementation. Every state in X must be in S, even if its value
+        is an empty dictionary (i.e., S.keys() must return the whole state set)
+    R : set
+         Maximal alternating simulation relation from S to itself. A
+         subset of X^2.
+
+    Returns
+    -------
+    S : dictionaty of dictionaries X -> (U -> 2^X)
+        Input S with irrational actions removed.
+
+    """
+
+    # TODO: This is a naive implementation, there may be better approaches.
+
+    # The first loop marks actions to be removed state by state
     rem_u = {x:set() for x in S}  # Actions marked to be removed
     for x, tran in S.items():
+        # Loop over permuations (so that a != b)
         for ((a, posta),(b, postb)) in permutations(tran.items(),2):
             if a in rem_u[x] or b in rem_u[x]:  # already marked for removal
+                # If a is already marked for removal, go to the next one.
+                # If b is marked for removal, b is irrational. Hence we don't
+                # have to check if a is irrational compared to b. We will
+                # remove a after comparing to another action if a is indeed
+                # irrational. Skipping a here is important in case a and b are
+                # equivalently rational and b was marked for removal after
+                # being comapred to a.
                 continue
+            # a and b have not been marked yet.
+            # verify if a is irrational compared to b.
             for xb in postb:
                 if not any((xa,xb) in R for xa in posta):
                     break  # for this xb, no xa...
             else: # for every xb there is xa!
                 rem_u[x].add(a)
 
-    # Now remove actions
+    # Now remove actions that were marked
     for x, us in rem_u.items():
         for u in us:
             del S[x][u]
@@ -285,6 +316,19 @@ def remove_controller_actions(S, R):
 
 
 def remove_initial_states(S, R, X0):
+    """Remove initial states given maximal alternating simulation relation R.
+
+
+    This is part of step 3 but done in a different function. For every two
+    initial states x0, x0', if (x0, x0') in R we can remove x0' from X0 (x0'
+    is a younger sibling of x0).
+
+    See also
+    --------
+    delete_transitions
+
+    """
+
     remx0 = set()
     for x1, x2 in permutations(X0, 2):
         if (x1,x2) in R:
@@ -293,43 +337,75 @@ def remove_initial_states(S, R, X0):
 
 
 def delete_transitions(S, simulated, X0):
-    ''' Main steps to remove transitions'''
-    l = list(X0)
-    visited = set()
+    """Remove irrational transitions and inaccessible states from S.
+
+    The maximal simulation relation is given here as the set-valued function
+    simulated[x] (see make_quotient) which gives the younger siblings of x.
+    If x2 in simulated[x1], then for every a in U and x' in Pre(x1,a)
+    intersection Pre(x2,a), remove transition (x',a,x2) from the system.
+    This is because, if the system is at x', if the controller chooses action
+    a, moving to x2 instead of x1 is irrational for the environment.
+
+    Then, this function also applies step 4, i.e., remove inaccessible states.
+    This is cheaper to do inside this function as the search for irrational
+    transitions gives the list of all visited states; states will only be not
+    visited if they are in fact inaccessible after removing these transitions.
+
+
+    Parameters
+    ----------
+    S : dictionaty of dictionaries X -> (U -> 2^X)
+        Function mapping states to a function mapping inputs to state sets.
+        This is a convenient way of describing the transition function for
+        our implementation. Every state in X must be in S, even if its value
+        is an empty dictionary (i.e., S.keys() must return the whole state set)
+    ssimulated : dictionary (X -> 2^X)
+        simulated[x] gives the set of states that are strictly alternatingly
+        simulated by x.
+    X0 : set (subset of X)
+        Initial state set.
+
+    Returns
+    -------
+    S : dictionaty of dictionaries X -> (U -> 2^X)
+        Input S with irrational transitions and inaccessible states removed.
+
+    """
+
+    ''' Main step to remove transitions: starting at some x in X0, visit states
+    and remove outbound irrational transitions; then visit the states that
+    are 1-step reachable from x that have not been visited yet.'''
+    l = list(X0)  # States marked to be visited
+    visited = set()  # Visited states
     while len(l):
         # Deleting transitions that lead to a state when there is another
         # transition on same label leading to state that simulates it
         # alternatingly
-        b = l[0]
-        #print("list = " + str(l))
-        if b not in visited:
-            l.pop(0)
-            visited.add(b)
-            for label, post_states in S[b].items():
-                #print("label = " + str(label))
-                #print("post_states = " + str(post_states))
-                # Remove simulated states
-                for aaa in post_states:
-                    S[b][label] = S[b][label] - simulated[aaa]
-                #print("Pb = "+str(S[b][label]))
+        x = l[0]
+        if x not in visited:
+            l.pop(0)  # Remove from the list of states to visit
+            visited.add(x)
+            for u, post_states in S[x].items():
+                # Remove simulated states from the
+                for y in post_states:
+                    S[x][u] = S[x][u] - simulated[y]
                 # Mark remaining post states to visit
-                for p in S[b][label]:
-                    if p not in visited:
-                        l.append(p)
-                        # print("append = " + str(p))
+                for y in S[x][u]:
+                    if y not in visited:
+                        l.append(y)
         else:
             l.pop(0)
 
     ''' Delete unreachable states '''
-    for aaa in simulated.keys():
-        if aaa not in visited:
-            S.pop(aaa)
+    for x in simulated.keys():  # simulated.keys() is just the original X
+        if x not in visited:
+            S.pop(x)
 
     return S
 
 
 def stats(S, X0):
-    ''' Compute statistics '''
+    ''' Compute statistics (system's size)' '''
     num_states = len(S.keys())
     num_initial_states = len(X0)
     num_transitions = sum(1 for x,y in S.items()
