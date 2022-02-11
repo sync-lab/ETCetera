@@ -549,10 +549,17 @@ class TrafficModelLinearPETC(Abstraction):
         _ = self.regions  # Ensure that regions have been created
 
         g1 = gm.TrafficGameAutomaton(self.transitions)
+        self.game_automaton = g1
+
         logging.info('Solving mean-payoff game')
         nu, sigma, W0, W1 = gm.solve_mean_payoff_game(g1.G, g1.G.ep.weight,
                                                       g1.V0, g1.V1,
                                                       True)
+        self.game_automaton.game_results = {'nu': nu,
+                                            'sigma': sigma,
+                                            'W0': W0,
+                                            'W1': W1}
+
         strat = {}
         I1 = len(g1.V0)
         for i in g1.V0:
@@ -602,7 +609,10 @@ class TrafficModelLinearPETC(Abstraction):
         # if self.symbolic:
         #     self._convert_MQP_to_symbolic()
 
-        for d in range(self.depth):
+        depths = tqdm(range(self.depth), desc='Loop over depth')
+        for d in depths:
+            if self.stop_if_mace_equivalent:
+                depths.set_postfix(SAIST=self.limavg)
             logging.info(f'Depth: {d + 1}/{self.depth}')
             self._d = d
             s = self._refine_regions()
@@ -1256,7 +1266,7 @@ class TrafficModelLinearPETC(Abstraction):
                     return False
         return True
 
-    def _verify_candidates(self, regions):
+    def _verify_candidates(self, regions, tqdmize=True):
         """Verify the existence of a given list of inter-event sequences.
 
 
@@ -1298,7 +1308,7 @@ class TrafficModelLinearPETC(Abstraction):
                 for l in range(minL, maxL+1):
                     rl = set(x for x in regions if len(x) == l)
                     if len(rl) > 0:
-                        o, e, m, i = self._verify_candidates(rl)
+                        o, e, m, i = self._verify_candidates(rl, tqdmize=False)
                         out_set.update(o)
                         extended_set.update(e)
                         marginal_set.update(m)
@@ -1307,8 +1317,16 @@ class TrafficModelLinearPETC(Abstraction):
                                  ["out", "extended", "marginal", "initial"])
                 return out(out_set, extended_set, marginal_set, initial_set)
 
-        results = Parallel(n_jobs=NUM_CORES)(
-            delayed(self._verify_sequence)(r) for r in tqdm(regions, desc='Loop over regions'))
+
+        if tqdmize:
+            gen = tqdm(regions, desc='Loop over regions')
+        else:
+
+            gen = regions
+
+        results = Parallel(n_jobs=NUM_CORES)(delayed(self._verify_sequence)(r)
+                                             for r in gen)
+
         # results = [self._verify_sequence(r) for r in tqdm(regions)]
 
         for r, result in zip(regions, results):

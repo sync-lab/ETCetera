@@ -17,17 +17,17 @@ import ETCetera.Scheduling.fpiter as sched
 cl1 = sched.controlloop(traffic, use_bdd=False)
 cl2 = sched.controlloop(traffic, use_bdd=False)
 S = sched.system([cl1, cl2])
-Ux, _ = S.generate_safety_scheduler()  # Scheduler
-print(str(Ux)[0:100])
+Uxe, Qe = S.generate_safety_scheduler()  # Scheduler
+print(str(Uxe)[0:100])
 
 # With BDDs
 cl1 = sched.controlloop(traffic, use_bdd=True)
 cl2 = sched.controlloop(traffic, use_bdd=True)
 S = sched.system([cl1, cl2])
-Ux, _ = S.generate_safety_scheduler()  # Scheduler
+Ux, Q = S.generate_safety_scheduler()  # Scheduler
 
 # With Late triggers
 cl1 = sched.controlloop(traffic, use_bdd=True)
 cl2 = sched.controlloop(traffic, use_bdd=True, maxLate=2, ratio=2)
 S = sched.system([cl1, cl2])
-Ux, _ = S.generate_safety_scheduler()  # Scheduler
+Uxl, Ql = S.generate_safety_scheduler()  # Scheduler

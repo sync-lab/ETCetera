@@ -12,7 +12,7 @@ from .controlloop import controlloop
 
 class system(abstract_system):
 
-    def __init__(self, cl: List[controlloop], trap_state=False):
+    def __init__(self, cl: List[controlloop], trap_state=False, name=None):
         if not all([type(i) == controlloop for i in cl]):
             print('All specified controlloops should be of the enumerative type')
             raise ValueError()
@@ -55,16 +55,21 @@ class system(abstract_system):
         self.outputs = self._c_dict([o._outputs for o in self.control_loops])
         self.actions = self._c_dict([o.actions for o in self.control_loops])
         self.output_map = self._c_dict([o.output_map for o in self.control_loops])
+        inits = (o._initial for o in self.control_loops)
+        self.initial = {x for x in itertools.product(*inits)}
 
         self.transitions = {x: {u: set() for u in self.actions} for x in self.states}
         for xxx in self.states:
             for uuu in self.actions:
-                if self._trap_state and uuu.count('t') >= 2:
-                    self.transitions[xxx][uuu].update({'trap'})
-                else:
-                    s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
-                    ls = set(itertools.product(*s))
-                    self.transitions[xxx][uuu].update(ls)
+                try:
+                    if self._trap_state and uuu.count('t') >= 2:
+                        self.transitions[xxx][uuu].update({'trap'})
+                    else:
+                        s = [o.transitions[x][u] for (o, x, u) in zip(self.control_loops, xxx, uuu)]
+                        ls = set(itertools.product(*s))
+                        self.transitions[xxx][uuu].update(ls)
+                except KeyError:
+                    continue
 
         if self._trap_state:
             self.transitions['trap'] = {u: set() for u in self.actions}
@@ -113,7 +118,7 @@ class system(abstract_system):
                 F_new = self.__safety_operator_trap(F_old)
                 it += 1
 
-            if F_old == {}:
+            if F_old == {} or any(x0 not in F_old for x0 in self.initial):
                 return None
 
             return F_old
@@ -131,7 +136,7 @@ class system(abstract_system):
                 F_new = self.__safety_operator(W, F_old)
                 it += 1
 
-            if F_old == {}:
+            if F_old == {} or any(x0 not in F_old for x0 in self.initial):
                 return None
 
             return F_old
@@ -154,7 +159,7 @@ class system(abstract_system):
         for x in c_states:
             for u in self.actions:
                 p = self.transitions[x][u]
-                if len(p) > 0 and set(Z.keys()).issuperset(p):
+                if len(p) > 0 and all(xp in Z for xp in p):
                     U_c[x].add(u)
 
         if not any([s._is_part for s in self.control_loops]):
@@ -185,23 +190,23 @@ class system(abstract_system):
                     return
 
             x0 = [np.array(x) for x in x0]
-        
+
         # Clip Ts such that it becomes a multiple of h
         t = int(Ts/self.h)
         Ts = t*self.h
-        
-        
+
+
         # 3D Matrix storing the evolution of the continuous states over time.
         x = [[np.array(x0i)] for x0i in x0]
         xhat = [[np.array(x0i)] for x0i in x0]
         u_hist = [[] for i in range(0, self.ns)]   # continuous inputs
-        
+
         # Evolution of the traffic model regions over time
         regions = [[cl.abstraction.region_of_state(x0i)] for (x0i, cl) in zip(x0, self.control_loops)]
 
         for i in range(0, self.ns):
             print(f'Controlloop {i} starts in region {regions[i][0]}')
-        
+
         # 3D Matrix storing the evolution of the transitions sytem states over time.
         if self.state2block is None:
             s = [[f"T{'_'.join([str(l) for l in i[0]])}"] for i in regions]
@@ -333,9 +338,8 @@ class system(abstract_system):
         plt.savefig(os.path.join(save_path, f'{name}simulation_traffic_model_regions.pdf'))
         plt.show()
         plt.clf()
-        
-    
-    
+
+
     """ Private Helper Methods """
 
     def __safety_operator_trap(self, Z:dict):
@@ -348,7 +352,7 @@ class system(abstract_system):
                     p = self.transitions[x][uk]
                     if len(p) == 0:
                         continue
-                    elif not set(Z.keys()).issuperset(p):
+                    elif any(xp not in Z for xp in p):  # 200x faster
                         continue
                     else:
                         F.update({x: v})
@@ -370,10 +374,10 @@ class system(abstract_system):
                     p = self.transitions[x][uk]
                     if len(p) == 0:
                         continue
-                    elif not set(Z.keys()).issuperset(p):
+                    elif any(xp not in Z for xp in p):  # 200x faster
                         continue
                     else:
-                        F.update({x: v})
+                        F[x] = v
 
         return F
 

@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import List, Tuple
 import logging
-
+import shortuuid
 
 
 class abstract_system(metaclass=ABCMeta):
@@ -10,10 +10,12 @@ class abstract_system(metaclass=ABCMeta):
     PETC control loops.
     """
 
-    def __init__(self, cl):
+    def __init__(self, cl, trap_state=False, name=None):
         self.control_loops = cl
         self.ns = len(cl)
         self.h = cl[0].h
+        # Used to name exported bdd files
+        self.name = name or f'cl{shortuuid.uuid()[:3]}'
 
 
     """ Partitioning and Refinement Methods """
@@ -121,6 +123,7 @@ class abstract_system(metaclass=ABCMeta):
 
         logging.info("Solving safety game.")
         Z = self.safety_game(W)
+        self._safeset = Z
         if Z is None:
             print("No solution to safety game found.")
             return None, None

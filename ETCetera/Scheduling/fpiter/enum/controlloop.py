@@ -3,6 +3,8 @@ import itertools
 from functools import cached_property
 
 from ETCetera.Abstractions import TrafficModelLinearPETC
+from ETCetera.Systems.Automata.Reduction.altsim \
+    import minimize_alternating_simulation_equivalence, stats
 
 
 class controlloop:
@@ -12,9 +14,10 @@ class controlloop:
     #     if
 
     def __init__(self, abstraction: TrafficModelLinearPETC, maxLate: int = None,
-                 maxLateStates: int = None, ratio: int = 1, label_split_T=True):
+                 maxLateStates: int = None, ratio: int = 1, label_split_T=True,
+                 init_steps: int = None):
 
-        if not isinstance(abstraction, TrafficModelLinearPETC):
+        if 'TrafficModelLinearPETC' not in str(type(abstraction)):
             print("Can currently only construct from 'TrafficModelLinearPETC' objects.")
             raise NotImplementedError
 
@@ -143,12 +146,36 @@ class controlloop:
                         print(f'State W{loc_i},{u-1} not in transitions?????')
                         # print(states)
 
+        # Work out initialization
+        if init_steps is None:
+            init_steps = min(abstraction.K)
+        self._init_steps = init_steps
+
+        # Create init_steps states 'WI0, WI1, ...' to represent initialization.
+        # From each initial step state you can have the first sample (which can
+        # go to any T region) or wait (going to the next initial step state).
+        for i in range(init_steps):
+            x = f'WI{i}'
+            add_state(x, 'W')
+            if i > 0:
+                transitions[f'WI{i-1}']['w'].add(x)
+            for xp in states:
+                if xp[0] == 'T':
+                    transitions[f'WI{i}']['t'].add(xp)
+
+        # Now create initial state set
+        if init_steps == 0:
+            initial = set()  # No specified initial state
+        else:
+            initial = {'WI0'}
+
         # super().__init__(states, actions, transitions, outputs=outputs, output_map=output_map)
         self._states = states
         # self.actions = actions
         self._transitions = transitions
         self._outputs = outputs
         self._output_map = output_map
+        self._initial = initial
 
         # Attribute to store partitioned version
         self._states_part = states
@@ -548,3 +575,46 @@ class controlloop:
             else:
                 self._transitions_aux[s]['w'].add(s)
                 self._transitions_aux[s]['t'].add(s)
+
+    def reduce_altsim(self):
+        S = self.transitions
+        H = self.output_map
+        H = {x:x[0] for x,y in H.items()}
+        if len(self._initial) == 0:
+            X0 = {x for x in H if x[0] == 'T'}
+        else:
+            X0 = self._initial
+
+        # Remove actions with no post
+        dels = set()
+        for x, tran in S.items():
+            for u, post in tran.items():
+                if len(post) == 0:
+                    dels.add((x,u))
+        for x,u in dels:
+            del S[x][u]
+
+        # Minimize system
+        # Hrel = {('T', 'T'), ('W','W'), ('T','W')}
+        Sr, HQ, X0r = minimize_alternating_simulation_equivalence(S, H, X0)
+
+        # Rename states
+        names = {q:next(x for x in q) for q in Sr}
+        Sr = {names[q]:{u: {names[qp] for qp in post}
+                        for u, post in tran.items()}
+              for q,tran in Sr.items()}
+        X0r = {next(x for x in q) for q in X0r}
+        HQ = {names[q]:y for q, y in HQ.items()}
+
+        # Push data back to control loop
+        self._states = {x:i for i,x in enumerate(Sr)}
+        self._transitions = Sr
+        if len(self._initial) > 0:
+            self._initial = X0r
+        self._output_map = HQ
+        self._outputs = {y for y in HQ.values()}
+        self._outputs = {y:i for i,y in enumerate(self.outputs)}
+        self._clear_cache()
+
+    def stats(self):
+        return stats(self.transitions, self._initial)

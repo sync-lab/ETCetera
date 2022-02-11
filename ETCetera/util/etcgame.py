@@ -327,11 +327,6 @@ def solve_mean_payoff_game(G, w, V0, V1,
     if min_value is None:
         min_value = Wmin
 
-    # FIXME: remove
-    Wmin -= 1
-
-    MG = 1
-
     # Create player bool value
     player = G.new_vp('bool', [v in V1 for v in G.iter_vertices()])
 
@@ -344,6 +339,8 @@ def solve_mean_payoff_game(G, w, V0, V1,
     Wpprev = gt.adjacency(G, wprev)
     Wpc = Wp.tocsc()
     Wpcprev = Wpprev.tocsc()
+
+    MG = int(np.sum(np.maximum(-Wc.min(axis=0).data, 0)))
 
     fprev = G.new_vp('int', 0)
 
@@ -361,8 +358,8 @@ def solve_mean_payoff_game(G, w, V0, V1,
     states_without_strategy = len(V0)
     # Main iteration (line 5 of [1])
     num = (Wmax - Wmin) * (farey_length(NV) - 1)
-    with tqdm(total=num) as pbar:
-        for i in range(Wmin, Wmax):  # no reason to be from -W to W
+    with tqdm(total=num, desc='Loop over mean-payoff values') as pbar:
+        for i in range(Wmin, Wmax+1):  # no reason to be from -W to W
             iter_farey = farey(NV)
             N, D = next(iter_farey)
             for NN, DD in iter_farey:
