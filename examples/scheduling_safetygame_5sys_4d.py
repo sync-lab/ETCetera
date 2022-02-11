@@ -22,13 +22,15 @@ traffic2 = abstr.TrafficModelLinearPETC.from_bytestream_file('ifac2.pickle')
 # Scheduling by solving a safety game
 import ETCetera.Scheduling.fpiter as sched
 
+d = 10
+
 # With BDDs
-cl1 = sched.controlloop(traffic1, use_bdd=True)
-cl2 = sched.controlloop(traffic1, use_bdd=True)
-cl3 = sched.controlloop(traffic1, use_bdd=True)
-cl4 = sched.controlloop(traffic1, use_bdd=True)
-cl5 = sched.controlloop(traffic2, use_bdd=True)
-S = sched.system([cl1, cl2, cl3, cl4, cl5])
+cl1 = sched.controlloop(traffic1, use_bdd=True, init_steps=d)
+cl2 = sched.controlloop(traffic1, use_bdd=True, init_steps=d)
+cl3 = sched.controlloop(traffic1, use_bdd=True, init_steps=d)
+cl4 = sched.controlloop(traffic1, use_bdd=True, init_steps=d)
+cl5 = sched.controlloop(traffic2, use_bdd=True, init_steps=d)
+S = sched.system([cl1, cl2, cl3, cl4, cl5], trap_state=False)
 
 now = time.process_time()
 Ux, _ = S.generate_safety_scheduler()  # Scheduler
@@ -37,8 +39,8 @@ print('Elapsed time on synthesis:', elapsed)
 
 
 # With BDDs
-cl6 = sched.controlloop(traffic2, use_bdd=True)
-S2 = sched.system([cl1, cl2, cl3, cl4, cl5, cl6])
+cl6 = sched.controlloop(traffic2, use_bdd=True, init_steps=d)
+S2 = sched.system([cl1, cl2, cl3, cl4, cl5, cl6], trap_state=False)
 S2.bdd.configure(reordering=False)
 
 now = time.process_time()
